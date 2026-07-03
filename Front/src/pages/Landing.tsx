@@ -3,6 +3,7 @@
 // Respeta la paleta del portal (variables de index.css: navy / blue / ink).
 import { useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "../hooks/useMediaQuery";
 
 // ─────────────────────────────────────────────────────────────
 //  Datos de contacto — EDITÁ estos valores con los reales de AMR.
@@ -22,6 +23,7 @@ function scrollTo(id: string) {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const mobile = useIsMobile();
   const [menu, setMenu] = useState(false);
 
   return (
@@ -37,14 +39,20 @@ export default function Landing() {
             </div>
           </div>
 
-          <nav style={navLinks(menu)}>
-            <button style={navLink} onClick={() => { scrollTo("inicio"); setMenu(false); }}>Inicio</button>
-            <button style={navLink} onClick={() => { scrollTo("contacto"); setMenu(false); }}>Contáctanos</button>
-            <button style={navLink} onClick={() => { scrollTo("trabaja"); setMenu(false); }}>Trabajá con nosotros</button>
-            <button style={ingresarBtn} onClick={() => navigate("/login")}>Ingresar al portal</button>
-          </nav>
+          {(!mobile || menu) && (
+            <nav style={navLinks(menu, mobile)}>
+              <button style={navLink} onClick={() => { scrollTo("inicio"); setMenu(false); }}>Inicio</button>
+              <button style={navLink} onClick={() => { scrollTo("contacto"); setMenu(false); }}>Contáctanos</button>
+              <button style={navLink} onClick={() => { scrollTo("trabaja"); setMenu(false); }}>Trabajá con nosotros</button>
+              <button style={ingresarBtn} onClick={() => { setMenu(false); navigate("/login"); }}>Ingresar al portal</button>
+            </nav>
+          )}
 
-          <button style={burger} onClick={() => setMenu((m) => !m)} aria-label="Menú">☰</button>
+          {mobile && (
+            <button style={{ ...burger, display: "block" }} onClick={() => setMenu((m) => !m)} aria-label="Menú">
+              {menu ? "✕" : "☰"}
+            </button>
+          )}
         </div>
       </header>
 
@@ -245,8 +253,16 @@ function ClockIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fi
 const page: CSSProperties = { fontFamily: '"DM Sans", -apple-system, system-ui, sans-serif', color: "var(--ink-900)", background: "var(--canvas)" };
 const nav: CSSProperties = { position: "sticky", top: 0, zIndex: 30, background: "var(--navy-950)", borderBottom: "1px solid oklch(1 0 0 / 0.08)" };
 const navInner: CSSProperties = { maxWidth: 1160, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 };
-function navLinks(open: boolean): CSSProperties {
-  return { display: "flex", alignItems: "center", gap: 6, ...(open ? { position: "absolute", top: 68, left: 0, right: 0, flexDirection: "column", background: "var(--navy-950)", padding: 16, borderBottom: "1px solid oklch(1 0 0 / 0.08)" } : {}) };
+function navLinks(open: boolean, mobile: boolean): CSSProperties {
+  if (!mobile) return { display: "flex", alignItems: "center", gap: 6 };
+  // Móvil: menú desplegable debajo del navbar (no se sale de pantalla)
+  return {
+    display: "flex", flexDirection: "column", alignItems: "stretch", gap: 6,
+    position: "absolute", top: 68, left: 0, right: 0,
+    background: "var(--navy-950)", padding: 16,
+    borderBottom: "1px solid oklch(1 0 0 / 0.08)",
+    ...(open ? {} : { display: "none" }),
+  };
 }
 const navLink: CSSProperties = { background: "transparent", border: 0, color: "var(--blue-300)", fontSize: 14, fontWeight: 500, cursor: "pointer", padding: "8px 12px", borderRadius: 8 };
 const ingresarBtn: CSSProperties = { background: "white", color: "var(--navy-900)", border: 0, borderRadius: 9, padding: "9px 16px", fontSize: 13.5, fontWeight: 600, cursor: "pointer", marginLeft: 6 };

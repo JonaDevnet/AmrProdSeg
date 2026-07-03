@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useIsMobile } from "../hooks/useMediaQuery";
 import { Icon, IconMail, IconLock, IconEye, IconCheck, IconArrowR, IconShield } from "../design/icons";
 
 const loginStyles: Record<string, CSSProperties> = {
@@ -42,6 +43,7 @@ const submitBtn = (loading: boolean): CSSProperties => ({ width: "100%", height:
 export default function Login() {
   const { iniciarSesion } = useAuth();
   const navigate = useNavigate();
+  const mobile = useIsMobile();
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [remember, setRemember] = useState(true);
@@ -65,8 +67,9 @@ export default function Login() {
   };
 
   return (
-    <div style={loginStyles.page}>
-      {/* LEFT — Brand panel */}
+    <div style={{ ...loginStyles.page, ...(mobile ? { gridTemplateColumns: "1fr" } : null) }}>
+      {/* LEFT — Brand panel (se oculta en móvil) */}
+      {!mobile && (
       <aside style={loginStyles.brandSide}>
         <div style={loginStyles.arc} />
         <div style={ring(520, "-180px", "-200px", 0.08)} />
@@ -92,9 +95,10 @@ export default function Login() {
           <span>Mat. SSN nº 80.451</span>
         </div>
       </aside>
+      )}
 
       {/* RIGHT — Form */}
-      <main style={loginStyles.formSide}>
+      <main style={{ ...loginStyles.formSide, ...(mobile ? { padding: "28px 20px" } : null) }}>
         <div style={loginStyles.formTop}>
           ¿No tenés cuenta? &nbsp;
           <a href="#" style={{ color: "var(--blue-600)", fontWeight: 500, textDecoration: "none" }}>Solicitá acceso</a>
