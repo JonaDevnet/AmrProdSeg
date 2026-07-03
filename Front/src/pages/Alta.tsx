@@ -31,7 +31,7 @@ const PERIODO_POLIZA: Record<string, number> = {
   "1 mes (mensual)": 1, "2 meses (bimestral)": 2, "3 meses (trimestral)": 3,
   "4 meses (cuatrimestral)": 4, "6 meses (semestral)": 6, "9 meses": 9, "12 meses (anual)": 12,
 };
-const PERIODO_CUOTAS: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3 };
+const PERIODO_CUOTAS: Record<string, number> = { Una: 1, Dos: 2, Tres: 3 };
 
 const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 

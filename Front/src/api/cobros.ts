@@ -57,3 +57,14 @@ export function imprimirComprobante(id: number): Promise<void> {
 export function imprimirTicket(id: number): Promise<void> {
   return abrirPdf(`/cobros/${id}/ticket/imprimir`, `Ticket-${id}.pdf`);
 }
+
+/** Descarga el comprobante "online" (comprobante + ticket), el mismo PDF que se envía por email/WhatsApp. */
+export async function descargarComprobante(id: number): Promise<void> {
+  const { data } = await api.get<Blob>(`/cobros/${id}/comprobante/descargar`, { responseType: "blob" });
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Comprobante-${id}.pdf`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

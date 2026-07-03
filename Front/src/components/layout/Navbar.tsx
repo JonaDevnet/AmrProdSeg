@@ -158,9 +158,11 @@ export default function Navbar() {
                       onClick={() => { setUserOpen(false); navigate("/companias"); }} />
                   )}
                   {esAdmin && (
-                    <DropItem icon={<IconMail size={15} />} titulo="Configuración" sub="Correo emisor (SMTP)"
-                      onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
+                    <DropItem icon={<IconBan size={15} />} titulo="Registro de movimientos" sub="Eliminaciones y anulaciones"
+                      onClick={() => { setUserOpen(false); navigate("/registro"); }} />
                   )}
+                  <DropItem icon={<IconMail size={15} />} titulo="Configuración de envío" sub="Tu correo y WhatsApp"
+                    onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
                   <DropItem icon={<IconFile size={15} />} titulo="Mis finanzas" sub="Ingresos y egresos (privado)"
                     onClick={() => { setUserOpen(false); navigate("/finanzas"); }} />
                   <DropItem icon={<IconLock size={15} />} titulo="Cambiar mi contraseña"
@@ -229,10 +231,11 @@ export default function Navbar() {
                 <div style={drawerLabel}>Administración</div>
                 <button style={drawerLink(false)} onClick={() => irA("/usuarios")}><IconUsers size={16} />Vendedores</button>
                 <button style={drawerLink(false)} onClick={() => irA("/companias")}><IconBuilding size={16} />Compañías y métodos</button>
-                <button style={drawerLink(false)} onClick={() => irA("/configuracion")}><IconMail size={16} />Configuración</button>
+                <button style={drawerLink(false)} onClick={() => irA("/registro")}><IconBan size={16} />Registro de movimientos</button>
               </>)}
 
               <div style={drawerLabel}>Cuenta</div>
+              <button style={drawerLink(false)} onClick={() => irA("/configuracion")}><IconMail size={16} />Configuración de envío</button>
               <button style={drawerLink(false)} onClick={() => irA("/finanzas")}><IconFile size={16} />Mis finanzas</button>
               <button style={drawerLink(false)} onClick={() => { setMenuOpen(false); setCambiarPass(true); }}><IconLock size={16} />Cambiar contraseña</button>
               <button style={{ ...drawerLink(false), color: "oklch(0.80 0.13 28)" }} onClick={() => { setMenuOpen(false); salir(); }}>

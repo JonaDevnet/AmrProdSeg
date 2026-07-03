@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { polizasPorVencer } from "../api/reportes";
 import { getAnulacionesPendientes, aprobarAnulacion, rechazarAnulacion } from "../api/anulaciones";
+import { getEliminacionesPendientes, aprobarEliminacion, rechazarEliminacion } from "../api/eliminaciones";
 import { useAuth } from "../auth/AuthContext";
 import { IconBell } from "./Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
@@ -24,15 +25,28 @@ export default function NotificacionesBell() {
     enabled: esAdmin,
     staleTime: 60 * 1000,
   });
+  const elim = useQuery({
+    queryKey: ["notif", "eliminaciones-pend"],
+    queryFn: getEliminacionesPendientes,
+    enabled: esAdmin,
+    staleTime: 60 * 1000,
+  });
 
   const items = data ?? [];
   const anulaciones = anul.data ?? [];
-  const total = items.length + anulaciones.length;
+  const eliminaciones = elim.data ?? [];
+  const total = items.length + anulaciones.length + eliminaciones.length;
 
   async function resolver(id: number, aprobar: boolean) {
     if (aprobar) await aprobarAnulacion(id); else await rechazarAnulacion(id);
     qc.invalidateQueries({ queryKey: ["notif", "anulaciones-pend"] });
     qc.invalidateQueries({ queryKey: ["cobros"] });
+  }
+
+  async function resolverElim(id: number, aprobar: boolean) {
+    if (aprobar) await aprobarEliminacion(id); else await rechazarEliminacion(id);
+    qc.invalidateQueries({ queryKey: ["notif", "eliminaciones-pend"] });
+    qc.invalidateQueries({ queryKey: ["polizas"] });
   }
 
   return (
@@ -80,6 +94,33 @@ export default function NotificacionesBell() {
                     </div>
                   ))
                 )}
+              </>
+            )}
+
+            {/* Solicitudes de eliminación de póliza (Admin) */}
+            {esAdmin && eliminaciones.length > 0 && (
+              <>
+                <div style={head}>
+                  Solicitudes de eliminación
+                  <span style={badge}>{eliminaciones.length}</span>
+                </div>
+                {eliminaciones.map((e) => (
+                  <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad-700)" }}>
+                      Eliminar póliza <span className="mono">{e.polizaNumero}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                      {e.solicitante ?? "—"} solicita eliminar la de {e.clienteNombre ?? "—"} ({e.patente ?? "—"})
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 3 }}>
+                      {e.cuotasPagadas}/{e.cantidadCuotas} cuotas pagadas{e.motivo ? ` · ${e.motivo}` : ""}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => resolverElim(e.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--bad-600)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Autorizar</button>
+                      <button onClick={() => resolverElim(e.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                    </div>
+                  </div>
+                ))}
               </>
             )}
 

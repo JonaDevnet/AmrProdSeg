@@ -19,6 +19,7 @@ import FichaModal from "../components/FichaModal";
 import { useAuth } from "../auth/AuthContext";
 import { useUsuarios } from "../hooks/admin";
 import { carteraExport } from "../api/reportes";
+import { solicitarEliminarPoliza } from "../api/eliminaciones";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import type { Usuario } from "../types";
 
@@ -65,6 +66,10 @@ export default function Cartera() {
   const [ficha, setFicha] = useState<number | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [eliminar, setEliminar] = useState<Row | null>(null);
+  const [elimMotivo, setElimMotivo] = useState("");
+  const [elimAviso, setElimAviso] = useState("");
+  const [eliminando, setEliminando] = useState(false);
   const [tab, setTab] = useState<"todas" | Est>("todas");
   const [search, setSearch] = useState("");
   const [ramo, setRamo] = useState("todos");
@@ -289,9 +294,11 @@ export default function Cartera() {
                     <td style={S.td}>
                       <RowMenu
                         esET={r.pol.startsWith("E/T")}
+                        esAdmin={esAdmin}
                         onVerFicha={() => setFicha(r.id)}
                         onEditar={() => setAsignar(r)}
                         onCobrar={() => navigate(`/cobranzas?poliza=${r.id}`)}
+                        onEliminar={() => { setEliminar(r); setElimAviso(""); }}
                       />
                     </td>
                   </tr>
@@ -344,6 +351,51 @@ export default function Cartera() {
 
       {ficha != null && <FichaModal polizaId={ficha} onClose={() => setFicha(null)} />}
       {exportOpen && <ExportarModal onClose={() => setExportOpen(false)} />}
+
+      {eliminar && (
+        <div onClick={() => !eliminando && setEliminar(null)} style={{ position: "fixed", inset: 0, background: "oklch(0.18 0.06 252 / 0.50)", backdropFilter: "blur(4px)", zIndex: 1100, display: "grid", placeItems: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: "100%", background: "var(--paper)", borderRadius: 16, boxShadow: "var(--shadow-lg)", padding: 24 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "var(--bad-700)" }}>
+              {esAdmin ? "Eliminar póliza" : "Solicitar eliminación"}
+            </h3>
+            <p style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--ink-700)", lineHeight: 1.5 }}>
+              {esAdmin
+                ? <>Se enviará <strong className="mono">{eliminar.pol}</strong> a la <strong>papelera</strong> (desaparece de la cartera, con sus cuotas). El cliente <strong>{eliminar.cli}</strong> se conserva. Podés <strong>restaurarla</strong> desde el Registro de movimientos.</>
+                : <>Se enviará una solicitud para eliminar <strong className="mono">{eliminar.pol}</strong> ({eliminar.cli}). Un administrador debe autorizarla.</>}
+            </p>
+
+            <div style={{ marginTop: 16 }}>
+              <label style={{ display: "block", fontSize: 12.5, fontWeight: 500, color: "var(--ink-700)", marginBottom: 6 }}>Motivo {esAdmin ? "(opcional)" : ""}</label>
+              <textarea value={elimMotivo} onChange={(e) => setElimMotivo(e.target.value)} rows={2}
+                placeholder="Ej.: cargada por error, póliza duplicada…"
+                style={{ width: "100%", border: "1px solid var(--line)", borderRadius: 9, padding: "9px 12px", fontSize: 13.5, resize: "vertical", outline: "none", color: "var(--ink-900)", background: "var(--paper)" }} />
+            </div>
+
+            {elimAviso && <div style={{ marginTop: 12, padding: "9px 12px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 9, fontSize: 12.5, color: "var(--bad-700)" }}>{elimAviso}</div>}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setEliminar(null)} disabled={eliminando}
+                style={{ height: 40, padding: "0 16px", borderRadius: 10, background: "var(--paper)", border: "1.5px solid var(--line)", color: "var(--ink-900)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancelar</button>
+              <button disabled={eliminando} onClick={async () => {
+                setEliminando(true); setElimAviso("");
+                try {
+                  const r = await solicitarEliminarPoliza(eliminar.id, elimMotivo.trim() || undefined);
+                  setEliminar(null); setElimMotivo("");
+                  qc.invalidateQueries({ queryKey: ["polizas"] });
+                  qc.invalidateQueries({ queryKey: ["notif"] });
+                  setAviso(r.mensaje);
+                  setTimeout(() => setAviso(""), 5000);
+                } catch (e: any) {
+                  setElimAviso(e?.response?.data?.error ?? "No se pudo procesar la eliminación.");
+                } finally { setEliminando(false); }
+              }}
+                style={{ height: 40, padding: "0 18px", borderRadius: 10, background: "var(--bad-600)", color: "white", border: 0, fontSize: 14, fontWeight: 600, cursor: eliminando ? "wait" : "pointer" }}>
+                {eliminando ? "Procesando…" : esAdmin ? "Eliminar definitivamente" : "Enviar solicitud"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -483,7 +535,7 @@ function StatCard({ label, n, warn, icon }: { label: string; n: string; warn?: b
   );
 }
 
-function RowMenu({ esET, onVerFicha, onEditar, onCobrar }: { esET?: boolean; onVerFicha: () => void; onEditar: () => void; onCobrar: () => void }) {
+function RowMenu({ esET, esAdmin, onVerFicha, onEditar, onCobrar, onEliminar }: { esET?: boolean; esAdmin?: boolean; onVerFicha: () => void; onEditar: () => void; onCobrar: () => void; onEliminar: () => void }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -515,9 +567,10 @@ function RowMenu({ esET, onVerFicha, onEditar, onCobrar }: { esET?: boolean; onV
   }, [open]);
 
   const items = [
-    { l: "Cobrar cuota", action: () => { onCobrar(); setOpen(false); } },
-    { l: "Ver ficha", action: () => { onVerFicha(); setOpen(false); } },
-    { l: esET ? "Asignar N° de póliza" : "Editar N° de póliza", action: () => { onEditar(); setOpen(false); } },
+    { l: "Cobrar cuota", action: () => { onCobrar(); setOpen(false); }, danger: false },
+    { l: "Ver ficha", action: () => { onVerFicha(); setOpen(false); }, danger: false },
+    { l: esET ? "Asignar N° de póliza" : "Editar N° de póliza", action: () => { onEditar(); setOpen(false); }, danger: false },
+    { l: esAdmin ? "Eliminar póliza" : "Solicitar eliminación", action: () => { onEliminar(); setOpen(false); }, danger: true },
   ];
   return (
     <>
@@ -529,8 +582,8 @@ function RowMenu({ esET, onVerFicha, onEditar, onCobrar }: { esET?: boolean; onV
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "var(--shadow-lg)", padding: 4, zIndex: 1000, minWidth: 210 }}>
           {items.map((item, i) => (
             <button key={i} onClick={item.action}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 7, border: 0, background: "transparent", color: "var(--ink-700)", fontSize: 13.5, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--blue-50)")}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 7, border: 0, borderTop: item.danger ? "1px solid var(--line-2)" : undefined, marginTop: item.danger ? 4 : 0, background: "transparent", color: item.danger ? "var(--bad-600)" : "var(--ink-700)", fontSize: 13.5, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = item.danger ? "var(--bad-100)" : "var(--blue-50)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
               {item.l}
             </button>

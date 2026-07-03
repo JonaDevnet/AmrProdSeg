@@ -6,6 +6,7 @@ import { descargarPolizaPdf, type RenovarPolizaDto } from "../api/polizas";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import PagoModal from "../components/cobranzas/PagoModal";
+import ComprobanteModal, { type ComprobanteData } from "../components/cobranzas/ComprobanteModal";
 import RenovarForm from "../components/cobranzas/RenovarForm";
 import { EstadoPolizaBadge, EstadoCobroBadge, Plate } from "../components/ui/Badge";
 import { companiaColor } from "../utils/companiaColor";
@@ -31,6 +32,7 @@ export default function PolizaDetalle() {
   const [bajando, setBajando] = useState(false);
   const [accionError, setAccionError] = useState<string>();
   const [cuotaPago, setCuotaPago] = useState<Cobro | null>(null);
+  const [comprobante, setComprobante] = useState<ComprobanteData | null>(null);
   const [renovarOpen, setRenovarOpen] = useState(false);
 
   if (isLoading) return <Cargando />;
@@ -210,9 +212,25 @@ export default function PolizaDetalle() {
           cuota={cuotaPago}
           tituloContexto={poliza.numero}
           onClose={() => setCuotaPago(null)}
-          onPagado={() => setCuotaPago(null)}
+          onPagado={() => {
+            // Cuponera: sólo se marca el pago, sin comprobante.
+            if (poliza.formaPago !== "Cuponera") {
+              setComprobante({
+                cobroId: cuotaPago.id,
+                cuotaN: cuotaPago.numeroCuota,
+                monto: cuotaPago.monto,
+                fecha: formatFecha(new Date().toISOString()),
+                cliente: cliente.data?.nombre ?? "—",
+                poliza: poliza.numero,
+                compania: compania?.nombre ?? "—",
+                ramo: poliza.ramoNombre ?? "—",
+              });
+            }
+            setCuotaPago(null);
+          }}
         />
       )}
+      {comprobante && <ComprobanteModal c={comprobante} onClose={() => setComprobante(null)} />}
 
       {renovarOpen && companias.data && (
         <Modal titulo="Renovar póliza" onClose={() => setRenovarOpen(false)} ancho={520}>

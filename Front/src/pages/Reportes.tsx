@@ -634,7 +634,7 @@ const S: Record<string, CSSProperties> = {
   crumb: { fontSize: 12.5, color: "var(--ink-500)", marginBottom: 8 },
   h1: { margin: 0, fontSize: 30, letterSpacing: "-0.025em", fontWeight: 600, color: "var(--ink-900)" },
   sub: { margin: "6px 0 0", color: "var(--ink-500)", fontSize: 14.5 },
-  tabs: { display: "flex", gap: 4, borderBottom: "1px solid var(--line)", marginTop: 8, overflowX: "auto" },
+  tabs: { display: "flex", gap: 4, borderBottom: "1px solid var(--line)", marginTop: 8, overflowX: "auto", overflowY: "hidden" },
   shell: { margin: "20px 0 60px" },
   kpis: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 18 },
   kpi: { background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 18px" },

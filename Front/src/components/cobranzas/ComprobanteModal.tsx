@@ -2,7 +2,7 @@
 // ticket (2ª hoja, sin logo) desde el backend, y ofrece envío por Email/WhatsApp.
 import { useMemo, useState, type CSSProperties } from "react";
 import { Icon, IconCheck, IconMail } from "../../design/icons";
-import { enviarComprobante, imprimirComprobante, imprimirTicket } from "../../api/cobros";
+import { enviarComprobante, imprimirComprobante, imprimirTicket, descargarComprobante } from "../../api/cobros";
 
 export interface ComprobanteData {
   cobroId: number;
@@ -22,7 +22,19 @@ export default function ComprobanteModal({ c, onClose }: { c: ComprobanteData; o
   const [sent, setSent] = useState<null | "email" | "wa">(null);
   const [enviando, setEnviando] = useState<null | "email" | "wa">(null);
   const [imprimiendo, setImprimiendo] = useState<null | "comprobante" | "ticket">(null);
+  const [descargando, setDescargando] = useState(false);
   const [aviso, setAviso] = useState<string>("");
+
+  async function descargar() {
+    setDescargando(true); setAviso("");
+    try {
+      await descargarComprobante(c.cobroId);
+    } catch {
+      setAviso("No se pudo descargar el comprobante.");
+    } finally {
+      setDescargando(false);
+    }
+  }
 
   async function imprimir(tipo: "comprobante" | "ticket") {
     setImprimiendo(tipo); setAviso("");
@@ -81,6 +93,9 @@ export default function ComprobanteModal({ c, onClose }: { c: ComprobanteData; o
               <Icon size={15} d={<><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.5A10 10 0 1 0 12 2z" /></>} /> {enviando === "wa" ? "Enviando…" : sent === "wa" ? "Enviado ✓" : "WhatsApp"}
             </button>
           </div>
+          <button disabled={descargando} style={{ ...recBtnSec, width: "100%", marginTop: 10 }} onClick={descargar}>
+            <Icon size={15} d={<><path d="M12 3v12m0 0 4-4m-4 4-4-4" /><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" /></>} /> {descargando ? "Descargando…" : "Descargar PDF"}
+          </button>
           {aviso && <div style={{ marginTop: 8, fontSize: 12, color: "var(--ink-500)" }}>{aviso}</div>}
         </div>
 
