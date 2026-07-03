@@ -14,6 +14,7 @@ using AmrProdSeg.API.Security.Middlewares;
 using AspNetCoreRateLimit;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Quartz;
 using QuestPDF.Infrastructure;
@@ -162,6 +163,16 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+// ---------------- Forwarded headers (detrás de Traefik/nginx) ----------------
+// Permite conocer la IP y el esquema (https) reales del cliente aunque la app
+// reciba tráfico HTTP interno del proxy. Necesario para el rate limiting por IP.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    o.KnownNetworks.Clear();   // confiamos en el proxy dentro de la red Docker
+    o.KnownProxies.Clear();
+});
+
 // ---------------- Rate limiting ----------------
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
@@ -204,12 +215,13 @@ builder.Services.AddOpenApi();
 var app = builder.Build();
 
 // ---------------- Pipeline (el orden importa) ----------------
+app.UseForwardedHeaders();            // 0. IP/esquema reales detrás de Traefik/nginx
 app.UseExceptionHandlingMiddleware(); // captura excepciones de toda la cadena
-app.UseIpRateLimiting();              // 1. Rate limiting
-// En Development no redirigimos a HTTPS: permite que el proxy de Vite (http) llegue
-// directo a la API sin el 307 → HTTPS. En producción el host fuerza HTTPS.
-if (!app.Environment.IsDevelopment())
-    app.UseHttpsRedirection();        // 2. Forzar HTTPS (sólo fuera de Development)
+app.UseIpRateLimiting();              // 1. Rate limiting (usa la IP real del cliente)
+// El HTTPS lo termina Traefik en el borde; dentro del contenedor el tráfico es HTTP.
+// Se puede desactivar la redirección con UseHttpsRedirection=false (ver docker-compose).
+if (!app.Environment.IsDevelopment() && builder.Configuration.GetValue("UseHttpsRedirection", true))
+    app.UseHttpsRedirection();        // 2. Forzar HTTPS (sólo si no hay proxy TLS delante)
 app.UseSecurityHeaders();            // 3. Headers de seguridad
 app.UseStaticFiles();                // sirve /comprobantes (PDFs generados)
 app.UseCors("AmrProdSegPolicy");

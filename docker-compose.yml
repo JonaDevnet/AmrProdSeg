@@ -1,0 +1,63 @@
+# Stack de AMR Producción de Seguros.
+# Se engancha al Traefik existente (host-mode) por labels. Traefik llega a estos
+# contenedores por su IP de bridge, así que no hace falta compartir red con él.
+# Los valores sensibles se cargan desde el archivo .env (no versionado).
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: amr-db
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: Express
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks: [amrnet]
+
+  api:
+    build: ./Back/AmrProdSeg.API
+    container_name: amr-api
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # HTTPS lo termina Traefik; adentro es HTTP:
+      UseHttpsRedirection: "false"
+      ConnectionStrings__AmrProdSeg: ${ConnectionStrings__AmrProdSeg}
+      Jwt__Key: ${Jwt__Key}
+      AllowedOrigin: ${AllowedOrigin}
+      AllowedHosts: ${AllowedHosts}
+      PublicBaseUrl: ${PublicBaseUrl}
+    labels:
+      - traefik.enable=true
+      # /api, /comprobantes y /health van al backend (prioridad alta)
+      - "traefik.http.routers.amr-api.rule=Host(`amrprodseg.com`) && (PathPrefix(`/api`) || PathPrefix(`/comprobantes`) || PathPrefix(`/health`))"
+      - traefik.http.routers.amr-api.entrypoints=websecure
+      - traefik.http.routers.amr-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.amr-api.priority=100
+      - traefik.http.services.amr-api.loadbalancer.server.port=8080
+    networks: [amrnet]
+
+  frontend:
+    build: ./Front
+    container_name: amr-frontend
+    restart: unless-stopped
+    depends_on: [api]
+    labels:
+      - traefik.enable=true
+      # Todo lo demás (el SPA) va al frontend (prioridad baja = catch-all)
+      - "traefik.http.routers.amr-web.rule=Host(`amrprodseg.com`)"
+      - traefik.http.routers.amr-web.entrypoints=websecure
+      - traefik.http.routers.amr-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.amr-web.priority=1
+      - traefik.http.services.amr-web.loadbalancer.server.port=80
+    networks: [amrnet]
+
+volumes:
+  mssql_data:
+
+networks:
+  amrnet:
+    driver: bridge
