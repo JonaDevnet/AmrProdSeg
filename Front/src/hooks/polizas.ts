@@ -1,0 +1,63 @@
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
+import * as polizasApi from "../api/polizas";
+import { getCobrosPorPoliza } from "../api/cobros";
+import { getCompanias } from "../api/companias";
+
+export function usePolizas(estado: number | undefined, page: number, pageSize = 20) {
+  return useQuery({
+    queryKey: ["polizas", estado ?? "todas", page, pageSize],
+    queryFn: () => polizasApi.listarPolizas({ estado, page, pageSize }),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function usePoliza(id: number) {
+  return useQuery({
+    queryKey: ["poliza", id],
+    queryFn: () => polizasApi.getPoliza(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useCobrosPorPoliza(id: number) {
+  return useQuery({
+    queryKey: ["cobros", "poliza", id],
+    queryFn: () => getCobrosPorPoliza(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useCompanias() {
+  return useQuery({
+    queryKey: ["companias"],
+    queryFn: getCompanias,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCancelarPoliza(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => polizasApi.cancelarPoliza(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+    },
+  });
+}
+
+export function useRenovarPoliza(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: polizasApi.RenovarPolizaDto) => polizasApi.renovarPoliza(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+    },
+  });
+}

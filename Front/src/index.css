@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Tokens de diseño — portados de los prototipos de AMR (Front/prototipos)
+   ============================================================================ */
+:root {
+  /* Brand blues */
+  --navy-950: oklch(0.18 0.06 252);
+  --navy-900: oklch(0.23 0.08 251);
+  --navy-800: oklch(0.3 0.1 250);
+  --navy-700: oklch(0.38 0.12 249);
+  --blue-600: oklch(0.55 0.16 246);
+  --blue-500: oklch(0.62 0.16 243);
+  --blue-300: oklch(0.82 0.08 240);
+  --blue-100: oklch(0.94 0.03 240);
+  --blue-50: oklch(0.975 0.012 240);
+
+  --ink-900: oklch(0.2 0.02 250);
+  --ink-700: oklch(0.34 0.02 250);
+  --ink-500: oklch(0.55 0.015 250);
+  --ink-400: oklch(0.68 0.012 250);
+  --line: oklch(0.91 0.015 245);
+  --line-2: oklch(0.95 0.012 245);
+  --paper: oklch(0.995 0.003 245);
+  --canvas: oklch(0.985 0.008 245);
+
+  --ok-700: oklch(0.42 0.1 158);
+  --ok-600: oklch(0.52 0.12 157);
+  --ok-500: oklch(0.62 0.13 155);
+  --ok-100: oklch(0.95 0.04 155);
+  --warn-700: oklch(0.45 0.13 55);
+  --warn-500: oklch(0.7 0.15 75);
+  --warn-100: oklch(0.96 0.05 80);
+  --bad-700: oklch(0.45 0.16 28);
+  --bad-600: oklch(0.53 0.17 28);
+  --bad-500: oklch(0.62 0.17 28);
+  --bad-200: oklch(0.85 0.08 28);
+  --bad-100: oklch(0.95 0.04 28);
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  --shadow-sm: 0 1px 0 oklch(0.2 0.02 250 / 0.04), 0 1px 2px oklch(0.2 0.02 250 / 0.05);
+  --shadow: 0 1px 0 oklch(0.2 0.02 250 / 0.04), 0 6px 24px -8px oklch(0.2 0.06 250 / 0.18);
+  --shadow-lg: 0 24px 60px -20px oklch(0.18 0.06 252 / 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: "DM Sans", -apple-system, system-ui, "Segoe UI", sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  color: var(--ink-900);
+  background: var(--canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-feature-settings: "zero";
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+#root {
+  min-height: 100vh;
+}
+
+/* ============================================================================
+   Responsive — reglas base (los layouts usan estilos inline + grids auto-fit)
+   ============================================================================ */
+img,
+svg,
+video {
+  max-width: 100%;
+}
+/* Evita el scroll horizontal de la página; el contenido ancho (tablas) scrollea
+   dentro de su propio contenedor con overflow-x. */
+html {
+  overflow-x: hidden;
+}
+
+@media (max-width: 860px) {
+  /* Tipografía de titulares un poco más contenida en móvil */
+  h1 {
+    font-size: clamp(1.25rem, 6vw, 1.6rem);
+    line-height: 1.15;
+  }
+  /* Que las tablas anchas no rompan el ancho de la página */
+  table {
+    max-width: 100%;
+  }
+}
+

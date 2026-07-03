@@ -1,0 +1,44 @@
+# ── .NET / backend ──
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+project.lock.json
+artifacts/
+
+# Logs generados por la app
+logs/
+*.log
+
+# Comprobantes PDF generados en runtime
+Back/AmrProdSeg.API/wwwroot/comprobantes/
+
+# Secretos / configuración local (no subir credenciales)
+appsettings.*.local.json
+appsettings.Development.json
+.env
+.env.*
+!.env.example
+*.pfx
+
+# ── IDE / editores ──
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# ── Sistema operativo ──
+.DS_Store
+Thumbs.db
+
+# ── Asistente ──
+.claude/
+
+# ── Archivos de muestra / temporales en la raíz (redundantes) ──
+comprobante-muestra.pdf
+comprobante-impresion-muestra.pdf
+verificar-muestra.html
+LogoAmr-removebg-preview.png

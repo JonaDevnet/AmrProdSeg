@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AmrProdSeg.API/AmrProdSeg.API.csproj" />
+  <Project Path="AmrProdSeg.Tests/AmrProdSeg.Tests.csproj" />
+</Solution>
