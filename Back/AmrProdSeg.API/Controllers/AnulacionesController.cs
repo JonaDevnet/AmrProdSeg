@@ -18,6 +18,10 @@ public class AnulacionesController : ControllerBase
     [HttpGet("pendientes")]
     public async Task<IActionResult> Pendientes() => Ok(await _service.GetPendientesAsync());
 
+    /// <summary>Registro histórico de anulaciones de cuota (aprobadas/rechazadas).</summary>
+    [HttpGet("historial")]
+    public async Task<IActionResult> Historial() => Ok(await _service.GetHistorialAsync());
+
     [HttpPost("{id:int}/aprobar")]
     public async Task<IActionResult> Aprobar(int id)
     {

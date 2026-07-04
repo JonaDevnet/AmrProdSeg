@@ -39,7 +39,7 @@ public class CobrosController : ControllerBase
     /// <summary>Envía el comprobante de pago por Email o WhatsApp al asegurado.</summary>
     [HttpPost("{id:int}/comprobante/enviar")]
     public async Task<IActionResult> EnviarComprobante(int id, [FromBody] EnviarComprobanteDto dto)
-        => Ok(await _service.EnviarComprobanteAsync(id, dto.Canal));
+        => Ok(await _service.EnviarComprobanteAsync(id, dto.Canal, UsuarioActualId()));
 
     /// <summary>Descarga el comprobante (1ª hoja, con talón recortable) para imprimir.</summary>
     [HttpGet("{id:int}/comprobante/imprimir")]
@@ -54,6 +54,14 @@ public class CobrosController : ControllerBase
     public async Task<IActionResult> ImprimirTicket(int id)
     {
         var (pdf, nombreArchivo) = await _service.GenerarTicketImpresionAsync(id);
+        return File(pdf, "application/pdf", nombreArchivo);
+    }
+
+    /// <summary>Descarga el comprobante "online" (comprobante + ticket), el mismo PDF que se envía por email/WhatsApp.</summary>
+    [HttpGet("{id:int}/comprobante/descargar")]
+    public async Task<IActionResult> DescargarComprobante(int id)
+    {
+        var (pdf, nombreArchivo) = await _service.GenerarComprobanteOnlineAsync(id);
         return File(pdf, "application/pdf", nombreArchivo);
     }
 

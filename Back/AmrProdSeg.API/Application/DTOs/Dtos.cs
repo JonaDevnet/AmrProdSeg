@@ -82,6 +82,7 @@ public class RenovarPolizaDto
     public decimal PrecioTotal { get; set; }
     public int CantidadCuotas { get; set; }
     public decimal? PrimaOG { get; set; }
+    public string? Cobertura { get; set; }   // por defecto la de la póliza original
 }
 
 public class PolizaDto
@@ -108,6 +109,8 @@ public class PolizaDto
     public int? CuotasTotal { get; set; }
     public int? CuotasPagadas { get; set; }
     public int? CuotasVencidas { get; set; }
+    public string? VendedorNombre { get; set; }          // quién cargó la póliza (admin)
+    public string? ClienteVendedorNombre { get; set; }   // de quién es el cliente
 }
 
 public class RenovacionResultDto
@@ -246,6 +249,19 @@ public class AnularPagoResultDto
 {
     public bool Anulada { get; set; }     // revertida en el acto (Admin)
     public bool Solicitada { get; set; }  // queda pendiente de aprobación (Productor)
+    public string Mensaje { get; set; } = string.Empty;
+}
+
+// ---------- Eliminación de póliza ----------
+public class EliminarPolizaDto
+{
+    public string? Motivo { get; set; }
+}
+
+public class EliminarPolizaResultDto
+{
+    public bool Eliminada { get; set; }   // ejecutada en el acto (Admin)
+    public bool Solicitada { get; set; }  // queda pendiente de autorización (Productor)
     public string Mensaje { get; set; } = string.Empty;
 }
 

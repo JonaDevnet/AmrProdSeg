@@ -102,7 +102,7 @@ public class PolizaService : IPolizaService
             FechaEmision   = DateTime.UtcNow,
             VendedorId     = usuarioId,
             PrimaOG        = dto.PrimaOG ?? origen.PrimaOG,   // prima OG de la renovación (o se mantiene la anterior)
-            Cobertura      = origen.Cobertura,                // la renovación conserva la cobertura
+            Cobertura      = string.IsNullOrWhiteSpace(dto.Cobertura) ? origen.Cobertura : dto.Cobertura,
             RamoId         = origen.RamoId,
             FormaPago      = origen.FormaPago
         };

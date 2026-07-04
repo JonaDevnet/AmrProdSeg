@@ -223,7 +223,13 @@ public class PolizaRepository : IPolizaRepository
                          : null,
         TokenPublico   = Tiene(r, "TokenPublico") && !r.IsDBNull(r.GetOrdinal("TokenPublico"))
                          ? r.GetGuid(r.GetOrdinal("TokenPublico"))
-                         : Guid.Empty
+                         : Guid.Empty,
+        VendedorNombre = Tiene(r, "VendedorNombre") && !r.IsDBNull(r.GetOrdinal("VendedorNombre"))
+                         ? r.GetString(r.GetOrdinal("VendedorNombre"))
+                         : null,
+        ClienteVendedorNombre = Tiene(r, "ClienteVendedorNombre") && !r.IsDBNull(r.GetOrdinal("ClienteVendedorNombre"))
+                         ? r.GetString(r.GetOrdinal("ClienteVendedorNombre"))
+                         : null
     };
 
     private static bool Tiene(SqlDataReader r, string col)

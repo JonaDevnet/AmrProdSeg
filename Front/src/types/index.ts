@@ -77,6 +77,8 @@ export interface Poliza {
   cuotasTotal?: number | null;
   cuotasPagadas?: number | null;
   cuotasVencidas?: number | null;
+  vendedorNombre?: string | null;          // quién cargó la póliza (admin)
+  clienteVendedorNombre?: string | null;   // de quién es el cliente
 }
 
 export type EstadoCobro = 0 | 1 | 2; // Pendiente | Pagado | Vencido
@@ -92,6 +94,7 @@ export interface Cobro {
   metodoPagoId?: number | null;
   nroPoliza?: string | null;
   clienteNombre?: string | null;
+  cobradorNombre?: string | null;   // quién registró el cobro (admin)
 }
 
 export interface RenovacionResult {

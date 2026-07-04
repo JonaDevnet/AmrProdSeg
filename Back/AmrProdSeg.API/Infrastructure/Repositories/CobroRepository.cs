@@ -133,6 +133,13 @@ public class CobroRepository : ICobroRepository
         return lista;
     }
 
+    private static bool TieneCol(SqlDataReader r, string col)
+    {
+        for (int i = 0; i < r.FieldCount; i++)
+            if (string.Equals(r.GetName(i), col, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
     private static Cobro MapCobro(SqlDataReader reader) => new()
     {
         Id               = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -146,6 +153,9 @@ public class CobroRepository : ICobroRepository
                            : reader.GetDateTime(reader.GetOrdinal("FechaPago")),
         MetodoPagoId     = reader.IsDBNull(reader.GetOrdinal("MetodoPagoId"))
                            ? null
-                           : reader.GetInt32(reader.GetOrdinal("MetodoPagoId"))
+                           : reader.GetInt32(reader.GetOrdinal("MetodoPagoId")),
+        CobradorNombre   = TieneCol(reader, "CobradorNombre") && !reader.IsDBNull(reader.GetOrdinal("CobradorNombre"))
+                           ? reader.GetString(reader.GetOrdinal("CobradorNombre"))
+                           : null
     };
 }

@@ -8,6 +8,7 @@ export interface RenovarPolizaDto {
   precioTotal: number;
   cantidadCuotas: number;
   primaOG?: number;
+  cobertura?: string;
 }
 
 export interface ListarPolizasParams {

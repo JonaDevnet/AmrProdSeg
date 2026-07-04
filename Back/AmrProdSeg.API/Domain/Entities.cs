@@ -70,6 +70,8 @@ public class Poliza
     public int? CuotasTotal { get; set; }
     public int? CuotasPagadas { get; set; }
     public int? CuotasVencidas { get; set; }
+    public string? VendedorNombre { get; set; }          // quién cargó la póliza
+    public string? ClienteVendedorNombre { get; set; }   // de quién es el cliente (su vendedor)
 }
 
 public class Ramo
@@ -117,6 +119,29 @@ public class AnulacionCobro
     public string? NroPoliza { get; set; }
     public string? ClienteNombre { get; set; }
     public string? Solicitante { get; set; }
+    // Sólo para el historial:
+    public int Estado { get; set; }               // 0=Pendiente 1=Aprobada 2=Rechazada
+    public DateTime? FechaResolucion { get; set; }
+    public string? Resolvio { get; set; }
+}
+
+/// <summary>Solicitud/registro de eliminación de póliza (con autorización del Admin).</summary>
+public class EliminacionPoliza
+{
+    public int Id { get; set; }
+    public int PolizaId { get; set; }
+    public string? PolizaNumero { get; set; }
+    public string? ClienteNombre { get; set; }
+    public string? Patente { get; set; }
+    public int CantidadCuotas { get; set; }
+    public int CuotasPagadas { get; set; }
+    public int Estado { get; set; }               // 0=Pendiente 1=EnPapelera 2=Rechazada 3=Restaurada 4=BorradaDefinitiva
+    public string? Motivo { get; set; }
+    public DateTime FechaSolicitud { get; set; }
+    public DateTime? FechaResolucion { get; set; }
+    public DateTime? FechaEliminacion { get; set; }
+    public string? Solicitante { get; set; }
+    public string? Resolvio { get; set; }
 }
 
 public class Cobro
@@ -133,6 +158,7 @@ public class Cobro
     // Campos de sólo lectura para listados (provienen de JOINs, no se persisten)
     public string? NroPoliza { get; set; }
     public string? ClienteNombre { get; set; }
+    public string? CobradorNombre { get; set; }   // quién registró el cobro (admin)
 }
 
 public class MetodoPago

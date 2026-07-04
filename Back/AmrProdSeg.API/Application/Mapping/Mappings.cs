@@ -28,6 +28,8 @@ public static class Mappings
         RamoNombre     = p.RamoNombre,
         CuotasTotal    = p.CuotasTotal,
         CuotasPagadas  = p.CuotasPagadas,
-        CuotasVencidas = p.CuotasVencidas
+        CuotasVencidas = p.CuotasVencidas,
+        VendedorNombre = p.VendedorNombre,
+        ClienteVendedorNombre = p.ClienteVendedorNombre
     };
 }

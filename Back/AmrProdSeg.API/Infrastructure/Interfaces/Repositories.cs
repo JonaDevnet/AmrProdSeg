@@ -152,8 +152,10 @@ public interface INotificacionRepository
 
 public interface IConfiguracionRepository
 {
-    Task<Dictionary<string, string?>> GetAllAsync();
-    Task SetAsync(string clave, string? valor);
+    Task<Dictionary<string, string?>> GetByUsuarioAsync(int usuarioId);
+    Task SetAsync(int usuarioId, string clave, string? valor);
+    /// <summary>Id del Admin (fallback de la config para usuarios que no cargaron la suya).</summary>
+    Task<int> GetAdminIdAsync();
 }
 
 public interface IMovimientoRepository
@@ -168,26 +170,44 @@ public interface IAnulacionRepository
     Task<int> AnularPagoDirectoAsync(int cobroId);
     Task<int> SolicitarAsync(int cobroId, int usuarioId, string? motivo);
     Task<List<AnulacionCobro>> GetPendientesAsync();
+    Task<List<AnulacionCobro>> GetHistorialAsync();
     Task<int> AprobarAsync(int id, int adminId);
     Task<int> RechazarAsync(int id, int adminId);
+}
+
+public interface IEliminacionRepository
+{
+    Task<(int Id, bool YaExistia)> SolicitarAsync(int polizaId, int usuarioId, string? motivo);
+    Task<int> AprobarAsync(int id, int adminId);
+    Task<int> RechazarAsync(int id, int adminId);
+    Task<List<EliminacionPoliza>> GetPendientesAsync();
+    Task<List<EliminacionPoliza>> GetHistorialAsync();
+    // Papelera
+    Task<List<EliminacionPoliza>> GetPapeleraAsync();
+    Task<int> RestaurarAsync(int polizaId, int adminId);
+    Task<int> BorrarDefinitivoAsync(int polizaId, int adminId);
 }
 
 /// <summary>Envío de correo (SMTP propio).</summary>
 public interface IEmailSender
 {
-    bool Habilitado { get; }
-    Task EnviarAsync(string destino, string asunto, string cuerpo);
-    /// <summary>Envía un correo con un archivo adjunto (ej. el comprobante en PDF).</summary>
-    Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo);
+    bool Habilitado { get; }   // config del Admin/global (para jobs del sistema)
+    /// <summary>¿El envío por email está habilitado para ese usuario (o el Admin si null)?</summary>
+    Task<bool> HabilitadoParaAsync(int? usuarioId);
+    Task EnviarAsync(string destino, string asunto, string cuerpo, int? usuarioId = null);
+    /// <summary>Envía un correo con un archivo adjunto (ej. el comprobante en PDF), desde la config del usuario.</summary>
+    Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo, int? usuarioId = null);
 }
 
 /// <summary>Envío de WhatsApp (Evolution API). Desactivado hasta completar configuración.</summary>
 public interface IWhatsAppSender
 {
-    bool Habilitado { get; }
-    Task EnviarAsync(string telefono, string mensaje);
-    /// <summary>Envía un documento (ej. el comprobante en PDF) con un texto opcional.</summary>
-    Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption);
+    bool Habilitado { get; }   // config del Admin/global (para jobs del sistema)
+    /// <summary>¿El envío por WhatsApp está habilitado para ese usuario (o el Admin si null)?</summary>
+    Task<bool> HabilitadoParaAsync(int? usuarioId);
+    Task EnviarAsync(string telefono, string mensaje, int? usuarioId = null);
+    /// <summary>Envía un documento (ej. el comprobante en PDF) con un texto opcional, desde la config del usuario.</summary>
+    Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption, int? usuarioId = null);
 }
 
 public interface IReporteRepository

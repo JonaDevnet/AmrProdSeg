@@ -2466,5 +2466,440 @@ END
 GO
 
 /* =============================================================================
+   §41 — Eliminación de pólizas (con autorización del Admin y registro/auditoría).
+   El productor solicita; el Admin autoriza (ejecuta el borrado) o rechaza.
+   Se guardan "snapshots" para poder ver qué se borró aunque la póliza ya no exista.
+   ============================================================================= */
+IF OBJECT_ID('dbo.EliminacionesPoliza', 'U') IS NULL
+BEGIN
+    CREATE TABLE EliminacionesPoliza (
+        Id              INT PRIMARY KEY IDENTITY,
+        PolizaId        INT NOT NULL,               -- sin FK: la póliza se borra al aprobar
+        PolizaNumero    VARCHAR(30)   NULL,         -- snapshots (para el registro)
+        ClienteNombre   NVARCHAR(200) NULL,
+        Patente         VARCHAR(20)   NULL,
+        CantidadCuotas  INT NOT NULL DEFAULT 0,
+        CuotasPagadas   INT NOT NULL DEFAULT 0,
+        Estado          INT NOT NULL DEFAULT 0,     -- 0=Pendiente 1=Ejecutada 2=Rechazada
+        Motivo          NVARCHAR(300) NULL,
+        SolicitadoPor   INT NOT NULL,
+        FechaSolicitud  DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        ResueltoPor     INT NULL,
+        FechaResolucion DATETIME NULL
+    );
+    CREATE INDEX IX_EliminacionesPoliza_Estado ON EliminacionesPoliza(Estado);
+END
+GO
+
+-- Solicitud (Productor) o paso previo del Admin. Devuelve el Id y si ya existía una pendiente.
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_Solicitar
+    @PolizaId INT, @UsuarioId INT, @Motivo NVARCHAR(300) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM Polizas WHERE Id = @PolizaId)
+    BEGIN SELECT CAST(0 AS INT) AS Id, CAST(0 AS BIT) AS YaExistia; RETURN; END
+
+    DECLARE @Existente INT = (SELECT TOP 1 Id FROM EliminacionesPoliza WHERE PolizaId = @PolizaId AND Estado = 0);
+    IF @Existente IS NOT NULL
+    BEGIN SELECT @Existente AS Id, CAST(1 AS BIT) AS YaExistia; RETURN; END
+
+    INSERT INTO EliminacionesPoliza (PolizaId, PolizaNumero, ClienteNombre, Patente, CantidadCuotas, CuotasPagadas, Motivo, SolicitadoPor)
+    SELECT p.Id, p.Numero, c.Nombre, v.Patente, p.CantidadCuotas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado = 1),
+           @Motivo, @UsuarioId
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    WHERE p.Id = @PolizaId;
+
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS Id, CAST(0 AS BIT) AS YaExistia;
+END
+GO
+
+-- Aprobar = ejecutar el borrado (borra póliza + cuotas + su vehículo si queda huérfano; conserva el cliente).
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_Aprobar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @PolizaId INT = (SELECT PolizaId FROM EliminacionesPoliza WHERE Id = @Id AND Estado = 0);
+        IF @PolizaId IS NULL BEGIN ROLLBACK TRANSACTION; SELECT CAST(0 AS INT) AS Afectadas; RETURN; END
+
+        DECLARE @VehiculoId INT = (SELECT VehiculoId FROM Polizas WHERE Id = @PolizaId);
+
+        DELETE FROM AnulacionesCobro WHERE CobroId IN (SELECT Id FROM Cobros WHERE PolizaId = @PolizaId);
+        DELETE FROM Cobros           WHERE PolizaId = @PolizaId;
+        DELETE FROM Bajas            WHERE PolizaId = @PolizaId;
+        -- NotificacionesVencimiento es un log genérico (Tipo/ReferenciaId) sin FK: no bloquea.
+        -- Desvincular renovaciones que apuntaban a esta póliza (self-FK)
+        UPDATE Polizas SET PolizaOrigenId = NULL WHERE PolizaOrigenId = @PolizaId;
+        DELETE FROM Polizas                   WHERE Id = @PolizaId;
+        -- Borrar el vehículo sólo si ninguna otra póliza lo usa; el cliente NUNCA se borra.
+        IF @VehiculoId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Polizas WHERE VehiculoId = @VehiculoId)
+            DELETE FROM Vehiculos WHERE Id = @VehiculoId;
+
+        UPDATE EliminacionesPoliza SET Estado = 1, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE() WHERE Id = @Id;
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Afectadas;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; THROW;
+    END CATCH
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_Rechazar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE EliminacionesPoliza SET Estado = 2, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE()
+    WHERE Id = @Id AND Estado = 0;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetPendientes AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT e.Id, e.PolizaId, e.PolizaNumero, e.ClienteNombre, e.Patente,
+           e.CantidadCuotas, e.CuotasPagadas, e.Motivo, e.FechaSolicitud,
+           u.Nombre AS Solicitante
+    FROM EliminacionesPoliza e
+    LEFT JOIN Usuarios u ON u.Id = e.SolicitadoPor
+    WHERE e.Estado = 0
+    ORDER BY e.FechaSolicitud DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetHistorial AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT e.Id, e.PolizaId, e.PolizaNumero, e.ClienteNombre, e.Patente,
+           e.CantidadCuotas, e.CuotasPagadas, e.Estado, e.Motivo,
+           e.FechaSolicitud, e.FechaResolucion,
+           us.Nombre AS Solicitante, ur.Nombre AS Resolvio
+    FROM EliminacionesPoliza e
+    LEFT JOIN Usuarios us ON us.Id = e.SolicitadoPor
+    LEFT JOIN Usuarios ur ON ur.Id = e.ResueltoPor
+    ORDER BY e.FechaSolicitud DESC;
+END
+GO
+
+-- Historial de anulaciones de cuota (para el mismo registro de movimientos)
+CREATE OR ALTER PROCEDURE sp_Anulacion_GetHistorial AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT a.Id, a.CobroId, a.Estado, a.Motivo, a.FechaSolicitud, a.FechaResolucion,
+           co.NumeroCuota, co.Monto, p.Numero AS NroPoliza, c.Nombre AS ClienteNombre,
+           us.Nombre AS Solicitante, ur.Nombre AS Resolvio
+    FROM AnulacionesCobro a
+    INNER JOIN Cobros   co ON co.Id = a.CobroId
+    INNER JOIN Polizas  p  ON p.Id  = co.PolizaId
+    INNER JOIN Clientes c  ON c.Id  = p.ClienteId
+    LEFT  JOIN Usuarios us ON us.Id = a.SolicitadoPor
+    LEFT  JOIN Usuarios ur ON ur.Id = a.ResueltoPor
+    ORDER BY a.FechaSolicitud DESC;
+END
+GO
+
+/* =============================================================================
+   §42 — Configuración por usuario (SMTP/WhatsApp). Cada usuario tiene la suya;
+   si le falta, se usa la del Admin (fallback). Migra la config global al Admin.
+   ============================================================================= */
+IF COL_LENGTH('dbo.Configuraciones', 'UsuarioId') IS NULL
+BEGIN
+    ALTER TABLE Configuraciones ADD UsuarioId INT NOT NULL CONSTRAINT DF_Configuraciones_UsuarioId DEFAULT 0;
+
+    -- La PK pasa de (Clave) a (UsuarioId, Clave). Las sentencias que referencian la
+    -- columna nueva van por EXEC (resolución diferida: no existe al compilar el batch).
+    DECLARE @pk SYSNAME = (SELECT name FROM sys.key_constraints
+                           WHERE parent_object_id = OBJECT_ID('dbo.Configuraciones') AND type = 'PK');
+    IF @pk IS NOT NULL EXEC('ALTER TABLE dbo.Configuraciones DROP CONSTRAINT ' + @pk);
+    EXEC('ALTER TABLE dbo.Configuraciones ADD CONSTRAINT PK_Configuraciones PRIMARY KEY (UsuarioId, Clave)');
+
+    -- La config global existente (UsuarioId=0) pasa a ser la del Admin (fallback de todos)
+    DECLARE @admin INT = (SELECT MIN(Id) FROM Usuarios WHERE Rol = 'Admin');
+    IF @admin IS NOT NULL
+        EXEC sp_executesql N'UPDATE dbo.Configuraciones SET UsuarioId = @a WHERE UsuarioId = 0', N'@a INT', @a = @admin;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Config_GetByUsuario @UsuarioId INT AS
+BEGIN SET NOCOUNT ON; SELECT Clave, Valor FROM Configuraciones WHERE UsuarioId = @UsuarioId; END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Config_Set @UsuarioId INT, @Clave NVARCHAR(100), @Valor NVARCHAR(500) = NULL AS
+BEGIN
+    SET NOCOUNT ON;
+    MERGE Configuraciones AS t
+    USING (SELECT @UsuarioId AS UsuarioId, @Clave AS Clave) AS s
+        ON t.UsuarioId = s.UsuarioId AND t.Clave = s.Clave
+    WHEN MATCHED THEN UPDATE SET Valor = @Valor, FechaActualizacion = GETUTCDATE()
+    WHEN NOT MATCHED THEN INSERT (UsuarioId, Clave, Valor) VALUES (@UsuarioId, @Clave, @Valor);
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Config_GetAdminId AS
+BEGIN SET NOCOUNT ON; SELECT MIN(Id) AS AdminId FROM Usuarios WHERE Rol = 'Admin'; END
+GO
+
+/* =============================================================================
+   §43 — Papelera de pólizas (soft-delete). "Eliminar" ahora marca la póliza como
+   Eliminada (se oculta de la operación) en vez de borrarla; se puede Restaurar o
+   Borrar definitivamente (vaciar papelera). Los reportes históricos no se filtran.
+   ============================================================================= */
+IF COL_LENGTH('dbo.Polizas', 'Eliminada') IS NULL
+    ALTER TABLE Polizas ADD Eliminada BIT NOT NULL CONSTRAINT DF_Polizas_Eliminada DEFAULT 0;
+GO
+IF COL_LENGTH('dbo.Polizas', 'FechaEliminacion') IS NULL
+    ALTER TABLE Polizas ADD FechaEliminacion DATETIME NULL;
+GO
+
+-- Aprobar = mandar a la PAPELERA (soft-delete). No borra cuotas ni vehículo.
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_Aprobar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @PolizaId INT = (SELECT PolizaId FROM EliminacionesPoliza WHERE Id = @Id AND Estado = 0);
+    IF @PolizaId IS NULL BEGIN SELECT CAST(0 AS INT) AS Afectadas; RETURN; END
+    UPDATE Polizas SET Eliminada = 1, FechaEliminacion = GETUTCDATE() WHERE Id = @PolizaId;
+    UPDATE EliminacionesPoliza SET Estado = 1, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE() WHERE Id = @Id;
+    SELECT CAST(1 AS INT) AS Afectadas;
+END
+GO
+
+-- Restaurar desde la papelera (la póliza vuelve a estar activa/visible).
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_Restaurar @PolizaId INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Polizas SET Eliminada = 0, FechaEliminacion = NULL WHERE Id = @PolizaId AND Eliminada = 1;
+    DECLARE @n INT = @@ROWCOUNT;
+    IF @n > 0
+        UPDATE EliminacionesPoliza SET Estado = 3, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE()
+        WHERE PolizaId = @PolizaId AND Estado = 1;
+    SELECT @n AS Afectadas;   -- 3 = Restaurada
+END
+GO
+
+-- Borrar DEFINITIVO (vaciar papelera): elimina físicamente póliza + cuotas + vehículo huérfano.
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_BorrarDefinitivo @PolizaId INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        IF NOT EXISTS (SELECT 1 FROM Polizas WHERE Id = @PolizaId AND Eliminada = 1)
+        BEGIN ROLLBACK TRANSACTION; SELECT CAST(0 AS INT) AS Afectadas; RETURN; END
+
+        DECLARE @VehiculoId INT = (SELECT VehiculoId FROM Polizas WHERE Id = @PolizaId);
+        DELETE FROM AnulacionesCobro WHERE CobroId IN (SELECT Id FROM Cobros WHERE PolizaId = @PolizaId);
+        DELETE FROM Cobros WHERE PolizaId = @PolizaId;
+        DELETE FROM Bajas  WHERE PolizaId = @PolizaId;
+        UPDATE Polizas SET PolizaOrigenId = NULL WHERE PolizaOrigenId = @PolizaId;
+        DELETE FROM Polizas WHERE Id = @PolizaId;
+        IF @VehiculoId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Polizas WHERE VehiculoId = @VehiculoId)
+            DELETE FROM Vehiculos WHERE Id = @VehiculoId;
+        UPDATE EliminacionesPoliza SET Estado = 4 WHERE PolizaId = @PolizaId AND Estado = 1;  -- 4 = Borrada definitiva
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Afectadas;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; THROW;
+    END CATCH
+END
+GO
+
+-- Listado de la papelera (pólizas eliminadas, con quién/cuándo/motivo).
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetPapelera AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.Id AS PolizaId, p.Numero AS PolizaNumero, c.Nombre AS ClienteNombre, v.Patente,
+           p.CantidadCuotas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado = 1) AS CuotasPagadas,
+           p.FechaEliminacion, e.Motivo, e.FechaSolicitud,
+           us.Nombre AS Solicitante, ur.Nombre AS Resolvio
+    FROM Polizas p
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    OUTER APPLY (SELECT TOP 1 * FROM EliminacionesPoliza ep WHERE ep.PolizaId = p.Id AND ep.Estado = 1 ORDER BY ep.FechaResolucion DESC) e
+    LEFT  JOIN Usuarios us ON us.Id = e.SolicitadoPor
+    LEFT  JOIN Usuarios ur ON ur.Id = e.ResueltoPor
+    WHERE p.Eliminada = 1
+    ORDER BY p.FechaEliminacion DESC;
+END
+GO
+
+/* --- Consultas operativas: ocultan las pólizas en papelera (Eliminada = 0) --- */
+CREATE OR ALTER PROCEDURE sp_Poliza_Listar
+    @ClienteId INT = NULL, @Estado INT = NULL, @Offset INT, @PageSize INT,
+    @UsuarioId INT = NULL, @EsAdmin BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
+    SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
+           p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
+           p.RamoId, r.Nombre AS RamoNombre, c.Nombre AS ClienteNombre, v.Patente, p.FormaPago, p.PrimaOG, p.Cobertura,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id)                  AS CuotasTotal,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=1)  AS CuotasPagadas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=2)  AS CuotasVencidas,
+           COUNT(*) OVER() AS Total
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    LEFT  JOIN Ramos     r ON r.Id = p.RamoId
+    WHERE p.Eliminada = 0
+      AND (@ClienteId IS NULL OR p.ClienteId = @ClienteId)
+      AND (@Estado    IS NULL OR p.Estado    = @Estado)
+      AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
+           OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))
+    ORDER BY p.FechaEmision DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Poliza_GetActivaPorVehiculo @VehiculoId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Numero, ClienteId, VehiculoId, CompaniaId, FechaInicio, FechaFin,
+           PrecioTotal, CantidadCuotas, Estado, PolizaOrigenId, FechaEmision, RamoId
+    FROM Polizas WHERE VehiculoId = @VehiculoId AND Estado = 0 AND Eliminada = 0;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPendientesMes @Mes INT, @Anio INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto,
+           co.Estado, co.FechaPago, co.MetodoPagoId,
+           p.Numero AS NroPoliza, c.Nombre AS ClienteNombre
+    FROM Cobros co
+    INNER JOIN Polizas  p ON p.Id = co.PolizaId
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    WHERE co.Estado = 0 AND p.Eliminada = 0
+      AND MONTH(co.FechaVencimiento) = @Mes
+      AND YEAR(co.FechaVencimiento)  = @Anio
+    ORDER BY co.FechaVencimiento;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Busqueda_Global @Termino NVARCHAR(100) AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 'Cliente' AS Tipo, c.Id, c.Nombre AS Titulo, c.Documento AS Subtitulo, c.Id AS Referencia
+    FROM Clientes c
+    WHERE c.Nombre LIKE '%' + @Termino + '%' OR c.Documento LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Vehiculo' AS Tipo, v.Id, (v.Marca + ' ' + v.Modelo) AS Titulo, v.Patente AS Subtitulo, v.ClienteId AS Referencia
+    FROM Vehiculos v
+    WHERE v.Patente LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Poliza' AS Tipo, p.Id, p.Numero AS Titulo, c.Nombre AS Subtitulo, p.Id AS Referencia
+    FROM Polizas p
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    WHERE p.Numero LIKE '%' + @Termino + '%' AND p.Eliminada = 0;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Notif_PolizasPorVencer @Dias INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.Id AS PolizaId, p.Numero, p.FechaFin,
+           c.Nombre AS ClienteNombre, c.Email, c.Telefono,
+           v.Patente, cp.Nombre AS Compania
+    FROM Polizas p
+    INNER JOIN Clientes  c  ON c.Id  = p.ClienteId
+    INNER JOIN Vehiculos v  ON v.Id  = p.VehiculoId
+    INNER JOIN Companias cp ON cp.Id = p.CompaniaId
+    WHERE p.Estado = 0 AND p.Eliminada = 0
+      AND p.FechaFin = DATEADD(DAY, @Dias, CAST(GETUTCDATE() AS DATE));
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Notif_CuotasPorVencer @Dias INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id AS CobroId, co.NumeroCuota, co.Monto, co.FechaVencimiento,
+           p.Numero AS NroPoliza, c.Nombre AS ClienteNombre, c.Email, c.Telefono
+    FROM Cobros co
+    INNER JOIN Polizas  p ON p.Id = co.PolizaId
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    WHERE co.Estado = 0 AND p.Eliminada = 0
+      AND co.FechaVencimiento = DATEADD(DAY, @Dias, CAST(GETUTCDATE() AS DATE));
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Stats_Publicas AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        (SELECT COUNT(*) FROM Polizas  WHERE Estado = 0 AND Eliminada = 0) AS PolizasActivas,
+        (SELECT COUNT(*) FROM Clientes WHERE Activo = 1) AS Clientes,
+        (SELECT COUNT(*) FROM Companias WHERE Activo = 1) AS Companias;
+END
+GO
+
+/* =============================================================================
+   §44 — Atribución: quién cargó la póliza, quién cobró la cuota, y de quién es
+   el cliente (su vendedor). Se agregan a las consultas existentes.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
+           p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
+           p.RamoId, r.Nombre AS RamoNombre, p.FormaPago, p.PrimaOG, p.Cobertura, p.TokenPublico,
+           uv.Nombre AS VendedorNombre, uc.Nombre AS ClienteVendedorNombre
+    FROM Polizas p
+    LEFT JOIN Ramos    r  ON r.Id  = p.RamoId
+    LEFT JOIN Usuarios uv ON uv.Id = p.VendedorId
+    LEFT JOIN Clientes c  ON c.Id  = p.ClienteId
+    LEFT JOIN Usuarios uc ON uc.Id = c.VendedorId
+    WHERE p.Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Poliza_Listar
+    @ClienteId INT = NULL, @Estado INT = NULL, @Offset INT, @PageSize INT,
+    @UsuarioId INT = NULL, @EsAdmin BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
+    SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
+           p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
+           p.RamoId, r.Nombre AS RamoNombre, c.Nombre AS ClienteNombre, v.Patente, p.FormaPago, p.PrimaOG, p.Cobertura,
+           uv.Nombre AS VendedorNombre, uc.Nombre AS ClienteVendedorNombre,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id)                  AS CuotasTotal,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=1)  AS CuotasPagadas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=2)  AS CuotasVencidas,
+           COUNT(*) OVER() AS Total
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    LEFT  JOIN Ramos     r ON r.Id = p.RamoId
+    LEFT  JOIN Usuarios uv ON uv.Id = p.VendedorId
+    LEFT  JOIN Usuarios uc ON uc.Id = c.VendedorId
+    WHERE p.Eliminada = 0
+      AND (@ClienteId IS NULL OR p.ClienteId = @ClienteId)
+      AND (@Estado    IS NULL OR p.Estado    = @Estado)
+      AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
+           OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))
+    ORDER BY p.FechaEmision DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId
+    ORDER BY co.NumeroCuota;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

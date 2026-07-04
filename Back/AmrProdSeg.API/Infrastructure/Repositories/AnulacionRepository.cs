@@ -23,26 +23,36 @@ public class AnulacionRepository : IAnulacionRepository
     public async Task<int> RechazarAsync(int id, int adminId)
         => await EscalarAsync("sp_Anulacion_Rechazar", ("@Id", id), ("@AdminId", adminId));
 
-    public async Task<List<AnulacionCobro>> GetPendientesAsync()
+    public Task<List<AnulacionCobro>> GetPendientesAsync() => LeerAsync("sp_Anulacion_GetPendientes");
+    public Task<List<AnulacionCobro>> GetHistorialAsync() => LeerAsync("sp_Anulacion_GetHistorial");
+
+    private async Task<List<AnulacionCobro>> LeerAsync(string sp)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
-        using var cmd = new SqlCommand("sp_Anulacion_GetPendientes", conn) { CommandType = CommandType.StoredProcedure };
+        using var cmd = new SqlCommand(sp, conn) { CommandType = CommandType.StoredProcedure };
         var lista = new List<AnulacionCobro>();
         using var r = await cmd.ExecuteReaderAsync();
+
+        bool Tiene(string col) { for (int i = 0; i < r.FieldCount; i++) if (string.Equals(r.GetName(i), col, StringComparison.OrdinalIgnoreCase)) return true; return false; }
+        string? Str(string c) => Tiene(c) && !r.IsDBNull(r.GetOrdinal(c)) ? r.GetString(r.GetOrdinal(c)) : null;
+
         while (await r.ReadAsync())
         {
             lista.Add(new AnulacionCobro
             {
-                Id             = r.GetInt32(r.GetOrdinal("Id")),
-                CobroId        = r.GetInt32(r.GetOrdinal("CobroId")),
-                Motivo         = r.IsDBNull(r.GetOrdinal("Motivo")) ? null : r.GetString(r.GetOrdinal("Motivo")),
-                FechaSolicitud = r.GetDateTime(r.GetOrdinal("FechaSolicitud")),
-                NumeroCuota    = r.GetInt32(r.GetOrdinal("NumeroCuota")),
-                Monto          = r.GetDecimal(r.GetOrdinal("Monto")),
-                NroPoliza      = r.IsDBNull(r.GetOrdinal("NroPoliza")) ? null : r.GetString(r.GetOrdinal("NroPoliza")),
-                ClienteNombre  = r.IsDBNull(r.GetOrdinal("ClienteNombre")) ? null : r.GetString(r.GetOrdinal("ClienteNombre")),
-                Solicitante    = r.IsDBNull(r.GetOrdinal("Solicitante")) ? null : r.GetString(r.GetOrdinal("Solicitante")),
+                Id              = r.GetInt32(r.GetOrdinal("Id")),
+                CobroId         = r.GetInt32(r.GetOrdinal("CobroId")),
+                Motivo          = Str("Motivo"),
+                FechaSolicitud  = r.GetDateTime(r.GetOrdinal("FechaSolicitud")),
+                NumeroCuota     = r.GetInt32(r.GetOrdinal("NumeroCuota")),
+                Monto           = r.GetDecimal(r.GetOrdinal("Monto")),
+                NroPoliza       = Str("NroPoliza"),
+                ClienteNombre   = Str("ClienteNombre"),
+                Solicitante     = Str("Solicitante"),
+                Estado          = Tiene("Estado") ? r.GetInt32(r.GetOrdinal("Estado")) : 0,
+                FechaResolucion = Tiene("FechaResolucion") && !r.IsDBNull(r.GetOrdinal("FechaResolucion")) ? r.GetDateTime(r.GetOrdinal("FechaResolucion")) : null,
+                Resolvio        = Str("Resolvio"),
             });
         }
         return lista;

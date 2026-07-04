@@ -8,7 +8,7 @@ import { useIsMobile } from "../hooks/useMediaQuery";
 // ─────────────────────────────────────────────────────────────
 //  Datos de contacto — EDITÁ estos valores con los reales de AMR.
 // ─────────────────────────────────────────────────────────────
-const EMAIL = "amrinaliprogseg@gmail.com";
+const EMAIL = "amrinaliproseg@gmail.com";
 const WHATSAPP = "5492617025624";          // sólo números, con código de país (54 9 …)
 const WHATSAPP_LINDO = "+54 9 261 702-5624"; // cómo se muestra en pantalla
 

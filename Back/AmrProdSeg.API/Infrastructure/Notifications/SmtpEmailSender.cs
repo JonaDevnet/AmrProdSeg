@@ -20,11 +20,14 @@ public class SmtpEmailSender : IEmailSender
         _logger = logger;
     }
 
-    public bool Habilitado => _config.GetSmtpEffectiveAsync().GetAwaiter().GetResult().Habilitado;
+    public bool Habilitado => _config.GetSmtpEffectiveAsync(null).GetAwaiter().GetResult().Habilitado;
 
-    public async Task EnviarAsync(string destino, string asunto, string cuerpo)
+    public async Task<bool> HabilitadoParaAsync(int? usuarioId)
+        => (await _config.GetSmtpEffectiveAsync(usuarioId)).Habilitado;
+
+    public async Task EnviarAsync(string destino, string asunto, string cuerpo, int? usuarioId = null)
     {
-        var opt = await _config.GetSmtpEffectiveAsync();
+        var opt = await _config.GetSmtpEffectiveAsync(usuarioId);
         if (!opt.Habilitado)
         {
             _logger.LogInformation("[Email DESACTIVADO] Para {Destino} | {Asunto}", destino, asunto);
@@ -50,9 +53,9 @@ public class SmtpEmailSender : IEmailSender
         _logger.LogInformation("Email enviado a {Destino} desde {From}", destino, opt.From);
     }
 
-    public async Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo)
+    public async Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo, int? usuarioId = null)
     {
-        var opt = await _config.GetSmtpEffectiveAsync();
+        var opt = await _config.GetSmtpEffectiveAsync(usuarioId);
         if (!opt.Habilitado)
         {
             _logger.LogInformation("[Email DESACTIVADO] Para {Destino} | {Asunto} (con adjunto {Archivo})", destino, asunto, nombreArchivo);

@@ -13,12 +13,14 @@ import { companiaColor } from "../utils/companiaColor";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import { IconArrowLeft, IconDownload, IconBan } from "../components/Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
+import { useAuth } from "../auth/AuthContext";
 import type { Cobro } from "../types";
 
 export default function PolizaDetalle() {
   const { id } = useParams();
   const polizaId = Number(id);
   const navigate = useNavigate();
+  const { esAdmin } = useAuth();
 
   const { data: poliza, isLoading, isError } = usePoliza(polizaId);
   const cobros = useCobrosPorPoliza(polizaId);
@@ -152,6 +154,8 @@ export default function PolizaDetalle() {
           <Dato label="Vigencia">{formatFecha(poliza.fechaInicio)} – {formatFecha(poliza.fechaFin)}</Dato>
           <Dato label="Prima total">{formatMoneda(poliza.precioTotal)}</Dato>
           <Dato label="Cuotas">{poliza.cantidadCuotas}</Dato>
+          <Dato label="Cliente de">{poliza.clienteVendedorNombre ?? "—"}</Dato>
+          {esAdmin && <Dato label="Cargada por">{poliza.vendedorNombre ?? "—"}</Dato>}
         </div>
       </div>
 
@@ -181,6 +185,7 @@ export default function PolizaDetalle() {
                   <th style={th}>Monto</th>
                   <th style={th}>Estado</th>
                   <th style={th}>Pago</th>
+                  {esAdmin && <th style={th}>Cobró</th>}
                   <th style={{ ...th, textAlign: "right" }}>Acción</th>
                 </tr>
               </thead>
@@ -192,6 +197,7 @@ export default function PolizaDetalle() {
                     <td style={td}>{formatMoneda(c.monto)}</td>
                     <td style={td}><EstadoCobroBadge estado={c.estado} /></td>
                     <td style={{ ...td, color: "var(--ink-500)" }}>{formatFecha(c.fechaPago)}</td>
+                    {esAdmin && <td style={{ ...td, color: "var(--ink-500)" }}>{c.estado === 1 ? (c.cobradorNombre ?? "—") : "—"}</td>}
                     <td style={{ ...td, textAlign: "right" }}>
                       {c.estado !== 1 && (
                         <Button onClick={() => setCuotaPago(c)} style={{ height: 32, padding: "0 12px", fontSize: 13 }}>

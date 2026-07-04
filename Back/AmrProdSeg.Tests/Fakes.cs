@@ -90,15 +90,17 @@ public class FakeCompaniaRepository : ICompaniaRepository
 public class FakeEmailSender : IEmailSender
 {
     public bool Habilitado { get; set; }
-    public Task EnviarAsync(string destino, string asunto, string cuerpo) => Task.CompletedTask;
-    public Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo) => Task.CompletedTask;
+    public Task<bool> HabilitadoParaAsync(int? usuarioId) => Task.FromResult(Habilitado);
+    public Task EnviarAsync(string destino, string asunto, string cuerpo, int? usuarioId = null) => Task.CompletedTask;
+    public Task EnviarConAdjuntoAsync(string destino, string asunto, string cuerpo, byte[] adjunto, string nombreArchivo, int? usuarioId = null) => Task.CompletedTask;
 }
 
 public class FakeWhatsAppSender : IWhatsAppSender
 {
     public bool Habilitado { get; set; }
-    public Task EnviarAsync(string telefono, string mensaje) => Task.CompletedTask;
-    public Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption) => Task.CompletedTask;
+    public Task<bool> HabilitadoParaAsync(int? usuarioId) => Task.FromResult(Habilitado);
+    public Task EnviarAsync(string telefono, string mensaje, int? usuarioId = null) => Task.CompletedTask;
+    public Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption, int? usuarioId = null) => Task.CompletedTask;
 }
 
 public class FakePdfService : IPdfService

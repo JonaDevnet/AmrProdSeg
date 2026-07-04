@@ -22,22 +22,23 @@ public interface ICobroService
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null);
     Task MarcarVencidosAsync();
-    Task<EnviarComprobanteResultDto> EnviarComprobanteAsync(int cobroId, string canal);
+    Task<EnviarComprobanteResultDto> EnviarComprobanteAsync(int cobroId, string canal, int usuarioId);
     Task<(byte[] Pdf, string NombreArchivo)> GenerarComprobanteImpresionAsync(int cobroId);
     Task<(byte[] Pdf, string NombreArchivo)> GenerarTicketImpresionAsync(int cobroId);
+    Task<(byte[] Pdf, string NombreArchivo)> GenerarComprobanteOnlineAsync(int cobroId);
 }
 
 public interface IConfiguracionService
 {
-    Task<SmtpConfigDto> GetSmtpAsync();
-    Task ActualizarSmtpAsync(ActualizarSmtpDto dto);
-    /// <summary>Config SMTP efectiva (DB sobre appsettings), incluye la clave — uso interno del sender.</summary>
-    Task<AmrProdSeg.API.Infrastructure.Notifications.SmtpOptions> GetSmtpEffectiveAsync();
+    Task<SmtpConfigDto> GetSmtpAsync(int usuarioId);
+    Task ActualizarSmtpAsync(int usuarioId, ActualizarSmtpDto dto);
+    /// <summary>Config SMTP efectiva del usuario (la suya o la del Admin como fallback), incluye la clave — uso del sender. usuarioId null = Admin/global.</summary>
+    Task<AmrProdSeg.API.Infrastructure.Notifications.SmtpOptions> GetSmtpEffectiveAsync(int? usuarioId);
 
-    Task<EvolutionConfigDto> GetEvolutionAsync();
-    Task ActualizarEvolutionAsync(ActualizarEvolutionDto dto);
-    /// <summary>Config Evolution efectiva (DB sobre appsettings), incluye la ApiKey — uso interno del sender.</summary>
-    Task<AmrProdSeg.API.Infrastructure.Notifications.EvolutionOptions> GetEvolutionEffectiveAsync();
+    Task<EvolutionConfigDto> GetEvolutionAsync(int usuarioId);
+    Task ActualizarEvolutionAsync(int usuarioId, ActualizarEvolutionDto dto);
+    /// <summary>Config Evolution efectiva del usuario (la suya o la del Admin como fallback), incluye la ApiKey — uso del sender. usuarioId null = Admin/global.</summary>
+    Task<AmrProdSeg.API.Infrastructure.Notifications.EvolutionOptions> GetEvolutionEffectiveAsync(int? usuarioId);
 }
 
 public interface IMovimientoService
@@ -51,8 +52,22 @@ public interface IAnulacionService
 {
     Task<AnularPagoResultDto> AnularOSolicitarAsync(int cobroId, int usuarioId, bool esAdmin, string? motivo);
     Task<List<AnulacionCobro>> GetPendientesAsync();
+    Task<List<AnulacionCobro>> GetHistorialAsync();
     Task AprobarAsync(int id, int adminId);
     Task RechazarAsync(int id, int adminId);
+}
+
+public interface IEliminacionService
+{
+    Task<EliminarPolizaResultDto> EliminarOSolicitarAsync(int polizaId, int usuarioId, bool esAdmin, string? motivo);
+    Task<List<EliminacionPoliza>> GetPendientesAsync();
+    Task<List<EliminacionPoliza>> GetHistorialAsync();
+    Task AprobarAsync(int id, int adminId);
+    Task RechazarAsync(int id, int adminId);
+    // Papelera
+    Task<List<EliminacionPoliza>> GetPapeleraAsync();
+    Task RestaurarAsync(int polizaId, int adminId);
+    Task BorrarDefinitivoAsync(int polizaId, int adminId);
 }
 
 public interface IClienteService

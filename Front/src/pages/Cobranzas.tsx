@@ -248,6 +248,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
           <div><div style={iL}>Compañía</div><div style={iV}>{compania ?? "—"}</div></div>
           <div><div style={iL}>Patente</div><div style={iV} className="mono">{poliza.patente ?? "—"}</div></div>
           <div><div style={iL}>Vigencia</div><div style={iV} className="mono">{formatFecha(poliza.fechaInicio)} – {formatFecha(vigenciaHasta)}</div></div>
+          <div><div style={iL}>Cliente de</div><div style={iV}>{poliza.clienteVendedorNombre ?? "—"}</div></div>
         </div>
 
         <div style={sectionTitle}>
@@ -264,6 +265,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
                 <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
                   Vence <span className="mono">{formatFecha(c.fechaVencimiento)}</span>
                   {c.estado === 1 && c.fechaPago && <> · Pagada el <span className="mono">{formatFecha(c.fechaPago)}</span></>}
+                  {esAdmin && c.estado === 1 && c.cobradorNombre && <> · cobró <strong>{c.cobradorNombre}</strong></>}
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>

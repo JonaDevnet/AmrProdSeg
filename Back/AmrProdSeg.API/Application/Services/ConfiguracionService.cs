@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 namespace AmrProdSeg.API.Application.Services;
 
 /// <summary>
-/// Config persistida en DB (tabla Configuraciones) que se superpone a appsettings.
-/// Hoy gestiona los parámetros SMTP (incluido el correo emisor) editables por el Admin.
+/// Config persistida en DB (tabla Configuraciones) por usuario, que se superpone a appsettings.
+/// Cada usuario tiene su propia config de envío (SMTP/WhatsApp); si no la cargó, se usa la del Admin.
 /// </summary>
 public class ConfiguracionService : IConfiguracionService
 {
@@ -25,13 +25,24 @@ public class ConfiguracionService : IConfiguracionService
         _evoDefaults = evoDefaults.Value;
     }
 
-    public async Task<SmtpOptions> GetSmtpEffectiveAsync()
+    // Diccionario efectivo para una sección: la del usuario si configuró esa sección
+    // (tiene la clave "<Pref>Habilitado"); si no, la del Admin (fallback). null = Admin.
+    private async Task<Dictionary<string, string?>> ResolverAsync(int? usuarioId, string prefijo)
     {
-        var db = await _repo.GetAllAsync();
+        var adminId = await _repo.GetAdminIdAsync();
+        var uid = usuarioId ?? adminId;
+        var dict = await _repo.GetByUsuarioAsync(uid);
+        if (uid != adminId && !dict.ContainsKey(prefijo + "Habilitado"))
+            dict = await _repo.GetByUsuarioAsync(adminId);
+        return dict;
+    }
+
+    // ---------------- SMTP ----------------
+    private SmtpOptions BuildSmtp(Dictionary<string, string?> db)
+    {
         string S(string k, string fb) => db.TryGetValue(Pref + k, out var v) && v is not null ? v : fb;
         bool B(string k, bool fb) => db.TryGetValue(Pref + k, out var v) && bool.TryParse(v, out var b) ? b : fb;
         int I(string k, int fb) => db.TryGetValue(Pref + k, out var v) && int.TryParse(v, out var n) ? n : fb;
-
         return new SmtpOptions
         {
             Habilitado = B("Habilitado", _defaults.Habilitado),
@@ -45,9 +56,13 @@ public class ConfiguracionService : IConfiguracionService
         };
     }
 
-    public async Task<SmtpConfigDto> GetSmtpAsync()
+    public async Task<SmtpOptions> GetSmtpEffectiveAsync(int? usuarioId)
+        => BuildSmtp(await ResolverAsync(usuarioId, Pref));
+
+    public async Task<SmtpConfigDto> GetSmtpAsync(int usuarioId)
     {
-        var e = await GetSmtpEffectiveAsync();
+        // Para la pantalla: se muestra la config PROPIA del usuario (sin fallback).
+        var e = BuildSmtp(await _repo.GetByUsuarioAsync(usuarioId));
         return new SmtpConfigDto
         {
             Habilitado = e.Habilitado,
@@ -61,22 +76,22 @@ public class ConfiguracionService : IConfiguracionService
         };
     }
 
-    public async Task ActualizarSmtpAsync(ActualizarSmtpDto dto)
+    public async Task ActualizarSmtpAsync(int usuarioId, ActualizarSmtpDto dto)
     {
-        await _repo.SetAsync(Pref + "Habilitado", dto.Habilitado.ToString());
-        await _repo.SetAsync(Pref + "Host", dto.Host ?? "");
-        await _repo.SetAsync(Pref + "Port", dto.Port.ToString());
-        await _repo.SetAsync(Pref + "UsarSsl", dto.UsarSsl.ToString());
-        await _repo.SetAsync(Pref + "Usuario", dto.Usuario ?? "");
-        await _repo.SetAsync(Pref + "From", dto.From ?? "");
-        await _repo.SetAsync(Pref + "FromNombre", dto.FromNombre ?? "");
+        await _repo.SetAsync(usuarioId, Pref + "Habilitado", dto.Habilitado.ToString());
+        await _repo.SetAsync(usuarioId, Pref + "Host", dto.Host ?? "");
+        await _repo.SetAsync(usuarioId, Pref + "Port", dto.Port.ToString());
+        await _repo.SetAsync(usuarioId, Pref + "UsarSsl", dto.UsarSsl.ToString());
+        await _repo.SetAsync(usuarioId, Pref + "Usuario", dto.Usuario ?? "");
+        await _repo.SetAsync(usuarioId, Pref + "From", dto.From ?? "");
+        await _repo.SetAsync(usuarioId, Pref + "FromNombre", dto.FromNombre ?? "");
         if (!string.IsNullOrWhiteSpace(dto.Password))
-            await _repo.SetAsync(Pref + "Password", dto.Password);
+            await _repo.SetAsync(usuarioId, Pref + "Password", dto.Password);
     }
 
-    public async Task<EvolutionOptions> GetEvolutionEffectiveAsync()
+    // ---------------- Evolution (WhatsApp) ----------------
+    private EvolutionOptions BuildEvo(Dictionary<string, string?> db)
     {
-        var db = await _repo.GetAllAsync();
         string S(string k, string fb) => db.TryGetValue(PrefEvo + k, out var v) && v is not null ? v : fb;
         bool B(string k, bool fb) => db.TryGetValue(PrefEvo + k, out var v) && bool.TryParse(v, out var b) ? b : fb;
         return new EvolutionOptions
@@ -88,9 +103,12 @@ public class ConfiguracionService : IConfiguracionService
         };
     }
 
-    public async Task<EvolutionConfigDto> GetEvolutionAsync()
+    public async Task<EvolutionOptions> GetEvolutionEffectiveAsync(int? usuarioId)
+        => BuildEvo(await ResolverAsync(usuarioId, PrefEvo));
+
+    public async Task<EvolutionConfigDto> GetEvolutionAsync(int usuarioId)
     {
-        var e = await GetEvolutionEffectiveAsync();
+        var e = BuildEvo(await _repo.GetByUsuarioAsync(usuarioId));
         return new EvolutionConfigDto
         {
             Habilitado = e.Habilitado,
@@ -100,12 +118,12 @@ public class ConfiguracionService : IConfiguracionService
         };
     }
 
-    public async Task ActualizarEvolutionAsync(ActualizarEvolutionDto dto)
+    public async Task ActualizarEvolutionAsync(int usuarioId, ActualizarEvolutionDto dto)
     {
-        await _repo.SetAsync(PrefEvo + "Habilitado", dto.Habilitado.ToString());
-        await _repo.SetAsync(PrefEvo + "BaseUrl", dto.BaseUrl ?? "");
-        await _repo.SetAsync(PrefEvo + "Instance", dto.Instance ?? "");
+        await _repo.SetAsync(usuarioId, PrefEvo + "Habilitado", dto.Habilitado.ToString());
+        await _repo.SetAsync(usuarioId, PrefEvo + "BaseUrl", dto.BaseUrl ?? "");
+        await _repo.SetAsync(usuarioId, PrefEvo + "Instance", dto.Instance ?? "");
         if (!string.IsNullOrWhiteSpace(dto.ApiKey))
-            await _repo.SetAsync(PrefEvo + "ApiKey", dto.ApiKey);
+            await _repo.SetAsync(usuarioId, PrefEvo + "ApiKey", dto.ApiKey);
     }
 }

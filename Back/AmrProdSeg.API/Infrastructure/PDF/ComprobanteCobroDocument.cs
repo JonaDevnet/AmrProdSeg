@@ -107,18 +107,18 @@ public static class ComprobanteCobroDocument
         page.MarginLeft(2, Unit.Millimetre);
         page.MarginRight(18, Unit.Millimetre);
         page.MarginVertical(3, Unit.Millimetre);
-        page.DefaultTextStyle(t => t.FontSize(6.5f).FontColor("#000000"));
+        page.DefaultTextStyle(t => t.FontSize(7.5f).FontColor("#000000"));
 
         page.Content().Column(col =>
         {
             col.Spacing(2.5f);
-            col.Item().AlignCenter().Text("Comprobante de pago").Bold().FontSize(8.5f);
+            col.Item().AlignCenter().Text("Comprobante de pago").Black().FontSize(9f);
             col.Item().PaddingVertical(2).LineHorizontal(0.5f).LineColor("#c8cfdc");
 
             void Fila(string k, string v) => col.Item().Row(r =>
             {
-                r.RelativeItem(1f).Text(k).FontColor("#333333");
-                r.RelativeItem(1.4f).AlignRight().Text(v).SemiBold();
+                r.RelativeItem(1f).Text(k).FontColor("#000000");
+                r.RelativeItem(1.4f).AlignRight().Text(v).Bold();
             });
 
             col.Item().Row(r =>
@@ -138,14 +138,14 @@ public static class ComprobanteCobroDocument
             col.Item().AlignCenter().Text("COMPROBANTE VALIDO CONSERVELO.").SemiBold().FontSize(6.5f);
             col.Item().PaddingTop(2).AlignCenter().Text(txt =>
             {
-                txt.DefaultTextStyle(s => s.FontSize(5.8f).FontColor("#333333"));
+                txt.DefaultTextStyle(s => s.FontSize(5.8f).FontColor("#000000"));
                 //txt.Span($"Emitido por {EMISOR} · pago del ");
-                txt.Span(d.FechaPago.ToString("d/M/yyyy", Es)).SemiBold();
+                txt.Span(d.FechaPago.ToString("d/M/yyyy", Es)).Bold();
             });
 
             // QR al final del ticket
             col.Item().PaddingTop(6).AlignCenter().Width(24, Unit.Millimetre).Image(QrPng(d.QrUrl)).FitWidth();
-            col.Item().AlignCenter().Text("Verificar con QR").FontSize(5.8f).FontColor("#333333");
+            col.Item().AlignCenter().Text("Verificar con QR").FontSize(6f).FontColor("#000000");
         });
     }
 

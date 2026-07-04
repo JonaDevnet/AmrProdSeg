@@ -13,8 +13,13 @@ namespace AmrProdSeg.API.Controllers;
 public class PolizasController : ControllerBase
 {
     private readonly IPolizaService _service;
+    private readonly IEliminacionService _eliminacion;
 
-    public PolizasController(IPolizaService service) => _service = service;
+    public PolizasController(IPolizaService service, IEliminacionService eliminacion)
+    {
+        _service = service;
+        _eliminacion = eliminacion;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Listar(
@@ -78,6 +83,12 @@ public class PolizasController : ControllerBase
         var bytes = await _service.GenerarPdfAsync(id);
         return File(bytes, "application/pdf", $"poliza-{id}.pdf");
     }
+
+    /// <summary>Elimina la póliza y todo su registro (cuotas y vehículo si queda huérfano; conserva el cliente).
+    /// El Admin la ejecuta en el acto; el Productor deja una solicitud pendiente de autorización.</summary>
+    [HttpPost("{id:int}/eliminar")]
+    public async Task<IActionResult> Eliminar(int id, [FromBody] EliminarPolizaDto? dto)
+        => Ok(await _eliminacion.EliminarOSolicitarAsync(id, UsuarioActualId(), EsAdmin(), dto?.Motivo));
 
     private int UsuarioActualId()
     {

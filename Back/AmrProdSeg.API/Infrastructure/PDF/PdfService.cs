@@ -28,7 +28,7 @@ public class PdfService : IPdfService
                 page.DefaultTextStyle(t => t.FontSize(11));
 
                 page.Header().Text($"Comprobante de Póliza {poliza.Numero}")
-                    .FontSize(18).Bold();
+                    .FontSize(18).Black();
 
                 page.Content().PaddingVertical(20).Column(col =>
                 {
@@ -86,7 +86,7 @@ public class PdfService : IPdfService
     public byte[] GenerarComprobanteImpresion(ComprobanteCobroDto dto)
         => ComprobanteCobroDocument.GenerarComprobante(MapearComprobante(dto), CargarLogo(), conTalon: true);
 
-    // Impresión: solo el ticket (2ª hoja), sin logo.
+    // Impresión: solo el ticket (2ª hoja)
     public byte[] GenerarTicketImpresion(ComprobanteCobroDto dto)
         => ComprobanteCobroDocument.GenerarTicket(MapearComprobante(dto));
 
@@ -100,9 +100,9 @@ public class PdfService : IPdfService
             {
                 page.Margin(30);
                 page.Size(PageSizes.A4.Landscape());
-                page.DefaultTextStyle(t => t.FontSize(9));
+                page.DefaultTextStyle(t => t.FontSize(10));
 
-                page.Header().Text(titulo).FontSize(16).Bold();
+                page.Header().Text(titulo).FontSize(16).Black();
 
                 page.Content().PaddingVertical(15).Table(table =>
                 {
@@ -112,7 +112,7 @@ public class PdfService : IPdfService
                     });
 
                     foreach (var col in columnas)
-                        table.Cell().Background(Colors.Grey.Lighten2).Padding(4).Text(col).Bold();
+                        table.Cell().Background(Colors.Black).Padding(4).Text(col).Black();
 
                     foreach (var fila in filas)
                         foreach (var col in columnas)

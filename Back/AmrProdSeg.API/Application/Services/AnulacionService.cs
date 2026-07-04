@@ -28,6 +28,7 @@ public class AnulacionService : IAnulacionService
     }
 
     public Task<List<AnulacionCobro>> GetPendientesAsync() => _repo.GetPendientesAsync();
+    public Task<List<AnulacionCobro>> GetHistorialAsync() => _repo.GetHistorialAsync();
 
     public async Task AprobarAsync(int id, int adminId)
     {

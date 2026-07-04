@@ -53,6 +53,7 @@ builder.Services.AddScoped<ICoberturaRepository,  CoberturaRepository>();
 builder.Services.AddScoped<IOficinaRepository,    OficinaRepository>();
 builder.Services.AddScoped<IBajaRepository,       BajaRepository>();
 builder.Services.AddScoped<IAnulacionRepository,  AnulacionRepository>();
+builder.Services.AddScoped<IEliminacionRepository, EliminacionRepository>();
 builder.Services.AddScoped<IMovimientoRepository, MovimientoRepository>();
 builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
 
@@ -81,6 +82,7 @@ builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IVerificacionService, VerificacionService>();
 builder.Services.AddScoped<IAltaService,      AltaService>();
 builder.Services.AddScoped<IAnulacionService, AnulacionService>();
+builder.Services.AddScoped<IEliminacionService, EliminacionService>();
 builder.Services.AddScoped<IMovimientoService, MovimientoService>();
 builder.Services.AddScoped<IConfiguracionService, ConfiguracionService>();
 

@@ -23,11 +23,14 @@ public class EvolutionApiWhatsAppSender : IWhatsAppSender
         _logger = logger;
     }
 
-    public bool Habilitado => _config.GetEvolutionEffectiveAsync().GetAwaiter().GetResult().Habilitado;
+    public bool Habilitado => _config.GetEvolutionEffectiveAsync(null).GetAwaiter().GetResult().Habilitado;
 
-    public async Task EnviarAsync(string telefono, string mensaje)
+    public async Task<bool> HabilitadoParaAsync(int? usuarioId)
+        => (await _config.GetEvolutionEffectiveAsync(usuarioId)).Habilitado;
+
+    public async Task EnviarAsync(string telefono, string mensaje, int? usuarioId = null)
     {
-        var opt = await _config.GetEvolutionEffectiveAsync();
+        var opt = await _config.GetEvolutionEffectiveAsync(usuarioId);
         if (!opt.Habilitado)
         {
             _logger.LogInformation("[WhatsApp DESACTIVADO] Para {Telefono}: {Mensaje}", telefono, mensaje);
@@ -49,9 +52,9 @@ public class EvolutionApiWhatsAppSender : IWhatsAppSender
         _logger.LogInformation("WhatsApp enviado a {Telefono}", telefono);
     }
 
-    public async Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption)
+    public async Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption, int? usuarioId = null)
     {
-        var opt = await _config.GetEvolutionEffectiveAsync();
+        var opt = await _config.GetEvolutionEffectiveAsync(usuarioId);
         if (!opt.Habilitado)
         {
             _logger.LogInformation("[WhatsApp DESACTIVADO] Documento {Archivo} para {Telefono}", nombreArchivo, telefono);
