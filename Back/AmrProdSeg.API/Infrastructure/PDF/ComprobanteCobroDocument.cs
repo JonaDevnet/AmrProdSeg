@@ -41,6 +41,9 @@ public static class ComprobanteCobroDocument
     private const string EMISOR = "AMRINALDI Producción de Seguros";
     private const string BANCO = "Cta Cte BANCO PATAGONIA S.A.";
     private const string CUENTA_TICKET = "Cc $ 060********9001 de Banco Patagonia";
+    // Credencial oficial del productor en la SSN (QR del ticket)
+    private const string SSN_QR_URL =
+        "https://seguro2.ssn.gob.ar/CredencialQR/Productor/DetailsQR?cuit=U5PhUfzfuk5ucRETH16Hf6krvXY6kQeEycTLA%2bdEpF0%3d&nroAltaResolucion=jJOtHsRVwYECOhoiBc69dA%3d%3d";
 
     private static string Money(decimal m) => "$ " + m.ToString("N2", Es);
 
@@ -143,9 +146,9 @@ public static class ComprobanteCobroDocument
                 txt.Span(d.FechaPago.ToString("d/M/yyyy", Es)).Bold();
             });
 
-            // QR al final del ticket
-            col.Item().PaddingTop(6).AlignCenter().Width(24, Unit.Millimetre).Image(QrPng(d.QrUrl)).FitWidth();
-            col.Item().AlignCenter().Text("Verificar con QR").FontSize(6f).FontColor("#000000");
+            // QR al final del ticket → credencial oficial del productor en la SSN
+            col.Item().PaddingTop(6).AlignCenter().Width(28, Unit.Millimetre).Image(QrPng(SSN_QR_URL)).FitWidth();
+            col.Item().AlignCenter().Text("Credencial del productor — SSN").FontSize(6f).FontColor("#000000");
         });
     }
 
