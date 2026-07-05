@@ -32,6 +32,8 @@ public record ComprobanteCobroData(
 public static class ComprobanteCobroDocument
 {
     private static readonly CultureInfo Es = new("es-AR");
+    // Tipografía de los PDFs (los .ttf viven en wwwroot/fonts y se registran al arrancar)
+    private const string FUENTE = "Google Sans";
     // Membrete del productor (fijo)
     private const string RAZON = "AMRINALDI PRODUCCIÓN DE SEGUROS";
     private const string TITULAR = "de ALBERTO MATEO RINALDI";
@@ -48,14 +50,14 @@ public static class ComprobanteCobroDocument
     private static string Money(decimal m) => "$ " + m.ToString("N2", Es);
 
     /// <summary>Documento completo (comprobante 1ª hoja + ticket 2ª hoja). Se usa en el envío online (email/WhatsApp).</summary>
-    public static byte[] Generar(ComprobanteCobroData d, byte[]? logo) => Build(d, logo).GeneratePdf();
+    public static byte[] Generar(ComprobanteCobroData d, byte[]? logo, byte[]? sello = null, byte[]? logoSsn = null) => Build(d, logo, sello, logoSsn).GeneratePdf();
 
     /// <summary>Solo el COMPROBANTE (1ª hoja). conTalon=true agrega el talón recortable a la derecha (impresión).</summary>
-    public static Document BuildComprobante(ComprobanteCobroData d, byte[]? logo, bool conTalon = false) =>
-        Document.Create(doc => doc.Page(page => PaginaComprobante(page, d, logo, conTalon)));
+    public static Document BuildComprobante(ComprobanteCobroData d, byte[]? logo, bool conTalon = false, byte[]? sello = null, byte[]? logoSsn = null) =>
+        Document.Create(doc => doc.Page(page => PaginaComprobante(page, d, logo, conTalon, sello, logoSsn)));
 
-    public static byte[] GenerarComprobante(ComprobanteCobroData d, byte[]? logo, bool conTalon = false) =>
-        BuildComprobante(d, logo, conTalon).GeneratePdf();
+    public static byte[] GenerarComprobante(ComprobanteCobroData d, byte[]? logo, bool conTalon = false, byte[]? sello = null, byte[]? logoSsn = null) =>
+        BuildComprobante(d, logo, conTalon, sello, logoSsn).GeneratePdf();
 
     /// <summary>Solo el TICKET (2ª hoja), sin logo. Para imprimir en el mostrador.</summary>
     public static Document BuildTicket(ComprobanteCobroData d) =>
@@ -63,17 +65,17 @@ public static class ComprobanteCobroDocument
 
     public static byte[] GenerarTicket(ComprobanteCobroData d) => BuildTicket(d).GeneratePdf();
 
-    public static Document Build(ComprobanteCobroData d, byte[]? logo) => Document.Create(doc =>
+    public static Document Build(ComprobanteCobroData d, byte[]? logo, byte[]? sello = null, byte[]? logoSsn = null) => Document.Create(doc =>
     {
-        doc.Page(page => PaginaComprobante(page, d, logo, conTalon: false));
+        doc.Page(page => PaginaComprobante(page, d, logo, conTalon: false, sello, logoSsn));
         doc.Page(page => PaginaTicket(page, d));
     });
 
     /// <summary>Página 1 — COMPROBANTE. conTalon (impresión) = hoja A4 vertical con el comprobante en la
     /// franja superior + talón recortable a la derecha. Online = franja compacta (1/4 de A4).</summary>
-    private static void PaginaComprobante(PageDescriptor page, ComprobanteCobroData d, byte[]? logo, bool conTalon)
+    private static void PaginaComprobante(PageDescriptor page, ComprobanteCobroData d, byte[]? logo, bool conTalon, byte[]? sello = null, byte[]? logoSsn = null)
     {
-        page.DefaultTextStyle(t => t.FontSize(6f).FontColor("#000000"));
+        page.DefaultTextStyle(t => t.FontFamily(FUENTE).FontSize(6.5f).FontColor("#000000"));
 
         if (conTalon)
         {
@@ -86,7 +88,7 @@ public static class ComprobanteCobroDocument
                 fila.RelativeItem(3f).Column(col =>
                 {
                     col.Item().Element(e => Membrete(e, logo, QrPng(d.QrUrl)));
-                    col.Item().Element(e => ContenidoComprobante(e, d));
+                    col.Item().Element(e => ContenidoComprobante(e, d, sello, logoSsn));
                 });
                 fila.ConstantItem(12).Element(LineaPunteada);
                 fila.RelativeItem(1f).Element(e => Talon(e, d));
@@ -97,7 +99,7 @@ public static class ComprobanteCobroDocument
             page.Size(210, 74, Unit.Millimetre);   // A4 de ancho, 1/4 de alto (parte de arriba)
             page.Margin(6);
             page.Header().Element(e => Membrete(e, logo, QrPng(d.QrUrl)));
-            page.Content().Element(e => ContenidoComprobante(e, d));
+            page.Content().Element(e => ContenidoComprobante(e, d, sello, logoSsn));
         }
     }
 
@@ -110,54 +112,56 @@ public static class ComprobanteCobroDocument
         page.MarginLeft(2, Unit.Millimetre);
         page.MarginRight(18, Unit.Millimetre);
         page.MarginVertical(3, Unit.Millimetre);
-        page.DefaultTextStyle(t => t.FontSize(7.5f).FontColor("#000000"));
+        page.DefaultTextStyle(t => t.FontFamily(FUENTE).FontSize(8.5f).FontColor("#000000"));
 
+        // Térmica = 1 bit (sin grises): TODO negro puro y en negrita para que los
+        // trazos no se pierdan al rasterizar a 203 dpi.
         page.Content().Column(col =>
         {
             col.Spacing(2.5f);
-            col.Item().AlignCenter().Text("Comprobante de pago").Black().FontSize(9f);
-            col.Item().PaddingVertical(2).LineHorizontal(0.5f).LineColor("#c8cfdc");
+            col.Item().AlignCenter().Text("Comprobante de pago").Black().FontSize(9.5f);
+            col.Item().PaddingVertical(2).LineHorizontal(0.8f).LineColor("#000000");
 
             void Fila(string k, string v) => col.Item().Row(r =>
             {
-                r.RelativeItem(1f).Text(k).FontColor("#000000");
+                r.RelativeItem(1f).Text(k).Bold();
                 r.RelativeItem(1.4f).AlignRight().Text(v).Bold();
             });
 
             col.Item().Row(r =>
             {
-                r.RelativeItem(1f).AlignMiddle().Text("Importe").FontColor("#333333");
-                r.RelativeItem(1.4f).AlignRight().Text(Money(d.Importe)).Bold().FontSize(9);
+                r.RelativeItem(1f).AlignMiddle().Text("Importe").Bold();
+                r.RelativeItem(1.4f).AlignRight().Text(Money(d.Importe)).Bold().FontSize(10.5f);
             });
             Fila("Compañía", d.Compania);
-            Fila("Medio de pago", d.MedioPago);
+            Fila("Pago", d.MedioPago);
             Fila("Cuenta", CUENTA_TICKET);
-            Fila("Fecha / Hora", d.FechaPago.ToString("d/M/yyyy HH:mm", Es));
-            Fila("Identificación", d.ReciboNumero);
+            Fila("Fecha", d.FechaPago.ToString("d/M/yyyy HH:mm", Es));
+            Fila("Recibo N°", d.ReciboNumero);
             Fila("Patente", d.Dominio);
             Fila("Cuota", $"{d.CuotaActual}/{d.CuotasTotal}");
 
-            col.Item().PaddingVertical(2).LineHorizontal(0.5f).LineColor("#c8cfdc");
-            col.Item().AlignCenter().Text("COMPROBANTE VALIDO CONSERVELO.").SemiBold().FontSize(6.5f);
+            col.Item().PaddingVertical(2).LineHorizontal(0.8f).LineColor("#000000");
+            col.Item().AlignCenter().Text("COMPROBANTE VALIDO CONSERVELO.").Bold().FontSize(7.5f);
             col.Item().PaddingTop(2).AlignCenter().Text(txt =>
             {
-                txt.DefaultTextStyle(s => s.FontSize(5.8f).FontColor("#000000"));
+                txt.DefaultTextStyle(s => s.FontSize(7f).FontColor("#000000"));
                 //txt.Span($"Emitido por {EMISOR} · pago del ");
                 txt.Span(d.FechaPago.ToString("d/M/yyyy", Es)).Bold();
             });
 
             // QR al final del ticket → credencial oficial del productor en la SSN
             col.Item().PaddingTop(6).AlignCenter().Width(28, Unit.Millimetre).Image(QrPng(SSN_QR_URL)).FitWidth();
-            col.Item().AlignCenter().Text("Credencial del productor — SSN").FontSize(6f).FontColor("#000000");
         });
     }
 
-    /// <summary>Cuerpo del comprobante (tablas + banco + código de barras + leyes). Reutilizado en versión online y con talón.</summary>
-    private static void ContenidoComprobante(IContainer container, ComprobanteCobroData d)
+    /// <summary>Cuerpo del comprobante (tablas + banco + código de barras + leyes). Reutilizado en versión online y con talón.
+    /// El sello "PAGADO" (si viene) se estampa sobre la celda del próximo vencimiento.</summary>
+    private static void ContenidoComprobante(IContainer container, ComprobanteCobroData d, byte[]? sello = null, byte[]? logoSsn = null)
     {
-        container.PaddingTop(3).Column(col =>
+        container.PaddingTop(2).Column(col =>
         {
-            col.Spacing(2);
+            col.Spacing(1.6f);
 
             // Cabecera: Fecha de pago | Recibo N° | Póliza N° | Compañía
             col.Item().Table(t =>
@@ -182,7 +186,14 @@ public static class ComprobanteCobroDocument
                 t.ColumnsDefinition(c => { c.RelativeColumn(1.1f); c.RelativeColumn(0.7f); c.RelativeColumn(0.7f); c.RelativeColumn(1.3f); c.RelativeColumn(1.1f); });
                 t.Cell().Element(H).Text("Dominio"); t.Cell().Element(H).Text("Año"); t.Cell().Element(H).Text("Cuota"); t.Cell().Element(H).Text("Próx. Venc. (12 Hs)"); t.Cell().Element(H).Text("IMPORTE");
                 t.Cell().Element(V).Text(d.Dominio); t.Cell().Element(V).Text(d.Anio); t.Cell().Element(V).Text($"{d.CuotaActual}/{d.CuotasTotal}");
-                t.Cell().Element(V).Text(d.ProxVencimiento is null ? "—" : d.ProxVencimiento.Value.ToString("d/M/yyyy", Es));
+                // Próx. vencimiento con el sello "PAGADO" estampado encima
+                t.Cell().Element(V).Layers(l =>
+                {
+                    l.PrimaryLayer().Text(d.ProxVencimiento is null ? "—" : d.ProxVencimiento.Value.ToString("d/M/yyyy", Es));
+                    if (sello is not null)
+                        l.Layer().AlignCenter().AlignMiddle().Unconstrained()
+                         .OffsetX(-51).OffsetY(-40).Width(101).Image(sello);
+                });
                 t.Cell().Element(V).Text(Money(d.Importe));
             });
 
@@ -193,14 +204,21 @@ public static class ComprobanteCobroDocument
                 t.Cell().Element(H).Text("Cobertura"); t.Cell().Element(V).Text(d.Cobertura);
             });
 
-            // Banco arriba, código de barras (más largo) abajo
-            col.Item().PaddingTop(1).Text(BANCO).SemiBold();
+            // Banco arriba (compacto), código de barras abajo
+            col.Item().Text(BANCO).SemiBold().FontSize(5.5f);
             col.Item().Element(e => Barcode(e, d.ReciboNumero + d.PolizaNumero));
 
             // Leyes compactadas
-            col.Item().PaddingTop(1).Text(LEGAL).FontSize(3.7f).FontColor("#1e1e1e").LineHeight(0.98f);
-            col.Item().PaddingTop(1).Text("*** EL PAGO SE VERA REFLEJADO 2 DIAS HABILES DESPUES DE LA FECHA DE EMISION.")
-                .FontSize(4.2f).SemiBold().FontColor("#333333");
+            col.Item().PaddingTop(1).Text(LEGAL).FontSize(4.2f).FontColor("#1e1e1e").LineHeight(0.95f);
+            // Leyenda final + logo SSN a su derecha
+            col.Item().PaddingTop(1).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("*** EL PAGO SE VERA REFLEJADO 2 DIAS HABILES DESPUES DE LA FECHA DE EMISION.")
+                    .FontSize(4.8f).SemiBold().FontColor("#333333");
+                if (logoSsn is not null)
+                    r.AutoItem().PaddingLeft(8).AlignMiddle().Height(7).Image(logoSsn).FitHeight();
+                r.RelativeItem();
+            });
         });
     }
 
@@ -257,17 +275,17 @@ public static class ComprobanteCobroDocument
                 r.ConstantItem(46).Height(38).AlignMiddle().Image(logo).FitArea();
             r.RelativeItem().PaddingLeft(8).AlignMiddle().Column(c =>
             {
-                c.Item().Text(RAZON).FontSize(9f).Bold().FontColor("#000000");
-                c.Item().Text(TITULAR).FontSize(7.5f);
-                c.Item().PaddingTop(1).Text(RUBRO).FontSize(5f).FontColor("#1e1e1e");
-                c.Item().Text(DIR1).FontSize(5f).FontColor("#1e1e1e");
-                c.Item().Text(DIR2).FontSize(5f).FontColor("#1e1e1e");
+                c.Item().Text(RAZON).FontSize(10f).Bold().FontColor("#000000");
+                c.Item().Text(TITULAR).FontSize(8f);
+                c.Item().PaddingTop(1).Text(RUBRO).FontSize(5.5f).FontColor("#1e1e1e");
+                c.Item().Text(DIR1).FontSize(5.5f).FontColor("#1e1e1e");
+                c.Item().Text(DIR2).FontSize(5.5f).FontColor("#1e1e1e");
             });
             if (qr is not null)
                 r.ConstantItem(50).PaddingLeft(6).AlignMiddle().Column(q =>
                 {
                     q.Item().AlignCenter().Height(46).Image(qr).FitArea();
-                    q.Item().AlignCenter().Text("Verificar con QR").FontSize(3.8f).FontColor("#333333");
+                    q.Item().AlignCenter().Text("Verificar con QR").FontSize(4.5f).FontColor("#333333");
                 });
         });
     }
@@ -276,7 +294,7 @@ public static class ComprobanteCobroDocument
     private static void Barcode(IContainer container, string seed)
     {
         var rnd = new Random(Math.Abs(seed.GetHashCode()));
-        container.Height(13).Row(r =>
+        container.Height(10).Row(r =>
         {
             for (int i = 0; i < 110; i++)
             {

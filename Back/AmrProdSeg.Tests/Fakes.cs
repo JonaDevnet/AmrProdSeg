@@ -33,7 +33,7 @@ public class FakeCobroRepository : ICobroRepository
     public int MarcarPagadoLlamadas;
 
     public Task InsertarLoteAsync(IEnumerable<Cobro> cobros) => Task.CompletedTask;
-    public Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null) { MarcarPagadoLlamadas++; return Task.CompletedTask; }
+    public Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null) { MarcarPagadoLlamadas++; return Task.CompletedTask; }
     public Task<Cobro?> GetByIdAsync(int id) => Task.FromResult(CobroPorId);
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio) => Task.FromResult(new List<Cobro>());
     public Task<List<Cobro>> GetPorPolizaAsync(int polizaId) => Task.FromResult(new List<Cobro>());

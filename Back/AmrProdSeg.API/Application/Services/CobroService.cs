@@ -52,13 +52,25 @@ public class CobroService : ICobroService
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio)
         => _cobroRepo.GetPendientesMesAsync(mes, anio);
 
-    public async Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null)
+    public async Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null)
     {
         var cobro = await _cobroRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Cuota no encontrada.");
 
         if (cobro.Estado == EstadoCobro.Pagado)
             throw new BusinessException("La cuota ya está pagada.");
+
+        // El método de pago es obligatorio; el segundo es opcional y no puede repetir al primero.
+        if (metodoPagoId is null)
+            throw new BusinessException("Elegí el método de pago.");
+        if (metodoPago2Id == metodoPagoId)
+            metodoPago2Id = null;
+
+        // Pago mixto: el monto del 2° método es obligatorio y debe dejar resto para el principal.
+        if (metodoPago2Id is null)
+            metodoPago2Monto = null;
+        else if (metodoPago2Monto is null || metodoPago2Monto <= 0 || metodoPago2Monto >= cobro.Monto)
+            throw new BusinessException("Indicá cuánto se pagó con el segundo método (mayor a 0 y menor al total de la cuota).");
 
         // No se puede cobrar una cuota si hay una anterior impaga (vencida o pendiente):
         // las cuotas se cobran en orden.
@@ -73,7 +85,7 @@ public class CobroService : ICobroService
         // La cuota se cobra en la fecha elegida pero con la HORA real de registro,
         // para que "Hechos del día" muestre el horario correcto (y no 00:00).
         var fechaHora = fechaPago.Date + DateTime.Now.TimeOfDay;
-        await _cobroRepo.MarcarPagadoAsync(id, fechaHora, metodoPagoId, usuarioId);
+        await _cobroRepo.MarcarPagadoAsync(id, fechaHora, metodoPagoId, usuarioId, metodoPago2Id, metodoPago2Monto);
     }
 
     public Task MarcarVencidosAsync()
@@ -96,8 +108,18 @@ public class CobroService : ICobroService
         var vehiculos = await _vehiculoRepo.GetPorClienteAsync(cliente.Id);
         var veh = vehiculos.FirstOrDefault(v => v.Id == poliza.VehiculoId);
         var metodos = await _metodoRepo.GetAllAsync();
-        var metNombre = metodos.FirstOrDefault(m => m.Id == cobro.MetodoPagoId)?.Nombre ?? "";
-        var medioPago = metNombre.ToLowerInvariant().Contains("efectivo") ? "Efectivo" : "Transferencia";
+        string NombreMedio(int? mid)
+        {
+            var n = metodos.FirstOrDefault(m => m.Id == mid)?.Nombre ?? "";
+            return n.ToLowerInvariant().Contains("efectivo") ? "Efectivo" : "Transferencia";
+        }
+        var medioPago = NombreMedio(cobro.MetodoPagoId);
+        if (cobro.MetodoPago2Id is not null && cobro.MetodoPago2Monto is decimal m2)
+        {
+            // Pago mixto: se detalla cuánto se pagó con cada medio.
+            var ar = CultureInfo.GetCultureInfo("es-AR");
+            medioPago = $"{NombreMedio(cobro.MetodoPagoId)} $ {(cobro.Monto - m2).ToString("N2", ar)} + {NombreMedio(cobro.MetodoPago2Id)} $ {m2.ToString("N2", ar)}";
+        }
 
         // Próximo vencimiento = vencimiento de la cuota siguiente a la cobrada
         var cuotas = await _cobroRepo.GetPorPolizaAsync(poliza.Id);

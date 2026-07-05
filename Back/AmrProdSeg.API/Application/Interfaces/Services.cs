@@ -20,7 +20,7 @@ public interface ICobroService
 {
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
-    Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null);
+    Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null);
     Task MarcarVencidosAsync();
     Task<EnviarComprobanteResultDto> EnviarComprobanteAsync(int cobroId, string canal, int usuarioId);
     Task<(byte[] Pdf, string NombreArchivo)> GenerarComprobanteImpresionAsync(int cobroId);

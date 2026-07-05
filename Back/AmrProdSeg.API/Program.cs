@@ -25,6 +25,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Licencia QuestPDF (Community)
 QuestPDF.Settings.License = LicenseType.Community;
 
+// Fuentes propias para los PDFs (comprobante/ticket). Se cargan los .ttf de
+// wwwroot/fonts para que local y producción (Linux) rendericen igual.
+var fontsDir = Path.Combine(builder.Environment.WebRootPath ?? "wwwroot", "fonts");
+if (Directory.Exists(fontsDir))
+    foreach (var ttf in Directory.GetFiles(fontsDir, "*.ttf"))
+        using (var fs = File.OpenRead(ttf))
+            QuestPDF.Drawing.FontManager.RegisterFont(fs);
+
 // Logging estructurado con Serilog (consola + archivo rotativo diario)
 builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration)

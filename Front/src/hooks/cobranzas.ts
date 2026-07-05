@@ -24,11 +24,15 @@ export function usePagarCuota() {
       id,
       fechaPago,
       metodoPagoId,
+      metodoPago2Id,
+      metodoPago2Monto,
     }: {
       id: number;
       fechaPago: string;
       metodoPagoId?: number;
-    }) => pagarCuota(id, fechaPago, metodoPagoId),
+      metodoPago2Id?: number;
+      metodoPago2Monto?: number;
+    }) => pagarCuota(id, fechaPago, metodoPagoId, metodoPago2Id, metodoPago2Monto),
     onSuccess: () => {
       // invalida tanto pendientes del período como cuotas por póliza
       qc.invalidateQueries({ queryKey: ["cobros"] });

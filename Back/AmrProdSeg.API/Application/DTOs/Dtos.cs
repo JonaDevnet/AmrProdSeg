@@ -178,7 +178,9 @@ public class CrearCompaniaDto
 public class MarcarPagoDto
 {
     public DateTime FechaPago { get; set; } = DateTime.UtcNow;
-    public int? MetodoPagoId { get; set; }
+    public int? MetodoPagoId { get; set; }    // obligatorio (validado en el servicio)
+    public int? MetodoPago2Id { get; set; }   // segundo método opcional (pago mixto)
+    public decimal? MetodoPago2Monto { get; set; }   // monto pagado con el 2° método
 }
 
 // ---------- Métodos de pago ----------

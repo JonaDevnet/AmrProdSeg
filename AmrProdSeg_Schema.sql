@@ -2901,5 +2901,197 @@ END
 GO
 
 /* =============================================================================
+   §45 — Segundo método de pago (opcional) al cobrar una cuota.
+   El método principal pasa a ser obligatorio a nivel de negocio; en pocos casos
+   se usa además un segundo método (ej. parte efectivo + parte transferencia).
+   ============================================================================= */
+IF COL_LENGTH('dbo.Cobros', 'MetodoPago2Id') IS NULL
+    ALTER TABLE Cobros ADD MetodoPago2Id INT NULL REFERENCES MetodosPago(Id);
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_MarcarPagado
+    @Id INT, @FechaPago DATETIME, @MetodoPagoId INT = NULL, @RegistradoPor INT = NULL, @MetodoPago2Id INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Cobros
+    SET Estado = 1, FechaPago = @FechaPago, MetodoPagoId = @MetodoPagoId,
+        MetodoPago2Id = @MetodoPago2Id,
+        RegistradoPor = ISNULL(@RegistradoPor, RegistradoPor)
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId
+    ORDER BY co.NumeroCuota;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, FechaPago, MetodoPagoId, MetodoPago2Id
+    FROM Cobros
+    WHERE Id = @Id;
+END
+GO
+
+-- Las anulaciones también limpian el segundo método
+CREATE OR ALTER PROCEDURE sp_Cobro_AnularPago @CobroId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Cobros SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL, MetodoPago2Id = NULL
+    WHERE Id = @CobroId AND Estado = 1;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anulacion_Aprobar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @CobroId INT = (SELECT CobroId FROM AnulacionesCobro WHERE Id = @Id AND Estado = 0);
+        IF @CobroId IS NULL BEGIN ROLLBACK TRANSACTION; SELECT CAST(0 AS INT) AS Afectadas; RETURN; END
+        UPDATE Cobros SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL, MetodoPago2Id = NULL WHERE Id = @CobroId;
+        UPDATE AnulacionesCobro SET Estado = 1, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE() WHERE Id = @Id;
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Afectadas;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; THROW;
+    END CATCH
+END
+GO
+
+/* =============================================================================
+   §46 — Monto del segundo método en pagos mixtos + desglose por medio en reportes.
+   El monto del método principal = Cobros.Monto - MetodoPago2Monto.
+   En sp_Reporte_PagosRecibidos cada pago mixto se divide en DOS filas (una por
+   método, con su monto), para que la rendición sume exacto por medio de pago.
+   ============================================================================= */
+IF COL_LENGTH('dbo.Cobros', 'MetodoPago2Monto') IS NULL
+    ALTER TABLE Cobros ADD MetodoPago2Monto DECIMAL(18,2) NULL;
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_MarcarPagado
+    @Id INT, @FechaPago DATETIME, @MetodoPagoId INT = NULL, @RegistradoPor INT = NULL,
+    @MetodoPago2Id INT = NULL, @MetodoPago2Monto DECIMAL(18,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Cobros
+    SET Estado = 1, FechaPago = @FechaPago, MetodoPagoId = @MetodoPagoId,
+        MetodoPago2Id = @MetodoPago2Id, MetodoPago2Monto = @MetodoPago2Monto,
+        RegistradoPor = ISNULL(@RegistradoPor, RegistradoPor)
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId
+    ORDER BY co.NumeroCuota;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, FechaPago,
+           MetodoPagoId, MetodoPago2Id, MetodoPago2Monto
+    FROM Cobros
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_AnularPago @CobroId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Cobros SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL, MetodoPago2Id = NULL, MetodoPago2Monto = NULL
+    WHERE Id = @CobroId AND Estado = 1;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anulacion_Aprobar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @CobroId INT = (SELECT CobroId FROM AnulacionesCobro WHERE Id = @Id AND Estado = 0);
+        IF @CobroId IS NULL BEGIN ROLLBACK TRANSACTION; SELECT CAST(0 AS INT) AS Afectadas; RETURN; END
+        UPDATE Cobros SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL, MetodoPago2Id = NULL, MetodoPago2Monto = NULL WHERE Id = @CobroId;
+        UPDATE AnulacionesCobro SET Estado = 1, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE() WHERE Id = @Id;
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Afectadas;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; THROW;
+    END CATCH
+END
+GO
+
+-- Pagos recibidos con desglose por medio: los pagos mixtos generan dos filas
+-- (el Id de la 2ª fila es negativo para mantener claves únicas en los listados).
+CREATE OR ALTER PROCEDURE sp_Reporte_PagosRecibidos
+    @Desde DATE, @Hasta DATE, @CompaniaId INT = NULL, @OficinaId INT = NULL,
+    @VendedorId INT = NULL, @VendedorRol VARCHAR(20) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT x.Id, co.FechaPago, x.Monto, co.NumeroCuota,
+           p.Id AS PolizaId, p.Numero AS NroPoliza, p.PrimaOG, p.CantidadCuotas,
+           c.Nombre AS ClienteNombre,
+           cp.Nombre AS Compania, p.CompaniaId,
+           ISNULL(r.Nombre,'-') AS Ramo,
+           x.Metodo,
+           ISNULL(vh.Patente,'-') AS Patente,
+           c.OficinaId, ISNULL(o.Nombre,'Sin oficina') AS OficinaNombre,
+           COALESCE(co.RegistradoPor, p.VendedorId) AS VendedorId,
+           ISNULL(v.Nombre,'-') AS VendedorNombre
+    FROM Cobros co
+    INNER JOIN Polizas   p  ON p.Id  = co.PolizaId
+    INNER JOIN Clientes  c  ON c.Id  = p.ClienteId
+    INNER JOIN Companias cp ON cp.Id = p.CompaniaId
+    LEFT  JOIN Ramos       r   ON r.Id   = p.RamoId
+    LEFT  JOIN MetodosPago mp  ON mp.Id  = co.MetodoPagoId
+    LEFT  JOIN MetodosPago mp2 ON mp2.Id = co.MetodoPago2Id
+    LEFT  JOIN Vehiculos   vh  ON vh.Id  = p.VehiculoId
+    LEFT  JOIN Oficinas    o   ON o.Id   = c.OficinaId
+    LEFT  JOIN Usuarios    v   ON v.Id   = COALESCE(co.RegistradoPor, p.VendedorId)
+    CROSS APPLY (
+        SELECT co.Id AS Id,
+               co.Monto - ISNULL(co.MetodoPago2Monto, 0) AS Monto,
+               ISNULL(mp.Nombre,'Sin especificar') AS Metodo
+        UNION ALL
+        SELECT -co.Id,
+               co.MetodoPago2Monto,
+               ISNULL(mp2.Nombre,'Sin especificar')
+        WHERE co.MetodoPago2Id IS NOT NULL AND ISNULL(co.MetodoPago2Monto, 0) > 0
+    ) x
+    WHERE co.Estado = 1
+      AND co.FechaPago >= @Desde AND co.FechaPago < DATEADD(DAY, 1, @Hasta)
+      AND (@CompaniaId  IS NULL OR p.CompaniaId = @CompaniaId)
+      AND (@OficinaId   IS NULL OR c.OficinaId  = @OficinaId)
+      AND (@VendedorId  IS NULL OR COALESCE(co.RegistradoPor, p.VendedorId) = @VendedorId)
+      AND (@VendedorRol IS NULL OR v.Rol = @VendedorRol)
+    ORDER BY co.FechaPago DESC;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

@@ -21,7 +21,7 @@ public class CobroServiceTests
         var service = Crear(repo);
 
         await Assert.ThrowsAsync<BusinessException>(
-            () => service.PagarAsync(1, DateTime.UtcNow, null));
+            () => service.PagarAsync(1, DateTime.UtcNow, 2));
         Assert.Equal(0, repo.MarcarPagadoLlamadas);
     }
 
@@ -32,7 +32,18 @@ public class CobroServiceTests
         var service = Crear(repo);
 
         await Assert.ThrowsAsync<NotFoundException>(
-            () => service.PagarAsync(99, DateTime.UtcNow, null));
+            () => service.PagarAsync(99, DateTime.UtcNow, 2));
+    }
+
+    [Fact]
+    public async Task PagarAsync_SinMetodoDePago_LanzaBusinessException()
+    {
+        var repo = new FakeCobroRepository { CobroPorId = new Cobro { Id = 1, Estado = EstadoCobro.Pendiente } };
+        var service = Crear(repo);
+
+        await Assert.ThrowsAsync<BusinessException>(
+            () => service.PagarAsync(1, DateTime.UtcNow, null));
+        Assert.Equal(0, repo.MarcarPagadoLlamadas);
     }
 
     [Fact]
@@ -44,6 +55,28 @@ public class CobroServiceTests
         await service.PagarAsync(1, DateTime.UtcNow, 2);
 
         Assert.Equal(1, repo.MarcarPagadoLlamadas);
+    }
+
+    [Fact]
+    public async Task PagarAsync_ConDosMetodosYMonto_MarcaPagada()
+    {
+        var repo = new FakeCobroRepository { CobroPorId = new Cobro { Id = 1, Estado = EstadoCobro.Pendiente, Monto = 10000m } };
+        var service = Crear(repo);
+
+        await service.PagarAsync(1, DateTime.UtcNow, 1, null, 2, 4000m);
+
+        Assert.Equal(1, repo.MarcarPagadoLlamadas);
+    }
+
+    [Fact]
+    public async Task PagarAsync_SegundoMetodoSinMonto_LanzaBusinessException()
+    {
+        var repo = new FakeCobroRepository { CobroPorId = new Cobro { Id = 1, Estado = EstadoCobro.Pendiente, Monto = 10000m } };
+        var service = Crear(repo);
+
+        await Assert.ThrowsAsync<BusinessException>(
+            () => service.PagarAsync(1, DateTime.UtcNow, 1, null, 2));
+        Assert.Equal(0, repo.MarcarPagadoLlamadas);
     }
 }
 

@@ -32,7 +32,7 @@ public class CobrosController : ControllerBase
     [HttpPut("{id:int}/pagar")]
     public async Task<IActionResult> Pagar(int id, [FromBody] MarcarPagoDto dto)
     {
-        await _service.PagarAsync(id, dto.FechaPago, dto.MetodoPagoId, UsuarioActualId());
+        await _service.PagarAsync(id, dto.FechaPago, dto.MetodoPagoId, UsuarioActualId(), dto.MetodoPago2Id, dto.MetodoPago2Monto);
         return NoContent();
     }
 

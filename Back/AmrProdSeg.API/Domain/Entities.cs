@@ -154,6 +154,8 @@ public class Cobro
     public EstadoCobro Estado { get; set; }
     public DateTime? FechaPago { get; set; }
     public int? MetodoPagoId { get; set; }
+    public int? MetodoPago2Id { get; set; }   // segundo método (opcional, ej. parte efectivo + parte transferencia)
+    public decimal? MetodoPago2Monto { get; set; }   // cuánto se pagó con el 2° método (el resto va al principal)
 
     // Campos de sólo lectura para listados (provienen de JOINs, no se persisten)
     public string? NroPoliza { get; set; }

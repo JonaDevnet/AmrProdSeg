@@ -16,9 +16,11 @@ export async function getCobrosPendientes(mes: number, anio: number): Promise<Co
 export async function pagarCuota(
   id: number,
   fechaPago: string,
-  metodoPagoId?: number
+  metodoPagoId?: number,
+  metodoPago2Id?: number,
+  metodoPago2Monto?: number
 ): Promise<void> {
-  await api.put(`/cobros/${id}/pagar`, { fechaPago, metodoPagoId });
+  await api.put(`/cobros/${id}/pagar`, { fechaPago, metodoPagoId, metodoPago2Id, metodoPago2Monto });
 }
 
 export interface EnviarComprobanteResult {

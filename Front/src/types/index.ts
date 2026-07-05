@@ -92,6 +92,7 @@ export interface Cobro {
   estado: EstadoCobro;
   fechaPago?: string | null;
   metodoPagoId?: number | null;
+  metodoPago2Id?: number | null;   // segundo método (pago mixto)
   nroPoliza?: string | null;
   clienteNombre?: string | null;
   cobradorNombre?: string | null;   // quién registró el cobro (admin)

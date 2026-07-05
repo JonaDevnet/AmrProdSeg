@@ -72,19 +72,23 @@ public class PdfService : IPdfService
         dto.RiesgoAsegurado, dto.Dominio, dto.Anio, dto.CuotaActual, dto.CuotasTotal,
         dto.ProxVencimiento, dto.Importe, dto.Cobertura, dto.MedioPago, dto.QrUrl);
 
-    private byte[]? CargarLogo()
+    private byte[]? CargarImagen(string nombre)
     {
-        var logoPath = Path.Combine(_env.WebRootPath ?? "wwwroot", "logo.png");
-        return File.Exists(logoPath) ? File.ReadAllBytes(logoPath) : null;
+        var ruta = Path.Combine(_env.WebRootPath ?? "wwwroot", nombre);
+        return File.Exists(ruta) ? File.ReadAllBytes(ruta) : null;
     }
+
+    private byte[]? CargarLogo() => CargarImagen("logo.png");
+    private byte[]? CargarSello() => CargarImagen("pagado.png");
+    private byte[]? CargarLogoSsn() => CargarImagen("logo-ssn.png");
 
     // Online: comprobante (1ª hoja) + ticket (2ª hoja) en un solo PDF.
     public byte[] GenerarComprobanteCobro(ComprobanteCobroDto dto)
-        => ComprobanteCobroDocument.Generar(MapearComprobante(dto), CargarLogo());
+        => ComprobanteCobroDocument.Generar(MapearComprobante(dto), CargarLogo(), CargarSello(), CargarLogoSsn());
 
     // Impresión: solo el comprobante (1ª hoja) con talón recortable.
     public byte[] GenerarComprobanteImpresion(ComprobanteCobroDto dto)
-        => ComprobanteCobroDocument.GenerarComprobante(MapearComprobante(dto), CargarLogo(), conTalon: true);
+        => ComprobanteCobroDocument.GenerarComprobante(MapearComprobante(dto), CargarLogo(), conTalon: true, sello: CargarSello(), logoSsn: CargarLogoSsn());
 
     // Impresión: solo el ticket (2ª hoja)
     public byte[] GenerarTicketImpresion(ComprobanteCobroDto dto)

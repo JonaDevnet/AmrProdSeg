@@ -25,7 +25,7 @@ public interface IPolizaRepository
 public interface ICobroRepository
 {
     Task InsertarLoteAsync(IEnumerable<Cobro> cobros);
-    Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null);
+    Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null);
     Task<Cobro?> GetByIdAsync(int id);
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);

@@ -43,7 +43,7 @@ public class CobroRepository : ICobroRepository
         }
     }
 
-    public async Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null)
+    public async Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
@@ -56,6 +56,8 @@ public class CobroRepository : ICobroRepository
         cmd.Parameters.AddWithValue("@FechaPago",    fechaPago);
         cmd.Parameters.AddWithValue("@MetodoPagoId", (object?)metodoPagoId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@RegistradoPor", (object?)registradoPor ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@MetodoPago2Id", (object?)metodoPago2Id ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@MetodoPago2Monto", (object?)metodoPago2Monto ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -154,6 +156,12 @@ public class CobroRepository : ICobroRepository
         MetodoPagoId     = reader.IsDBNull(reader.GetOrdinal("MetodoPagoId"))
                            ? null
                            : reader.GetInt32(reader.GetOrdinal("MetodoPagoId")),
+        MetodoPago2Id    = TieneCol(reader, "MetodoPago2Id") && !reader.IsDBNull(reader.GetOrdinal("MetodoPago2Id"))
+                           ? reader.GetInt32(reader.GetOrdinal("MetodoPago2Id"))
+                           : null,
+        MetodoPago2Monto = TieneCol(reader, "MetodoPago2Monto") && !reader.IsDBNull(reader.GetOrdinal("MetodoPago2Monto"))
+                           ? reader.GetDecimal(reader.GetOrdinal("MetodoPago2Monto"))
+                           : null,
         CobradorNombre   = TieneCol(reader, "CobradorNombre") && !reader.IsDBNull(reader.GetOrdinal("CobradorNombre"))
                            ? reader.GetString(reader.GetOrdinal("CobradorNombre"))
                            : null
