@@ -79,7 +79,7 @@ export default function Cartera() {
   const [hover, setHover] = useState<number | null>(null);
 
   const { data: companias = [] } = useCompanias();
-  const { data: pageData, isLoading, isError } = usePolizas(undefined, 1, 500);
+  const { data: pageData, isLoading, isError } = usePolizas(undefined, 1, 10000);
 
   const rows: Row[] = useMemo(() => {
     const items = pageData?.items ?? [];

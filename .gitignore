@@ -49,3 +49,9 @@ disenioAMR
 # ── Guías internas (no se publican en el repo) ──
 GUIA_DE_USO.md
 GUIA_TECNICA.md
+
+# ── Datos de clientes (NUNCA subir a GitHub) ──
+registroClientes*.xlsm
+registroCLientes*.xlsm
+ImportRegistroAMR.sql
+logoSSN.png

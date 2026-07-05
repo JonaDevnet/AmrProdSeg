@@ -38,7 +38,7 @@ function CuotaDots({ total, pagadas, vencidas }: { total: number; pagadas: numbe
 export default function Cobranzas() {
   const mobile = useIsMobile();
   const hoy = new Date();
-  const polizas = usePolizas(0, 1, 100);            // pólizas activas (master)
+  const polizas = usePolizas(0, 1, 10000);          // pólizas activas (master, todas)
   const companias = useCompanias();
   const pendMes = useCobrosPendientes(hoy.getMonth() + 1, hoy.getFullYear());
 
@@ -124,7 +124,7 @@ export default function Cobranzas() {
           </div>
           {polizas.isLoading ? <Cargando /> : filtradas.length === 0 ? <VacioState mensaje="Sin resultados." /> : (
             <div style={{ maxHeight: 560, overflowY: "auto" }}>
-              {filtradas.map((p) => (
+              {filtradas.slice(0, 60).map((p) => (
                 <div key={p.id} onClick={() => setSelId(p.id)} style={row(p.id === selId)}>
                   <div style={ava(companiaColor(p.companiaId))}>{iniciales(p.clienteNombre ?? "?")}</div>
                   <div style={{ minWidth: 0 }}>
@@ -137,6 +137,11 @@ export default function Cobranzas() {
                   <div className="mono" style={{ fontSize: 13, color: "var(--ink-700)" }}>{formatMoneda(p.precioTotal)}</div>
                 </div>
               ))}
+              {filtradas.length > 60 && (
+                <div style={{ padding: "12px 16px", fontSize: 12.5, color: "var(--ink-500)", textAlign: "center", borderTop: "1px solid var(--line-2)" }}>
+                  Mostrando 60 de {filtradas.length} — refiná con el buscador para encontrar la póliza.
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -123,6 +123,8 @@ function PagosTab({ companias, colorDe, vendedor }: { companias: { id: number; n
   const [from, setFrom] = useState(haceISO(90));
   const [to, setTo] = useState(hoyISO());
   const { data: pagos = [], isLoading } = usePagos(from, to, undefined, vendedor);
+  // Listas largas colapsadas: cada compañía muestra 10 cobros y se puede expandir.
+  const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
 
   const byCo = useMemo(() => {
     const acc: Record<string, { total: number; items: PagoRecibido[]; met: Record<string, number>; companiaId: number }> = {};
@@ -201,7 +203,7 @@ function PagosTab({ companias, colorDe, vendedor }: { companias: { id: number; n
                 <th style={S.th}>Fecha</th><th style={S.th}>Cliente</th><th style={S.th}>Póliza</th><th style={S.th}>Ramo</th><th style={S.th}>Método</th><th style={{ ...S.th, textAlign: "right" }}>Monto</th>
               </tr></thead>
               <tbody>
-                {data.items.map((p) => (
+                {(abiertas[co] ? data.items : data.items.slice(0, 10)).map((p) => (
                   <tr key={p.id}>
                     <td style={{ ...S.td, fontFamily: mono, fontSize: 12.5 }}>{fmtDate(p.fechaPago)}</td>
                     <td style={{ ...S.td, fontWeight: 500 }}>{p.clienteNombre}</td>
@@ -211,8 +213,18 @@ function PagosTab({ companias, colorDe, vendedor }: { companias: { id: number; n
                     <td style={{ ...S.td, textAlign: "right", fontFamily: mono, fontWeight: 500 }}>{fmtPeso(p.monto)}</td>
                   </tr>
                 ))}
+                {data.items.length > 10 && (
+                  <tr>
+                    <td colSpan={6} style={{ padding: 0 }}>
+                      <button onClick={() => setAbiertas((a) => ({ ...a, [co]: !a[co] }))}
+                        style={{ width: "100%", padding: "10px", border: 0, background: "var(--blue-50)", color: "var(--blue-600)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                        {abiertas[co] ? "▲ Ver menos" : `▼ Ver los ${data.items.length} cobros`}
+                      </button>
+                    </td>
+                  </tr>
+                )}
                 <tr>
-                  <td colSpan={5} style={{ ...S.td, textAlign: "right", color: "var(--ink-700)", fontWeight: 600, background: "oklch(0.985 0.008 245)" }}>Subtotal {co}</td>
+                  <td colSpan={5} style={{ ...S.td, textAlign: "right", color: "var(--ink-700)", fontWeight: 600, background: "oklch(0.985 0.008 245)" }}>Subtotal {co} ({data.items.length} cobros del período)</td>
                   <td style={{ ...S.td, textAlign: "right", fontFamily: mono, fontWeight: 700, fontSize: 14, background: "oklch(0.985 0.008 245)" }}>{fmtPeso(data.total)}</td>
                 </tr>
               </tbody>
@@ -501,6 +513,7 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
   const [fecha, setFecha] = useState(hoyISO());
   const [hDesde, setHDesde] = useState("00:00");
   const [hHasta, setHHasta] = useState("23:59");
+  const [verTodo, setVerTodo] = useState(false);
   const { data: pagos = [] } = usePagos(fecha, fecha, undefined, vendedor);
 
   function guardarHorarios(next: typeof horarios) {
@@ -591,7 +604,7 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
               <th style={S.th}>Hora</th><th style={S.th}>Cliente</th><th style={S.th}>Póliza</th><th style={S.th}>Compañía</th><th style={S.th}>Ramo</th><th style={S.th}>Método</th><th style={{ ...S.th, textAlign: "right" }}>Monto</th>
             </tr></thead>
             <tbody>
-              {filtered.map((p) => (
+              {(verTodo ? filtered : filtered.slice(0, 10)).map((p) => (
                 <tr key={p.id}>
                   <td style={{ ...S.td, fontFamily: mono, fontSize: 13, fontWeight: 600, color: "var(--blue-700)" }}>{p.hora} hs</td>
                   <td style={{ ...S.td, fontWeight: 500 }}>{p.clienteNombre}</td>
@@ -602,8 +615,18 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
                   <td style={{ ...S.td, textAlign: "right", fontFamily: mono, fontWeight: 600 }}>{fmtPeso(p.monto)}</td>
                 </tr>
               ))}
+              {filtered.length > 10 && (
+                <tr>
+                  <td colSpan={7} style={{ padding: 0 }}>
+                    <button onClick={() => setVerTodo((v) => !v)}
+                      style={{ width: "100%", padding: "10px", border: 0, background: "var(--blue-50)", color: "var(--blue-600)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                      {verTodo ? "▲ Ver menos" : `▼ Ver los ${filtered.length} cobros`}
+                    </button>
+                  </td>
+                </tr>
+              )}
               <tr>
-                <td colSpan={6} style={{ ...S.td, textAlign: "right", fontWeight: 600, color: "var(--ink-700)", background: "oklch(0.985 0.008 245)" }}>Total del período</td>
+                <td colSpan={6} style={{ ...S.td, textAlign: "right", fontWeight: 600, color: "var(--ink-700)", background: "oklch(0.985 0.008 245)" }}>Total del período ({filtered.length} cobros)</td>
                 <td style={{ ...S.td, textAlign: "right", fontFamily: mono, fontWeight: 700, fontSize: 15, background: "oklch(0.985 0.008 245)" }}>{fmtPeso(total)}</td>
               </tr>
             </tbody>

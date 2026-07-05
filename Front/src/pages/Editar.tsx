@@ -232,7 +232,9 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? "");
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
-  const [precioTotal, setPrecioTotal] = useState(String(poliza.precioTotal));
+  // Se edita el precio POR CUOTA; el total se recalcula como cuota × cantidad.
+  const [precioCuota, setPrecioCuota] = useState(
+    String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
   const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
@@ -242,7 +244,9 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
     try {
       await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
-        fechaInicio, fechaFin, precioTotal: Number(precioTotal), cantidadCuotas: Number(cantidadCuotas),
+        fechaInicio, fechaFin,
+        precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100,
+        cantidadCuotas: Number(cantidadCuotas),
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
       });
@@ -267,9 +271,14 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Precio total"><Input type="number" step="0.01" value={precioTotal} onChange={(e) => setPrecioTotal(e.target.value)} /></Field>
+        <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
         <Field label="Cantidad de cuotas"><Input type="number" value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
       </div>
+      {Number(precioCuota) > 0 && Number(cantidadCuotas) > 0 && (
+        <div style={{ margin: "-6px 0 14px", fontSize: 12.5, color: "var(--ink-500)" }}>
+          Total de la póliza: <strong>{formatMoneda(Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100)}</strong> ({cantidadCuotas} cuotas)
+        </div>
+      )}
       <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>

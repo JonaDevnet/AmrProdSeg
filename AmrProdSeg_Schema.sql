@@ -3093,5 +3093,30 @@ END
 GO
 
 /* =============================================================================
+   §47 — Búsqueda global: las pólizas muestran la patente del vehículo en el
+   subtítulo y también se encuentran buscando por patente.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Busqueda_Global @Termino NVARCHAR(100) AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 'Cliente' AS Tipo, c.Id, c.Nombre AS Titulo, c.Documento AS Subtitulo, c.Id AS Referencia
+    FROM Clientes c
+    WHERE c.Nombre LIKE '%' + @Termino + '%' OR c.Documento LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Vehiculo' AS Tipo, v.Id, (v.Marca + ' ' + v.Modelo) AS Titulo, v.Patente AS Subtitulo, v.ClienteId AS Referencia
+    FROM Vehiculos v
+    WHERE v.Patente LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Poliza' AS Tipo, p.Id, p.Numero AS Titulo,
+           c.Nombre + ISNULL(N' · ' + v.Patente, N'') AS Subtitulo, p.Id AS Referencia
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    WHERE p.Eliminada = 0
+      AND (p.Numero LIKE '%' + @Termino + '%' OR v.Patente LIKE '%' + @Termino + '%');
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

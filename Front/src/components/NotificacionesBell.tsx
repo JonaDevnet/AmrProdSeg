@@ -11,8 +11,14 @@ import { formatFecha, formatMoneda } from "../utils/format";
 export default function NotificacionesBell() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { esAdmin } = useAuth();
+  const { esAdmin, usuario } = useAuth();
   const [abierto, setAbierto] = useState(false);
+
+  // "Limpiar": descarta los avisos de vencimiento actuales (persistido por usuario en este equipo).
+  const dismissKey = `amr_notif_vistas_${usuario?.nombre ?? "x"}`;
+  const [vistas, setVistas] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(dismissKey) || "[]")); } catch { return new Set(); }
+  });
 
   const { data } = useQuery({
     queryKey: ["notif", "por-vencer", 10],
@@ -32,10 +38,18 @@ export default function NotificacionesBell() {
     staleTime: 60 * 1000,
   });
 
-  const items = data ?? [];
+  const clave = (p: { nroPoliza: string; fechaFin: string }) => `${p.nroPoliza}|${p.fechaFin}`;
+  const items = (data ?? []).filter((p) => !vistas.has(clave(p)));
   const anulaciones = anul.data ?? [];
   const eliminaciones = elim.data ?? [];
   const total = items.length + anulaciones.length + eliminaciones.length;
+
+  function limpiarVencimientos() {
+    const nuevas = new Set(vistas);
+    items.forEach((p) => nuevas.add(clave(p)));
+    setVistas(nuevas);
+    try { localStorage.setItem(dismissKey, JSON.stringify([...nuevas].slice(-500))); } catch { /* ignore */ }
+  }
 
   async function resolver(id: number, aprobar: boolean) {
     if (aprobar) await aprobarAnulacion(id); else await rechazarAnulacion(id);
@@ -125,7 +139,15 @@ export default function NotificacionesBell() {
             )}
 
             {/* Pólizas por vencer */}
-            <div style={head}>Pólizas por vencer (10 días)</div>
+            <div style={head}>
+              Pólizas por vencer (10 días)
+              {items.length > 0 && (
+                <button onClick={limpiarVencimientos} title="Descartar estos avisos"
+                  style={{ border: 0, background: "transparent", color: "var(--blue-600)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "2px 4px" }}>
+                  Limpiar
+                </button>
+              )}
+            </div>
             <div style={{ maxHeight: 280, overflowY: "auto" }}>
               {items.length === 0 ? (
                 <div style={vacio}>No hay vencimientos próximos.</div>
