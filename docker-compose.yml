@@ -61,7 +61,7 @@ services:
   # publica en el hostname por defecto del VPS (Hostinger), que ya resuelve solo:
   # https://srv1798610.hstgr.cloud — sin necesidad de configurar DNS.
   evolution-api:
-    image: atendai/evolution-api:v2.1.1   # verificá el último tag v2 en Docker Hub
+    image: evoapicloud/evolution-api:v2.3.7   # repo oficial actual (último estable v2)
     container_name: amr-evolution
     restart: unless-stopped
     depends_on: [evolution-postgres, evolution-redis]
