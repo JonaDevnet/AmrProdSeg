@@ -127,7 +127,7 @@ function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
 }
 
 const back: CSSProperties = { position: "fixed", inset: 0, background: "oklch(0.18 0.06 252 / 0.50)", backdropFilter: "blur(4px)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 };
-const modal: CSSProperties = { width: 480, maxWidth: "100%", background: "var(--paper)", borderRadius: 18, boxShadow: "var(--shadow-lg)", overflow: "hidden" };
+const modal: CSSProperties = { width: 480, maxWidth: "100%", maxHeight: "calc(100vh - 40px)", overflowY: "auto", background: "var(--paper)", borderRadius: 18, boxShadow: "var(--shadow-lg)" };
 const recHead: CSSProperties = { padding: "26px 28px 18px", textAlign: "center" };
 const recIcon: CSSProperties = { width: 64, height: 64, borderRadius: "50%", background: "var(--ok-100)", color: "var(--ok-700)", margin: "0 auto 14px", display: "grid", placeItems: "center" };
 const recTitle: CSSProperties = { margin: 0, fontSize: 22, letterSpacing: "-0.02em", fontWeight: 600 };

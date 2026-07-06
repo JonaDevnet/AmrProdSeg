@@ -160,7 +160,7 @@ export default function ClienteFicha() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ fontWeight: 600 }}>{v.marca} {v.modelo} <span style={{ color: "var(--ink-400)", fontWeight: 400 }}>· {v.anio}</span></div>
                   <button onClick={() => { setVehError(undefined); setVehModal({ vehiculo: v }); }} title="Editar" style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--ink-400)", padding: 0 }}>
-                    <IconEdit size={15} />
+                    <IconEdit size={19} />
                   </button>
                 </div>
                 <div style={{ marginTop: 6 }}><Plate patente={v.patente} /></div>
@@ -200,7 +200,7 @@ export default function ClienteFicha() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <EstadoPolizaBadge estado={p.estado} />
                       <button onClick={() => setEditPoliza(p)} title="Editar póliza" style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--ink-400)", padding: 0 }}>
-                        <IconEdit size={15} />
+                        <IconEdit size={19} />
                       </button>
                     </div>
                   </div>
@@ -208,9 +208,9 @@ export default function ClienteFicha() {
                     <MiniDato k="Compañía" v={cia?.nombre} />
                     <MiniDato k="Ramo" v={p.ramoNombre} />
                     <MiniDato k="Cobertura" v={p.cobertura ?? veh?.tipoCobertura} />
-                    <MiniDato k="Prima OG" v={p.primaOG != null ? formatMoneda(p.primaOG) : null} mono />
-                    <MiniDato k="Precio" v={formatMoneda(p.precioTotal)} mono />
-                    <MiniDato k="Período póliza" v={`${formatFecha(p.fechaInicio)} – ${formatFecha(p.fechaFin)}`} mono />
+                    <MiniDato k="Prima OG (por cuota)" v={p.primaOG != null ? formatMoneda(p.primaOG) : null} mono />
+                    <MiniDato k="Precio por cuota" v={formatMoneda(p.precioTotal / Math.max(1, p.cantidadCuotas))} mono />
+                    <MiniDato k="Período póliza" v={`${nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) ? nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) + " · " : ""}${formatFecha(p.fechaInicio)} – ${formatFecha(p.fechaFin)}`} mono />
                     <MiniDato k="Período cuotas" v={planCuotas(p.cantidadCuotas)} />
                     <MiniDato k="Forma de pago" v={p.formaPago} />
                   </div>
@@ -328,6 +328,28 @@ function planCuotas(n: number): string {
 
 const PLAN_CUOTAS: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3 };
 
+// Período de vigencia de la póliza, en meses.
+const PERIODO_POLIZA: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3, Cuatrimestral: 4, Semestral: 6, Anual: 12 };
+
+function sumarMeses(iso: string, meses: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + meses);
+  return d.toISOString().slice(0, 10);
+}
+
+function mesesEntre(desde: string, hasta: string): number {
+  const a = new Date(desde + "T00:00:00Z"), b = new Date(hasta + "T00:00:00Z");
+  let m = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
+  if (b.getUTCDate() < a.getUTCDate()) m -= 1;
+  return m;
+}
+
+// Nombre del período según el rango de fechas (ej. "Semestral"); vacío si no encaja.
+function nombrePeriodoPoliza(desde: string, hasta: string): string {
+  const m = mesesEntre(desde.slice(0, 10), hasta.slice(0, 10));
+  return Object.entries(PERIODO_POLIZA).find(([, n]) => n === m)?.[0] ?? "";
+}
+
 function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliza; vehiculo: Vehiculo | null; onClose: () => void; onSaved: () => void }) {
   const companias = useCompanias();
   const ramos = useRamos();
@@ -337,7 +359,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? vehiculo?.tipoCobertura ?? "");
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
-  const [precioTotal, setPrecioTotal] = useState(String(poliza.precioTotal));
+  const [precioCuota, setPrecioCuota] = useState(String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
   const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
@@ -345,13 +367,15 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
 
   // "Período de cuotas" ↔ cantidad: Mensual=1, Bimestral=2, Trimestral=3.
   const periodoCuotas = Object.entries(PLAN_CUOTAS).find(([, n]) => n === Number(cantidadCuotas))?.[0] ?? "";
+  // "Período de póliza" ↔ meses entre inicio y fin (Mensual=1 … Anual=12).
+  const periodoPoliza = nombrePeriodoPoliza(fechaInicio, fechaFin);
 
   async function guardar() {
     setError(undefined); setGuardando(true);
     try {
       await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
-        fechaInicio, fechaFin, precioTotal: Number(precioTotal), cantidadCuotas: Number(cantidadCuotas),
+        fechaInicio, fechaFin, precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100, cantidadCuotas: Number(cantidadCuotas),
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
       });
@@ -373,7 +397,13 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         </Select>
       </Field>
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-500)", margin: "6px 0 2px" }}>Período de póliza (vigencia)</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        <Field label="Período">
+          <Select value={periodoPoliza} onChange={(e) => setFechaFin(sumarMeses(fechaInicio, PERIODO_POLIZA[e.target.value] ?? 12))}>
+            {periodoPoliza === "" && <option value="">Personalizado</option>}
+            {Object.keys(PERIODO_POLIZA).map((p) => <option key={p} value={p}>{p}</option>)}
+          </Select>
+        </Field>
         <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Field>
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
@@ -387,8 +417,11 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         <Field label="Cantidad de cuotas"><Input type="number" value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Precio total"><Input type="number" step="0.01" value={precioTotal} onChange={(e) => setPrecioTotal(e.target.value)} /></Field>
-        <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
+        <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
+        <Field label="Prima OG (por cuota, interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
+        Total de la póliza: <strong>{formatMoneda((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0))}</strong> ({cantidadCuotas} cuotas)
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>

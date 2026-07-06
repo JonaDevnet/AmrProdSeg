@@ -55,8 +55,70 @@ services:
       - traefik.http.services.amr-web.loadbalancer.server.port=80
     networks: [amrnet]
 
+  # ── Evolution API (WhatsApp) ────────────────────────────────────────────────
+  # v2 requiere Postgres + Redis. La app le habla por la red interna
+  # (BaseUrl = http://evolution-api:8080). El Manager (para escanear el QR) se
+  # publica en el hostname por defecto del VPS (Hostinger), que ya resuelve solo:
+  # https://srv1798610.hstgr.cloud — sin necesidad de configurar DNS.
+  evolution-api:
+    image: atendai/evolution-api:v2.1.1   # verificá el último tag v2 en Docker Hub
+    container_name: amr-evolution
+    restart: unless-stopped
+    depends_on: [evolution-postgres, evolution-redis]
+    environment:
+      SERVER_URL: ${EVOLUTION_SERVER_URL}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      # Base de datos (Postgres)
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_DB_PASSWORD}@evolution-postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_amr
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      # Cache (Redis)
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+    volumes:
+      - evolution_instances:/evolution/instances
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.amr-evo.rule=Host(`srv1798610.hstgr.cloud`)"
+      - traefik.http.routers.amr-evo.entrypoints=websecure
+      - traefik.http.routers.amr-evo.tls.certresolver=letsencrypt
+      - traefik.http.services.amr-evo.loadbalancer.server.port=8080
+    networks: [amrnet]
+
+  evolution-postgres:
+    image: postgres:16-alpine
+    container_name: amr-evolution-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+    networks: [amrnet]
+
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: amr-evolution-redis
+    restart: unless-stopped
+    volumes:
+      - evolution_redis:/data
+    networks: [amrnet]
+
 volumes:
   mssql_data:
+  evolution_instances:
+  evolution_pgdata:
+  evolution_redis:
 
 networks:
   amrnet:

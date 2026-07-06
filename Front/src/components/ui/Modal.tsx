@@ -35,10 +35,13 @@ export default function Modal({ titulo, onClose, children, ancho = 480 }: Props)
         style={{
           width: "100%",
           maxWidth: ancho,
+          maxHeight: "calc(100vh - 40px)",
           background: "var(--paper)",
           borderRadius: 14,
           boxShadow: "var(--shadow-lg)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
@@ -48,6 +51,7 @@ export default function Modal({ titulo, onClose, children, ancho = 480 }: Props)
             justifyContent: "space-between",
             padding: "18px 22px",
             borderBottom: "1px solid var(--line)",
+            flexShrink: 0,
           }}
         >
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>{titulo}</h3>
@@ -59,7 +63,7 @@ export default function Modal({ titulo, onClose, children, ancho = 480 }: Props)
             <IconX size={20} />
           </button>
         </div>
-        <div style={{ padding: 22 }}>{children}</div>
+        <div style={{ padding: 22, overflowY: "auto" }}>{children}</div>
       </div>
     </div>
   );

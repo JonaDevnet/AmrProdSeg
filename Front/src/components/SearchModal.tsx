@@ -37,8 +37,8 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "oklch(0.2 0.02 250 / 0.4)", display: "grid", placeItems: "start center", zIndex: 60, paddingTop: 90 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, background: "var(--paper)", borderRadius: 14, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "oklch(0.2 0.02 250 / 0.4)", display: "grid", placeItems: "start center", zIndex: 60, paddingTop: "clamp(16px, 9vh, 90px)", paddingLeft: 16, paddingRight: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "calc(100vh - clamp(32px, 18vh, 120px))", display: "flex", flexDirection: "column", background: "var(--paper)", borderRadius: 14, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--line)" }}>
           <IconSearch size={18} style={{ color: "var(--ink-400)" }} />
           <input
@@ -51,7 +51,7 @@ export default function SearchModal({ onClose }: { onClose: () => void }) {
           <kbd className="mono" style={{ fontSize: 11, color: "var(--ink-400)", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 6px" }}>Esc</kbd>
         </div>
 
-        <div style={{ maxHeight: 380, overflowY: "auto" }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           {qd.trim().length === 0 ? (
             <Vacio texto="Escribí para buscar en clientes, vehículos y pólizas." />
           ) : isFetching && resultados.length === 0 ? (
