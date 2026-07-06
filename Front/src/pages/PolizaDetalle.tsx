@@ -173,7 +173,7 @@ export default function PolizaDetalle() {
           <Dato label="Vigencia">{formatFecha(poliza.fechaInicio)} – {formatFecha(poliza.fechaFin)}</Dato>
           <Dato label="Prima total">{formatMoneda(poliza.precioTotal)}</Dato>
           <Dato label="Cuotas">{poliza.cantidadCuotas}</Dato>
-          <Dato label="Cliente de">{poliza.clienteVendedorNombre ?? "—"}</Dato>
+          {/* <Dato label="Cliente de">{poliza.clienteVendedorNombre ?? "—"}</Dato> */}
           {esAdmin && <Dato label="Cargada por">{poliza.vendedorNombre ?? "—"}</Dato>}
         </div>
       </div>
