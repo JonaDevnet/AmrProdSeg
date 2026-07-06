@@ -3118,5 +3118,87 @@ END
 GO
 
 /* =============================================================================
+   §48 — Endoso de titular. Cambia el titular (cliente) de una póliza guardando
+   el titular anterior. No cambia nada más de la póliza; el vehículo asegurado se
+   mueve al nuevo titular.
+   ============================================================================= */
+IF OBJECT_ID('EndososTitular') IS NULL
+BEGIN
+    CREATE TABLE EndososTitular (
+        Id                INT PRIMARY KEY IDENTITY,
+        PolizaId          INT NOT NULL REFERENCES Polizas(Id),
+        ClienteAnteriorId INT NOT NULL REFERENCES Clientes(Id),
+        ClienteNuevoId    INT NOT NULL REFERENCES Clientes(Id),
+        FechaEndoso       DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UsuarioId         INT NULL REFERENCES Usuarios(Id),
+        Motivo            NVARCHAR(300) NULL
+    );
+    CREATE INDEX IX_EndososTitular_PolizaId ON EndososTitular(PolizaId);
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Endoso_Insertar
+    @PolizaId INT, @ClienteAnteriorId INT, @ClienteNuevoId INT,
+    @UsuarioId INT = NULL, @Motivo NVARCHAR(300) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO EndososTitular (PolizaId, ClienteAnteriorId, ClienteNuevoId, UsuarioId, Motivo)
+    VALUES (@PolizaId, @ClienteAnteriorId, @ClienteNuevoId, @UsuarioId, @Motivo);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Endoso_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT e.Id, e.PolizaId, e.FechaEndoso, e.Motivo,
+           e.ClienteAnteriorId, ca.Nombre AS ClienteAnteriorNombre, ca.Documento AS ClienteAnteriorDocumento,
+           e.ClienteNuevoId,    cn.Nombre AS ClienteNuevoNombre,    cn.Documento AS ClienteNuevoDocumento,
+           u.Nombre AS UsuarioNombre
+    FROM EndososTitular e
+    INNER JOIN Clientes ca ON ca.Id = e.ClienteAnteriorId
+    INNER JOIN Clientes cn ON cn.Id = e.ClienteNuevoId
+    LEFT  JOIN Usuarios u  ON u.Id  = e.UsuarioId
+    WHERE e.PolizaId = @PolizaId
+    ORDER BY e.FechaEndoso DESC, e.Id DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Poliza_CambiarTitular @PolizaId INT, @ClienteId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Polizas SET ClienteId = @ClienteId WHERE Id = @PolizaId;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Vehiculo_CambiarCliente @VehiculoId INT, @ClienteId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Vehiculos SET ClienteId = @ClienteId WHERE Id = @VehiculoId;
+END
+GO
+
+/* =============================================================================
+   §49 — Recalcular cuotas pendientes al cambiar el precio de la póliza.
+   Solo toca las cuotas NO pagadas (Estado <> 1); las ya cobradas conservan el
+   monto con el que se pagaron, para que los reportes reflejen lo realmente cobrado.
+   La última cuota absorbe el redondeo (igual que al generar el plan original).
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Cobro_RecalcularPendientes
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+    UPDATE Cobros
+    SET Monto = CASE WHEN NumeroCuota >= @CantidadCuotas THEN @ultima ELSE @base END
+    WHERE PolizaId = @PolizaId AND Estado <> 1;   -- 1 = Pagado (no se toca)
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

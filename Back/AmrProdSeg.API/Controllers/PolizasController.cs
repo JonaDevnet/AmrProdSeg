@@ -14,11 +14,13 @@ public class PolizasController : ControllerBase
 {
     private readonly IPolizaService _service;
     private readonly IEliminacionService _eliminacion;
+    private readonly IEndosoService _endoso;
 
-    public PolizasController(IPolizaService service, IEliminacionService eliminacion)
+    public PolizasController(IPolizaService service, IEliminacionService eliminacion, IEndosoService endoso)
     {
         _service = service;
         _eliminacion = eliminacion;
+        _endoso = endoso;
     }
 
     [HttpGet]
@@ -76,6 +78,16 @@ public class PolizasController : ControllerBase
     [HttpPost("{id:int}/renovar")]
     public async Task<IActionResult> Renovar(int id, [FromBody] RenovarPolizaDto dto)
         => Ok(await _service.RenovarAsync(id, dto, UsuarioActualId()));
+
+    /// <summary>Endoso de cambio de titular: cambia el cliente de la póliza (guardando el anterior).</summary>
+    [HttpPost("{id:int}/endoso")]
+    public async Task<IActionResult> Endosar(int id, [FromBody] EndosoTitularDto dto)
+        => Ok(await _endoso.EndosarTitularAsync(id, dto, UsuarioActualId()));
+
+    /// <summary>Historial de endosos (titulares anteriores) de la póliza.</summary>
+    [HttpGet("{id:int}/endosos")]
+    public async Task<IActionResult> Endosos(int id)
+        => Ok(await _endoso.GetHistorialAsync(id));
 
     [HttpGet("{id:int}/pdf")]
     public async Task<IActionResult> Pdf(int id)

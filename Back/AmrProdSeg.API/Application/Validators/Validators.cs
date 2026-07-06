@@ -26,6 +26,25 @@ public class CrearClienteValidator : AbstractValidator<CrearClienteDto>
     }
 }
 
+public class EndosoTitularValidator : AbstractValidator<EndosoTitularDto>
+{
+    public EndosoTitularValidator()
+    {
+        RuleFor(x => x.ClienteNombre)
+            .NotEmpty().WithMessage("El nombre del nuevo titular es obligatorio.")
+            .MinimumLength(3).MaximumLength(150)
+            .Matches(@"^[\p{L}\p{N}\s\.\-,'&/°º]+$")
+            .WithMessage("El nombre contiene caracteres no permitidos.");
+
+        RuleFor(x => x.Documento)
+            .NotEmpty().Matches(@"^\d{7,11}$")
+            .WithMessage("El documento debe contener solo dígitos (7 a 11).");
+
+        RuleFor(x => x.Email)
+            .EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
+    }
+}
+
 public class ActualizarClienteValidator : AbstractValidator<ActualizarClienteDto>
 {
     public ActualizarClienteValidator()

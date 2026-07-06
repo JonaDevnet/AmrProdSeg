@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import {
   getSmtpConfig, actualizarSmtpConfig,
-  getWhatsappConfig, actualizarWhatsappConfig,
+  getWhatsappConfig, actualizarWhatsappConfig, probarWhatsapp,
 } from "../api/configuracion";
 import { Icon, IconMail, IconCheck } from "../design/icons";
 
@@ -118,6 +118,22 @@ function WhatsappCard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
+  // Prueba de envío
+  const [telTest, setTelTest] = useState("");
+  const [probando, setProbando] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  async function probar() {
+    setTestMsg(null);
+    if (!telTest.trim()) { setTestMsg({ ok: false, texto: "Ingresá un número para la prueba." }); return; }
+    setProbando(true);
+    try {
+      const r = await probarWhatsapp(telTest.trim());
+      setTestMsg({ ok: r.ok, texto: r.mensaje });
+    } catch (e: any) {
+      setTestMsg({ ok: false, texto: e?.response?.data?.error ?? "No se pudo enviar la prueba." });
+    } finally { setProbando(false); }
+  }
 
   useEffect(() => {
     getWhatsappConfig().then((c) => {
@@ -172,6 +188,31 @@ function WhatsappCard() {
           {ok && <div style={okBox}><IconCheck size={14} /> {ok}</div>}
 
           <button onClick={guardar} disabled={busy} style={primaryBtn}>{busy ? "Guardando…" : "Guardar configuración"}</button>
+
+          {/* Prueba de envío a un número manual */}
+          <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Probar envío</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <input
+                value={telTest}
+                onChange={(e) => setTelTest(e.target.value)}
+                placeholder="Ej. 2611234567"
+                style={{ ...input, flex: 1, minWidth: 180 }}
+              />
+              <button onClick={probar} disabled={probando} style={{ ...primaryBtn, marginTop: 0, whiteSpace: "nowrap" }}>
+                {probando ? "Enviando…" : "Enviar prueba"}
+              </button>
+            </div>
+            {testMsg && (
+              <div style={testMsg.ok ? okBox : errBox}>
+                {testMsg.ok ? <IconCheck size={14} /> : null} {testMsg.texto}
+              </div>
+            )}
+            <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 8 }}>
+              Manda un WhatsApp de prueba a ese número con la configuración <strong>ya guardada</strong>. Guardá antes de probar.
+            </p>
+          </div>
+
           <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 12 }}>
             Necesitás un servidor Evolution API corriendo con una instancia vinculada a tu WhatsApp (escaneando el QR). El teléfono del cliente se normaliza al formato AR automáticamente.
           </p>

@@ -74,6 +74,21 @@ public class Poliza
     public string? ClienteVendedorNombre { get; set; }   // de quién es el cliente (su vendedor)
 }
 
+public class EndosoTitular
+{
+    public int Id { get; set; }
+    public int PolizaId { get; set; }
+    public DateTime FechaEndoso { get; set; }
+    public int ClienteAnteriorId { get; set; }
+    public string ClienteAnteriorNombre { get; set; } = string.Empty;
+    public string? ClienteAnteriorDocumento { get; set; }
+    public int ClienteNuevoId { get; set; }
+    public string ClienteNuevoNombre { get; set; } = string.Empty;
+    public string? ClienteNuevoDocumento { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public string? Motivo { get; set; }
+}
+
 public class Ramo
 {
     public int Id { get; set; }

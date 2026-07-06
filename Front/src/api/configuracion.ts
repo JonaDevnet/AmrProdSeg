@@ -53,3 +53,14 @@ export async function getWhatsappConfig(): Promise<WhatsappConfig> {
 export async function actualizarWhatsappConfig(dto: ActualizarWhatsappDto): Promise<void> {
   await api.put("/configuracion/whatsapp", dto);
 }
+
+export interface ProbarWhatsappResult {
+  ok: boolean;
+  mensaje: string;
+}
+
+/** Envía un WhatsApp de prueba al número indicado, usando la config guardada. */
+export async function probarWhatsapp(telefono: string): Promise<ProbarWhatsappResult> {
+  const { data } = await api.post<ProbarWhatsappResult>("/configuracion/whatsapp/test", { telefono });
+  return data;
+}

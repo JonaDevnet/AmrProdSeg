@@ -61,3 +61,25 @@ export function useRenovarPoliza(id: number) {
     },
   });
 }
+
+export function useEndosos(id: number) {
+  return useQuery({
+    queryKey: ["poliza", id, "endosos"],
+    queryFn: () => polizasApi.getEndosos(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+export function useEndosarTitular(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: polizasApi.EndosoTitularDto) => polizasApi.endosarTitular(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["poliza", id, "endosos"] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["vehiculos"] });
+    },
+  });
+}

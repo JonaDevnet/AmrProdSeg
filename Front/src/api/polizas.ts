@@ -72,3 +72,41 @@ export async function renovarPoliza(
   const { data } = await api.post<RenovacionResult>(`/polizas/${id}/renovar`, dto);
   return data;
 }
+
+// ---------- Endoso de titular ----------
+export interface EndosoTitularDto {
+  clienteNombre: string;
+  documento: string;
+  email?: string;
+  telefono?: string;
+  direccion?: string;
+  tipoDocumento?: string;
+  motivo?: string;
+}
+
+export interface EndosoResult {
+  polizaId: number;
+  nuevoClienteId: number;
+  mensaje: string;
+}
+
+export interface EndosoHistorial {
+  id: number;
+  fechaEndoso: string;
+  clienteAnteriorNombre: string;
+  clienteAnteriorDocumento?: string | null;
+  clienteNuevoNombre: string;
+  clienteNuevoDocumento?: string | null;
+  usuarioNombre?: string | null;
+  motivo?: string | null;
+}
+
+export async function endosarTitular(id: number, dto: EndosoTitularDto): Promise<EndosoResult> {
+  const { data } = await api.post<EndosoResult>(`/polizas/${id}/endoso`, dto);
+  return data;
+}
+
+export async function getEndosos(id: number): Promise<EndosoHistorial[]> {
+  const { data } = await api.get<EndosoHistorial[]>(`/polizas/${id}/endosos`);
+  return data;
+}

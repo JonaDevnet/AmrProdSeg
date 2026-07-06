@@ -231,6 +231,18 @@ public class ActualizarEvolutionDto
     public string? ApiKey { get; set; }            // null/empty = mantener la actual
 }
 
+/// <summary>Prueba de envío: manda un WhatsApp de test al número indicado con la config guardada.</summary>
+public class ProbarWhatsappDto
+{
+    public string Telefono { get; set; } = string.Empty;
+}
+
+public class ProbarWhatsappResultDto
+{
+    public bool Ok { get; set; }
+    public string Mensaje { get; set; } = string.Empty;
+}
+
 // ---------- Movimientos (finanzas personales) ----------
 public class CrearMovimientoDto
 {
@@ -355,6 +367,39 @@ public class AltaResultDto
     public int PolizaId { get; set; }
     public string Numero { get; set; } = string.Empty;
     public string PdfUrl { get; set; } = string.Empty;
+}
+
+// ---------- Endoso de titular ----------
+/// <summary>Datos del nuevo titular para el endoso (los mismos que al dar de alta un cliente).</summary>
+public class EndosoTitularDto
+{
+    public string ClienteNombre { get; set; } = string.Empty;
+    public string Documento { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string? Telefono { get; set; }
+    public string? Direccion { get; set; }
+    public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
+    public string? Motivo { get; set; }
+}
+
+public class EndosoResultDto
+{
+    public int PolizaId { get; set; }
+    public int NuevoClienteId { get; set; }
+    public string Mensaje { get; set; } = string.Empty;
+}
+
+/// <summary>Fila del historial de endosos (titulares anteriores) de una póliza.</summary>
+public class EndosoHistorialDto
+{
+    public int Id { get; set; }
+    public DateTime FechaEndoso { get; set; }
+    public string ClienteAnteriorNombre { get; set; } = string.Empty;
+    public string? ClienteAnteriorDocumento { get; set; }
+    public string ClienteNuevoNombre { get; set; } = string.Empty;
+    public string? ClienteNuevoDocumento { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public string? Motivo { get; set; }
 }
 
 public class CrearRamoDto

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Interfaces;
+using AmrProdSeg.API.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +15,12 @@ namespace AmrProdSeg.API.Controllers;
 public class ConfiguracionController : ControllerBase
 {
     private readonly IConfiguracionService _service;
-    public ConfiguracionController(IConfiguracionService service) => _service = service;
+    private readonly IWhatsAppSender _whatsapp;
+    public ConfiguracionController(IConfiguracionService service, IWhatsAppSender whatsapp)
+    {
+        _service  = service;
+        _whatsapp = whatsapp;
+    }
 
     /// <summary>Config SMTP propia del usuario (sin exponer la contraseña).</summary>
     [HttpGet("smtp")]
@@ -38,6 +44,31 @@ public class ConfiguracionController : ControllerBase
     {
         await _service.ActualizarEvolutionAsync(UsuarioActualId(), dto);
         return NoContent();
+    }
+
+    /// <summary>Envía un WhatsApp de prueba al número indicado, usando la config guardada del usuario.</summary>
+    [HttpPost("whatsapp/test")]
+    public async Task<IActionResult> ProbarWhatsapp([FromBody] ProbarWhatsappDto dto)
+    {
+        var uid = UsuarioActualId();
+        if (string.IsNullOrWhiteSpace(dto.Telefono))
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "Ingresá un número de teléfono." });
+
+        if (!await _whatsapp.HabilitadoParaAsync(uid))
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "El envío por WhatsApp está desactivado. Habilitalo y guardá la configuración antes de probar." });
+
+        try
+        {
+            await _whatsapp.EnviarAsync(
+                dto.Telefono,
+                "✅ Mensaje de prueba de AMR Producción de Seguros. Si lo estás viendo, tu WhatsApp quedó configurado correctamente.",
+                uid);
+            return Ok(new ProbarWhatsappResultDto { Ok = true, Mensaje = $"Mensaje de prueba enviado a {dto.Telefono}. Revisá el WhatsApp de ese número." });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "No se pudo enviar: " + ex.Message });
+        }
     }
 
     private int UsuarioActualId()

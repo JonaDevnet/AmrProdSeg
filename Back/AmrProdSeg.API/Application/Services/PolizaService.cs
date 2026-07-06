@@ -154,6 +154,10 @@ public class PolizaService : IPolizaService
         poliza.PrimaOG        = dto.PrimaOG;
         poliza.Cobertura      = dto.Cobertura;
         await _polizaRepo.ActualizarAsync(poliza);
+
+        // Propaga el nuevo precio a las cuotas AÚN NO cobradas. Las ya pagadas conservan
+        // su monto (lo realmente cobrado), para que los reportes no cambien retroactivamente.
+        await _cobroRepo.RecalcularPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas);
     }
 
     public async Task AsignarNumeroAsync(int id, string numero)

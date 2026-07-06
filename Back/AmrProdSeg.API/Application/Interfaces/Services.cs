@@ -169,6 +169,13 @@ public interface IAltaService
     Task<AltaResultDto> RegistrarAsync(AltaAseguradoDto dto, int? usuarioId = null);
 }
 
+public interface IEndosoService
+{
+    /// <summary>Cambia el titular de la póliza guardando el anterior. No modifica nada más de la póliza.</summary>
+    Task<EndosoResultDto> EndosarTitularAsync(int polizaId, EndosoTitularDto dto, int? usuarioId = null);
+    Task<List<EndosoHistorialDto>> GetHistorialAsync(int polizaId);
+}
+
 public interface IReporteService
 {
     Task<List<CobroPeriodoDto>> CobrosPeriodoAsync(int mes, int anio, int? estado, int? companiaId);

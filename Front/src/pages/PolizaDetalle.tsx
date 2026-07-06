@@ -1,13 +1,14 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza } from "../hooks/polizas";
+import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza, useEndosarTitular, useEndosos } from "../hooks/polizas";
 import { useCliente, useVehiculosPorCliente } from "../hooks/clientes";
-import { descargarPolizaPdf, type RenovarPolizaDto } from "../api/polizas";
+import { descargarPolizaPdf, type RenovarPolizaDto, type EndosoTitularDto } from "../api/polizas";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import PagoModal from "../components/cobranzas/PagoModal";
 import ComprobanteModal, { type ComprobanteData } from "../components/cobranzas/ComprobanteModal";
 import RenovarForm from "../components/cobranzas/RenovarForm";
+import EndosoForm from "../components/polizas/EndosoForm";
 import { EstadoPolizaBadge, EstadoCobroBadge, Plate } from "../components/ui/Badge";
 import { companiaColor } from "../utils/companiaColor";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
@@ -29,6 +30,8 @@ export default function PolizaDetalle() {
   const vehiculos = useVehiculosPorCliente(poliza?.clienteId ?? 0);
   const cancelar = useCancelarPoliza(polizaId);
   const renovar = useRenovarPoliza(polizaId);
+  const endosar = useEndosarTitular(polizaId);
+  const endosos = useEndosos(polizaId);
 
   const [confirmar, setConfirmar] = useState(false);
   const [bajando, setBajando] = useState(false);
@@ -36,6 +39,7 @@ export default function PolizaDetalle() {
   const [cuotaPago, setCuotaPago] = useState<Cobro | null>(null);
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null);
   const [renovarOpen, setRenovarOpen] = useState(false);
+  const [endosoOpen, setEndosoOpen] = useState(false);
 
   if (isLoading) return <Cargando />;
   if (isError || !poliza) return <ErrorState mensaje="No se encontró la póliza." />;
@@ -82,6 +86,16 @@ export default function PolizaDetalle() {
     }
   }
 
+  async function confirmarEndoso(dto: EndosoTitularDto) {
+    setAccionError(undefined);
+    try {
+      await endosar.mutateAsync(dto);
+      setEndosoOpen(false);
+    } catch (e: any) {
+      setAccionError(e?.response?.data?.error ?? "No se pudo realizar el endoso.");
+    }
+  }
+
   const cuotas = cobros.data ?? [];
   const pagadas = cuotas.filter((c) => c.estado === 1).length;
   const renovable = poliza.estado === "Activa" || poliza.estado === "Vencida";
@@ -112,6 +126,11 @@ export default function PolizaDetalle() {
             {renovable && (
               <Button onClick={() => { setAccionError(undefined); setRenovarOpen(true); }}>
                 Renovar
+              </Button>
+            )}
+            {renovable && (
+              <Button variant="secondary" onClick={() => { setAccionError(undefined); setEndosoOpen(true); }}>
+                Endoso
               </Button>
             )}
             {poliza.estado === "Activa" && (
@@ -213,6 +232,36 @@ export default function PolizaDetalle() {
         </div>
       </div>
 
+      {(endosos.data?.length ?? 0) > 0 && (
+        <div style={{ marginTop: 22 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>Titulares anteriores</h2>
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={th}>Fecha</th>
+                  <th style={th}>Titular anterior</th>
+                  <th style={th}>Nuevo titular</th>
+                  <th style={th}>Motivo</th>
+                  {esAdmin && <th style={th}>Usuario</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {endosos.data!.map((e) => (
+                  <tr key={e.id} style={{ borderTop: "1px solid var(--line-2)" }}>
+                    <td style={{ ...td, color: "var(--ink-500)" }}>{formatFecha(e.fechaEndoso)}</td>
+                    <td style={td}>{e.clienteAnteriorNombre}{e.clienteAnteriorDocumento ? ` · ${e.clienteAnteriorDocumento}` : ""}</td>
+                    <td style={td}>{e.clienteNuevoNombre}{e.clienteNuevoDocumento ? ` · ${e.clienteNuevoDocumento}` : ""}</td>
+                    <td style={{ ...td, color: "var(--ink-500)" }}>{e.motivo ?? "—"}</td>
+                    {esAdmin && <td style={{ ...td, color: "var(--ink-500)" }}>{e.usuarioNombre ?? "—"}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {cuotaPago && (
         <PagoModal
           cuota={cuotaPago}
@@ -251,6 +300,17 @@ export default function PolizaDetalle() {
             onSubmit={confirmarRenovacion}
             enviando={renovar.isPending}
           />
+        </Modal>
+      )}
+
+      {endosoOpen && (
+        <Modal titulo="Endoso · cambio de titular" onClose={() => setEndosoOpen(false)} ancho={560}>
+          {accionError && (
+            <div style={{ marginBottom: 14, padding: "10px 14px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 9, fontSize: 13, color: "var(--bad-700)" }}>
+              {accionError}
+            </div>
+          )}
+          <EndosoForm onSubmit={confirmarEndoso} enviando={endosar.isPending} />
         </Modal>
       )}
 

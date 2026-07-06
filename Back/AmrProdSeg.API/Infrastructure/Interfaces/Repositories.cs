@@ -30,6 +30,8 @@ public interface ICobroRepository
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
     Task MarcarVencidosAsync();
+    /// <summary>Recalcula el monto de las cuotas NO pagadas al nuevo precio (las pagadas no se tocan).</summary>
+    Task RecalcularPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas);
 }
 
 public interface IClienteRepository
@@ -140,6 +142,21 @@ public interface IAltaRepository
     Task<(int ClienteId, int? VehiculoId, int PolizaId)> AltaCompletaAsync(
         Cliente cliente, Vehiculo? vehiculo, Poliza poliza,
         Func<int, IEnumerable<Cobro>> cuotasFactory);
+}
+
+public interface IEndosoRepository
+{
+    /// <summary>
+    /// Cambia el titular de una póliza en una única transacción: si el cliente nuevo
+    /// tiene Id 0 lo inserta (si no, lo reutiliza), registra el endoso guardando el
+    /// titular anterior, actualiza el titular de la póliza y mueve el vehículo al nuevo
+    /// titular. Devuelve el Id del nuevo titular.
+    /// </summary>
+    Task<int> EndosarTitularAsync(
+        int polizaId, int titularAnteriorId, Cliente clienteNuevo,
+        int? vehiculoId, int? usuarioId, string? motivo);
+
+    Task<List<EndosoTitular>> GetPorPolizaAsync(int polizaId);
 }
 
 public interface INotificacionRepository
