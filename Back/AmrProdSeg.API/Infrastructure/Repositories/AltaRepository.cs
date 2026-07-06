@@ -33,7 +33,22 @@ public class AltaRepository : IAltaRepository
                     ("@TipoDocumento", (object?)cliente.TipoDocumento ?? DBNull.Value));
 
             int? vehiculoId = null;
-            if (vehiculo != null)
+            if (vehiculo != null && vehiculo.Id > 0)
+            {
+                // Vehículo ya existente (patente cargada, póliza anterior dada de baja):
+                // se reutiliza y se actualizan sus datos, sin duplicar la patente única.
+                vehiculoId = vehiculo.Id;
+                await EjecutarAsync(conn, tran, "sp_Vehiculo_Actualizar",
+                    ("@Id", vehiculo.Id),
+                    ("@Marca", vehiculo.Marca),
+                    ("@Modelo", vehiculo.Modelo),
+                    ("@Anio", vehiculo.Anio),
+                    ("@Chasis", (object?)vehiculo.Chasis ?? DBNull.Value),
+                    ("@Motor", (object?)vehiculo.Motor ?? DBNull.Value),
+                    ("@TipoCobertura", (object?)vehiculo.TipoCobertura ?? DBNull.Value),
+                    ("@Combustion", (object?)vehiculo.Combustion ?? DBNull.Value));
+            }
+            else if (vehiculo != null)
             {
                 vehiculoId = await EscalarAsync(conn, tran, "sp_Vehiculo_Insertar",
                     ("@ClienteId", clienteId),

@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useCompanias } from "../hooks/polizas";
 import { useRamos, useCoberturas } from "../hooks/admin";
 import { useCrearAlta } from "../hooks/altas";
-import { listarClientes } from "../api/clientes";
+import { listarClientes, getCliente } from "../api/clientes";
+import { getVehiculoPorPatente } from "../api/vehiculos";
 import { getPolizaActivaPorPatente } from "../api/polizas";
 import type { AltaAsegurado } from "../types";
 import {
@@ -82,6 +83,7 @@ export default function Alta() {
   const [saved, setSaved] = useState(false);
   const [polNum, setPolNum] = useState("");
   const [avisoPatente, setAvisoPatente] = useState("");
+  const [patenteInfo, setPatenteInfo] = useState("");
 
   const set = (k: keyof Form) => (v: string | string[]) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -105,14 +107,55 @@ export default function Alta() {
     } catch { /* silencioso */ }
   }
 
-  // Avisa si la patente ya tiene una póliza vigente (mostrando su número).
+  // Al cargar la patente: si el vehículo ya existe, autocompleta sus datos (y los del
+  // titular). Además avisa si ya tiene una póliza vigente (mostrando su número).
   async function chequearPatente() {
     const pat = form.patente.trim().toUpperCase();
-    setAvisoPatente("");
+    setAvisoPatente(""); setPatenteInfo("");
     if (!pat) return;
+
+    // Autocompletar datos del vehículo ya registrado
+    try {
+      const veh = await getVehiculoPorPatente(pat);
+      if (veh) {
+        setForm((f) => ({
+          ...f,
+          marca: veh.marca || f.marca,
+          modelo: veh.modelo || f.modelo,
+          anio: veh.anio ? String(veh.anio) : f.anio,
+          chasis: veh.chasis || f.chasis,
+          motor: veh.motor || f.motor,
+          cobertura: veh.tipoCobertura || f.cobertura,
+          combustion: veh.combustion
+            ? veh.combustion.split("/").map((s) => s.trim()).filter(Boolean)
+                .map((v) => COMBUSTION_OPTS.find((o) => o.k.toLowerCase() === v.toLowerCase())?.k)
+                .filter((x): x is string => !!x).slice(0, 2)
+            : f.combustion,
+        }));
+        // Autocompletar el titular del vehículo (sin pisar lo que ya haya cargado)
+        if (veh.clienteId) {
+          try {
+            const c = await getCliente(veh.clienteId);
+            const [nom, ...resto] = (c.nombre || "").trim().split(/\s+/);
+            setForm((f) => ({
+              ...f,
+              nombre: f.nombre || (nom ?? ""),
+              apellido: f.apellido || resto.join(" "),
+              idNumber: f.idNumber || (c.documento ?? ""),
+              idType: c.tipoDocumento || f.idType,
+              email: f.email || (c.email ?? ""),
+              telefono: f.telefono || (c.telefono ?? ""),
+            }));
+          } catch { /* silencioso */ }
+        }
+        setPatenteInfo(`Se cargaron los datos del vehículo ${[veh.marca, veh.modelo].filter(Boolean).join(" ")} ya registrado.`);
+      }
+    } catch { /* silencioso */ }
+
+    // Aviso de póliza vigente
     try {
       const pol = await getPolizaActivaPorPatente(pat);
-      if (pol) setAvisoPatente(`El vehículo con patente ${pat} ya posee una póliza vigente: ${pol.numero}.`);
+      if (pol) setAvisoPatente(`El vehículo con patente ${pat} ya posee una póliza vigente: ${pol.numero}. Dala de baja antes de crear una nueva.`);
     } catch { /* silencioso */ }
   }
 
@@ -289,12 +332,12 @@ export default function Alta() {
                 <div style={grid("1fr 1fr")}>
                   <Field label="Nombre" required>
                     <InputBox focus={focus === "n"} onFocus={() => setFocus("n")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="Nombre completo" value={form.nombre} onChange={(e) => set("nombre")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="Nombre completo" value={form.nombre} onChange={(e) => set("nombre")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                   <Field label="Apellido">
                     <InputBox focus={focus === "a"} onFocus={() => setFocus("a")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="Apellido" value={form.apellido} onChange={(e) => set("apellido")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="Apellido" value={form.apellido} onChange={(e) => set("apellido")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                 </div>
@@ -308,7 +351,7 @@ export default function Alta() {
                 <Sp h={16} />
                 <Field label="Domicilio" hint="Calle y altura">
                   <InputBox focus={focus === "dom"} onFocus={() => setFocus("dom")} onBlur={() => setFocus(null)}>
-                    <input style={S.input} placeholder="Av. Corrientes" value={form.calle} onChange={(e) => set("calle")(e.target.value)} />
+                    <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="Av. Corrientes" value={form.calle} onChange={(e) => set("calle")(e.target.value.toUpperCase())} />
                   </InputBox>
                 </Field>
                 <Sp h={12} />
@@ -320,7 +363,7 @@ export default function Alta() {
                   </Field>
                   <Field label="Piso / Dto.">
                     <InputBox focus={focus === "piso"} onFocus={() => setFocus("piso")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="5° B" value={form.piso} onChange={(e) => set("piso")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="5° B" value={form.piso} onChange={(e) => set("piso")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                 </div>
@@ -328,7 +371,7 @@ export default function Alta() {
                 <div style={grid("1fr 1fr")}>
                   <Field label="Localidad">
                     <InputBox focus={focus === "loc"} onFocus={() => setFocus("loc")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="CABA" value={form.localidad} onChange={(e) => set("localidad")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="CABA" value={form.localidad} onChange={(e) => set("localidad")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                   <Field label="Provincia">
@@ -362,6 +405,11 @@ export default function Alta() {
                     ⚠ {avisoPatente}
                   </div>
                 )}
+                {patenteInfo && (
+                  <div style={{ marginBottom: 14, padding: "10px 14px", background: "var(--ok-100)", border: "1px solid var(--ok-500)", borderRadius: 9, fontSize: 13, color: "var(--ok-700)", fontWeight: 500 }}>
+                    ✓ {patenteInfo}
+                  </div>
+                )}
                 <div style={grid("1fr 1fr")}>
                   <Field label="Patente" required hint="Formato AB123CD o ABC123">
                     <InputBox focus={focus === "pat"} onFocus={() => setFocus("pat")} onBlur={() => setFocus(null)}>
@@ -378,12 +426,12 @@ export default function Alta() {
                 <div style={grid("1fr 1.5fr")}>
                   <Field label="Marca" required>
                     <InputBox focus={focus === "marca"} onFocus={() => setFocus("marca")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="Ej. Volkswagen" value={form.marca} onChange={(e) => set("marca")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="Ej. Volkswagen" value={form.marca} onChange={(e) => set("marca")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                   <Field label="Modelo" required>
                     <InputBox focus={focus === "modelo"} onFocus={() => setFocus("modelo")} onBlur={() => setFocus(null)}>
-                      <input style={S.input} placeholder="Ej. Gol Trend 1.6" value={form.modelo} onChange={(e) => set("modelo")(e.target.value)} />
+                      <input style={{ ...S.input, textTransform: "uppercase" }} placeholder="Ej. Gol Trend 1.6" value={form.modelo} onChange={(e) => set("modelo")(e.target.value.toUpperCase())} />
                     </InputBox>
                   </Field>
                 </div>

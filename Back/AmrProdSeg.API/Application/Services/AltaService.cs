@@ -37,10 +37,21 @@ public class AltaService : IAltaService
         // Un cliente puede tener muchas pólizas: si el documento ya existe, se REUTILIZA el cliente.
         var clienteExistente = await _clienteRepo.VerificarDocumentoAsync(dto.Documento);
 
-        // El vehículo pertenece a un solo cliente y una sola póliza: la patente no se puede repetir.
+        // Un vehículo solo puede tener UNA póliza vigente a la vez. Si la patente ya existe
+        // pero sus pólizas están dadas de baja (canceladas/vencidas), se REUTILIZA el vehículo
+        // para la nueva póliza en lugar de bloquear la carga.
         var tienePatente = !string.IsNullOrWhiteSpace(dto.Patente);
-        if (tienePatente && await _vehiculoRepo.GetByPatenteAsync(dto.Patente!) != null)
-            throw new BusinessException($"Ya existe un vehículo con la patente {dto.Patente}. Un vehículo solo puede tener una póliza.");
+        var vehiculoExistente = tienePatente
+            ? await _vehiculoRepo.GetByPatenteAsync(dto.Patente!)
+            : null;
+        if (vehiculoExistente != null)
+        {
+            var polizaVigente = await _polizaRepo.GetActivaPorVehiculoAsync(vehiculoExistente.Id);
+            if (polizaVigente != null)
+                throw new BusinessException(
+                    $"El vehículo con patente {dto.Patente} ya posee una póliza vigente ({polizaVigente.Numero}). " +
+                    "Dala de baja antes de crear una nueva.");
+        }
 
         if (await _companiaRepo.GetByIdAsync(dto.CompaniaId) is null)
             throw new BusinessException($"La compañía {dto.CompaniaId} no existe.");
@@ -48,26 +59,28 @@ public class AltaService : IAltaService
         var cliente = new Cliente
         {
             Id            = clienteExistente?.Id ?? 0,   // >0 = cliente ya existente (no se crea de nuevo)
-            Nombre        = dto.ClienteNombre,
+            Nombre        = Up(dto.ClienteNombre) ?? dto.ClienteNombre,
             Documento     = dto.Documento,
-            Email         = dto.Email,
+            Email         = dto.Email,          // el email queda como se escribió (no en mayúsculas)
             Telefono      = dto.Telefono,
-            Direccion     = dto.Direccion,
+            Direccion     = Up(dto.Direccion),
             TipoDocumento = dto.TipoDocumento
         };
 
-        // El vehículo se crea sólo si el ramo lo requiere (hay patente/marca cargada)
+        // El vehículo se crea sólo si el ramo lo requiere (hay patente/marca cargada).
+        // Si la patente ya existía (póliza dada de baja), Id>0 → se reutiliza el vehículo.
         Vehiculo? vehiculo = tienePatente
             ? new Vehiculo
             {
-                Marca         = dto.Marca ?? "",
-                Modelo        = dto.Modelo ?? "",
+                Id            = vehiculoExistente?.Id ?? 0,
+                Marca         = Up(dto.Marca) ?? "",
+                Modelo        = Up(dto.Modelo) ?? "",
                 Anio          = dto.Anio ?? 0,
-                Patente       = dto.Patente!,
-                Chasis        = dto.Chasis,
-                Motor         = dto.Motor,
-                TipoCobertura = dto.TipoCobertura,
-                Combustion    = dto.Combustion
+                Patente       = Up(dto.Patente) ?? dto.Patente!,
+                Chasis        = Up(dto.Chasis),
+                Motor         = Up(dto.Motor),
+                TipoCobertura = Up(dto.TipoCobertura),
+                Combustion    = Up(dto.Combustion)
             }
             : null;
 
@@ -84,7 +97,7 @@ public class AltaService : IAltaService
             FormaPago      = dto.FormaPago,
             PrimaOG        = dto.PrimaOG,
             VendedorId     = usuarioId,
-            Cobertura      = dto.TipoCobertura   // la cobertura elegida en el alta
+            Cobertura      = Up(dto.TipoCobertura)   // la cobertura elegida en el alta
         };
 
         // Todo en una transacción; las cuotas se generan con el PolizaId creado
@@ -111,4 +124,7 @@ public class AltaService : IAltaService
             PdfUrl     = pdfUrl
         };
     }
+
+    /// <summary>Normaliza un texto a MAYÚSCULAS (trim). Devuelve null si viene vacío.</summary>
+    private static string? Up(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToUpperInvariant();
 }
