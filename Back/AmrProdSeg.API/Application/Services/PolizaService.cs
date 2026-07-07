@@ -155,9 +155,10 @@ public class PolizaService : IPolizaService
         poliza.Cobertura      = dto.Cobertura;
         await _polizaRepo.ActualizarAsync(poliza);
 
-        // Propaga el nuevo precio a las cuotas AÚN NO cobradas. Las ya pagadas conservan
-        // su monto (lo realmente cobrado), para que los reportes no cambien retroactivamente.
-        await _cobroRepo.RecalcularPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas);
+        // Regenera las cuotas AÚN NO cobradas según el nuevo precio, cantidad y fecha de inicio
+        // (agrega/quita cuotas y recalcula montos y vencimientos). Las ya pagadas conservan su
+        // monto y vencimiento (lo realmente cobrado), para que los reportes no cambien.
+        await _cobroRepo.RegenerarPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas, dto.FechaInicio);
     }
 
     public async Task AsignarNumeroAsync(int id, string numero)

@@ -126,18 +126,19 @@ public class CobroRepository : ICobroRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task RecalcularPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas)
+    public async Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime fechaInicio)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
 
-        using var cmd = new SqlCommand("sp_Cobro_RecalcularPendientes", conn)
+        using var cmd = new SqlCommand("sp_Cobro_RegenerarPendientes", conn)
         {
             CommandType = CommandType.StoredProcedure
         };
         cmd.Parameters.AddWithValue("@PolizaId",       polizaId);
         cmd.Parameters.AddWithValue("@PrecioTotal",    precioTotal);
         cmd.Parameters.AddWithValue("@CantidadCuotas", cantidadCuotas);
+        cmd.Parameters.AddWithValue("@FechaInicio",    fechaInicio.Date);
         await cmd.ExecuteNonQueryAsync();
     }
 

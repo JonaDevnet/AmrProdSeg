@@ -165,9 +165,8 @@ export default function ClienteFicha() {
                     <IconEdit size={19} />
                   </button>
                 </div>
-                <div style={{ marginTop: 6 }}><Plate patente={v.patente} /></div>
+                <div style={{ marginTop: 6 }}><PlateCopiable patente={v.patente} /></div>
                 <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
-                  <MiniDato k="Patente" v={v.patente} mono />
                   <MiniDato k="Marca" v={v.marca} />
                   <MiniDato k="Modelo" v={v.modelo} />
                   <MiniDato k="Año" v={v.anio ? String(v.anio) : null} mono />
@@ -278,6 +277,34 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
       <span style={{ color: "var(--ink-500)" }}>{k}</span>
       <CopyableValue value={v} mono={mono} />
     </div>
+  );
+}
+
+// Placa de patente que se copia al portapapeles al hacer clic.
+function PlateCopiable({ patente }: { patente: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copiar() {
+    if (!patente) return;
+    try {
+      await navigator.clipboard.writeText(patente);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = patente; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1200);
+  }
+  return (
+    <button onClick={copiar} title={copied ? "¡Copiado!" : "Copiar patente"}
+      style={{ border: 0, background: "transparent", padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <Plate patente={patente} />
+      <span style={{ fontSize: 11.5, fontWeight: 500, color: copied ? "var(--ok-700)" : "var(--ink-400)" }}>
+        {copied ? "✓ copiado" : "copiar"}
+      </span>
+    </button>
   );
 }
 

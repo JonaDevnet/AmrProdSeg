@@ -3267,5 +3267,47 @@ END
 GO
 
 /* =============================================================================
+   §52 — Regenerar las cuotas pendientes cuando cambia la CANTIDAD de cuotas o el
+   PERÍODO (fecha de inicio) de la póliza. Conserva las cuotas ya pagadas (monto y
+   vencimiento históricos) y regenera el resto: cantidad, montos y vencimientos.
+   Reemplaza al recálculo simple de monto (§49).
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Cobro_RegenerarPendientes
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT, @FechaInicio DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    -- Última cuota pagada: no se puede bajar la cantidad por debajo de las ya cobradas.
+    DECLARE @maxPag INT = ISNULL((SELECT MAX(NumeroCuota) FROM Cobros WHERE PolizaId=@PolizaId AND Estado=1), 0);
+    DECLARE @total  INT = CASE WHEN @CantidadCuotas < @maxPag THEN @maxPag ELSE @CantidadCuotas END;
+
+    -- Borra las pendientes que sobran (más allá del total), salvo las referidas por una anulación.
+    DELETE FROM Cobros
+    WHERE PolizaId=@PolizaId AND Estado<>1 AND NumeroCuota > @total
+      AND Id NOT IN (SELECT CobroId FROM AnulacionesCobro);
+
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+    DECLARE @monto DECIMAL(18,2), @venc DATE;
+    DECLARE @i INT = @maxPag + 1;
+    WHILE @i <= @total
+    BEGIN
+        SET @monto = CASE WHEN @i >= @CantidadCuotas THEN @ultima ELSE @base END;
+        SET @venc  = DATEADD(MONTH, @i, @FechaInicio);
+        IF EXISTS (SELECT 1 FROM Cobros WHERE PolizaId=@PolizaId AND NumeroCuota=@i)
+            UPDATE Cobros SET Monto=@monto, FechaVencimiento=@venc
+            WHERE PolizaId=@PolizaId AND NumeroCuota=@i AND Estado<>1;   -- no toca pagadas
+        ELSE
+            INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado)
+            VALUES (@PolizaId, @i, @venc, @monto, 0);
+        SET @i = @i + 1;
+    END
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */
