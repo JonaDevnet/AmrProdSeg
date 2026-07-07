@@ -34,6 +34,7 @@ public class ClienteService : IClienteService
             Telefono  = dto.Telefono,
             Direccion = dto.Direccion,
             TipoDocumento = dto.TipoDocumento,
+            FechaNacimiento = dto.FechaNacimiento,
             OficinaId = oficinaId,
             VendedorId = usuarioId
         };
@@ -50,6 +51,7 @@ public class ClienteService : IClienteService
         cliente.Telefono  = dto.Telefono;
         cliente.Direccion = dto.Direccion;
         cliente.TipoDocumento = dto.TipoDocumento;
+        cliente.FechaNacimiento = dto.FechaNacimiento;
 
         await _clienteRepo.ActualizarAsync(cliente);
     }

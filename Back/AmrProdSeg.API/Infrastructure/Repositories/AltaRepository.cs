@@ -30,7 +30,8 @@ public class AltaRepository : IAltaRepository
                     ("@Email", (object?)cliente.Email ?? DBNull.Value),
                     ("@Telefono", (object?)cliente.Telefono ?? DBNull.Value),
                     ("@Direccion", (object?)cliente.Direccion ?? DBNull.Value),
-                    ("@TipoDocumento", (object?)cliente.TipoDocumento ?? DBNull.Value));
+                    ("@TipoDocumento", (object?)cliente.TipoDocumento ?? DBNull.Value),
+                    ("@FechaNacimiento", (object?)cliente.FechaNacimiento ?? DBNull.Value));
 
             int? vehiculoId = null;
             if (vehiculo != null && vehiculo.Id > 0)

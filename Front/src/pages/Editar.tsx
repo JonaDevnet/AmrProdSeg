@@ -88,7 +88,7 @@ export default function Editar() {
     setError(undefined); setGuardando(true);
     const limpio = (s?: string) => (s && s.trim() !== "" ? s.trim() : undefined);
     try {
-      await actualizarVehiculo(vehiculo.id, { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpio(v.chasis), motor: limpio(v.motor), tipoCobertura: limpio(v.tipoCobertura) });
+      await actualizarVehiculo(vehiculo.id, { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpio(v.chasis), motor: limpio(v.motor), combustion: limpio(v.combustion) });
       setSaved(true);
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }

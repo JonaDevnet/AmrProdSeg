@@ -64,7 +64,8 @@ public class AltaService : IAltaService
             Email         = dto.Email,          // el email queda como se escribió (no en mayúsculas)
             Telefono      = dto.Telefono,
             Direccion     = Up(dto.Direccion),
-            TipoDocumento = dto.TipoDocumento
+            TipoDocumento = dto.TipoDocumento,
+            FechaNacimiento = dto.FechaNacimiento
         };
 
         // El vehículo se crea sólo si el ramo lo requiere (hay patente/marca cargada).

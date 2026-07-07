@@ -28,6 +28,7 @@ public class ClienteRepository : IClienteRepository
         cmd.Parameters.AddWithValue("@TipoDocumento", (object?)c.TipoDocumento ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@OficinaId", (object?)c.OficinaId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@VendedorId", (object?)c.VendedorId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaNacimiento", (object?)c.FechaNacimiento ?? DBNull.Value);
 
         var result = await cmd.ExecuteScalarAsync();
         return Convert.ToInt32(result);
@@ -48,6 +49,7 @@ public class ClienteRepository : IClienteRepository
         cmd.Parameters.AddWithValue("@Telefono",  (object?)c.Telefono ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Direccion", (object?)c.Direccion ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@TipoDocumento", (object?)c.TipoDocumento ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaNacimiento", (object?)c.FechaNacimiento ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -138,6 +140,7 @@ public class ClienteRepository : IClienteRepository
         Telefono  = r.IsDBNull(r.GetOrdinal("Telefono"))  ? null : r.GetString(r.GetOrdinal("Telefono")),
         Direccion = r.IsDBNull(r.GetOrdinal("Direccion")) ? null : r.GetString(r.GetOrdinal("Direccion")),
         TipoDocumento = r.IsDBNull(r.GetOrdinal("TipoDocumento")) ? null : r.GetString(r.GetOrdinal("TipoDocumento")),
+        FechaNacimiento = TieneCol(r, "FechaNacimiento") && !r.IsDBNull(r.GetOrdinal("FechaNacimiento")) ? r.GetDateTime(r.GetOrdinal("FechaNacimiento")) : null,
         OficinaId = TieneCol(r, "OficinaId") && !r.IsDBNull(r.GetOrdinal("OficinaId")) ? r.GetInt32(r.GetOrdinal("OficinaId")) : null,
         FechaAlta = r.GetDateTime(r.GetOrdinal("FechaAlta")),
         Activo    = r.GetBoolean(r.GetOrdinal("Activo"))

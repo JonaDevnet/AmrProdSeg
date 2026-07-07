@@ -3200,5 +3200,72 @@ END
 GO
 
 /* =============================================================================
+   §50 — Fecha de nacimiento del asegurado (cliente). Editable desde la ficha del
+   cliente y desde el apartado de edición. Se re-crean los SPs vigentes de cliente
+   agregando la columna, conservando el resto de parámetros (TipoDocumento, Oficina).
+   ============================================================================= */
+IF COL_LENGTH('dbo.Clientes','FechaNacimiento') IS NULL
+    ALTER TABLE Clientes ADD FechaNacimiento DATE NULL;
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_Insertar
+    @Nombre NVARCHAR(150), @Documento VARCHAR(20), @Email VARCHAR(100) = NULL,
+    @Telefono VARCHAR(30) = NULL, @Direccion NVARCHAR(200) = NULL,
+    @TipoDocumento VARCHAR(20) = NULL, @OficinaId INT = NULL, @VendedorId INT = NULL,
+    @FechaNacimiento DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Clientes (Nombre, Documento, Email, Telefono, Direccion, TipoDocumento, OficinaId, VendedorId, FechaNacimiento)
+    VALUES (@Nombre, @Documento, @Email, @Telefono, @Direccion, @TipoDocumento, @OficinaId, @VendedorId, @FechaNacimiento);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_Actualizar
+    @Id INT, @Nombre NVARCHAR(150), @Email VARCHAR(100) = NULL,
+    @Telefono VARCHAR(30) = NULL, @Direccion NVARCHAR(200) = NULL,
+    @TipoDocumento VARCHAR(20) = NULL, @FechaNacimiento DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Clientes
+    SET Nombre = @Nombre, Email = @Email, Telefono = @Telefono,
+        Direccion = @Direccion,
+        TipoDocumento = COALESCE(@TipoDocumento, TipoDocumento),
+        FechaNacimiento = @FechaNacimiento
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento, OficinaId, FechaNacimiento
+    FROM Clientes WHERE Id = @Id;
+END
+GO
+
+/* =============================================================================
+   §51 — La cobertura deja de editarse desde el vehículo (vive solo en la póliza).
+   Como el formulario del vehículo ya no manda @TipoCobertura, se usa COALESCE para
+   NO borrar el valor existente al actualizar. La combustión sí se edita desde ahí.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Vehiculo_Actualizar
+    @Id INT, @Marca VARCHAR(60), @Modelo VARCHAR(60), @Anio SMALLINT,
+    @Chasis VARCHAR(50) = NULL, @Motor VARCHAR(50) = NULL,
+    @TipoCobertura VARCHAR(40) = NULL, @Combustion VARCHAR(40) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Vehiculos
+    SET Marca = @Marca, Modelo = @Modelo, Anio = @Anio, Chasis = @Chasis, Motor = @Motor,
+        TipoCobertura = COALESCE(@TipoCobertura, TipoCobertura),
+        Combustion    = COALESCE(@Combustion, Combustion)
+    WHERE Id = @Id;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

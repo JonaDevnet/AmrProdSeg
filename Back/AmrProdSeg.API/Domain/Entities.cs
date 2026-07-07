@@ -11,6 +11,7 @@ public class Cliente
     public string? Telefono { get; set; }
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
+    public DateTime? FechaNacimiento { get; set; }
     public int? OficinaId { get; set; }
     public int? VendedorId { get; set; }          // usuario que dio de alta al cliente
     public DateTime FechaAlta { get; set; }

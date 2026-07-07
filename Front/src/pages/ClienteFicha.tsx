@@ -61,12 +61,12 @@ export default function ClienteFicha() {
       if (vehModal?.vehiculo) {
         await actualizarVeh.mutateAsync({
           id: vehModal.vehiculo.id,
-          dto: { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), tipoCobertura: limpioOpc(v.tipoCobertura) },
+          dto: { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), combustion: limpioOpc(v.combustion) },
         });
       } else {
         await crearVeh.mutateAsync({
           clienteId, marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, patente: v.patente.trim(),
-          chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), tipoCobertura: limpioOpc(v.tipoCobertura),
+          chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), combustion: limpioOpc(v.combustion),
         });
       }
       setVehModal(null);
@@ -174,7 +174,6 @@ export default function ClienteFicha() {
                   <MiniDato k="Combustión" v={v.combustion} />
                   <MiniDato k="N° chasis" v={v.chasis} mono />
                   <MiniDato k="N° motor" v={v.motor} mono />
-                  <MiniDato k="Cobertura" v={v.tipoCobertura} />
                 </div>
               </div>
             ))}
@@ -205,6 +204,12 @@ export default function ClienteFicha() {
                         <IconEdit size={19} />
                       </button>
                     </div>
+                  </div>
+                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-500)" }}>
+                    <IconCar size={13} />
+                    {veh ? (
+                      <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
+                    ) : <span>Sin vehículo asociado</span>}
                   </div>
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
                     <MiniDato k="Compañía" v={cia?.nombre} />

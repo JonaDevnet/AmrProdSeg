@@ -128,6 +128,7 @@ public class CrearClienteDto
     public string? Telefono { get; set; }
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }
+    public DateTime? FechaNacimiento { get; set; }
 }
 
 public class ActualizarClienteDto
@@ -137,6 +138,7 @@ public class ActualizarClienteDto
     public string? Telefono { get; set; }
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }
+    public DateTime? FechaNacimiento { get; set; }
 }
 
 // ---------- Vehículos ----------
@@ -338,6 +340,7 @@ public class AltaAseguradoDto
     public string? Direccion { get; set; }
 
     public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
+    public DateTime? FechaNacimiento { get; set; }
 
     // Vehículo (opcional: solo ramos que lo requieren, p. ej. Automotor/Motovehículo)
     public string? Marca { get; set; }

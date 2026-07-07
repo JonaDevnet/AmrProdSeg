@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Field, Input, Select } from "../ui/Field";
+import { Field, Input } from "../ui/Field";
 import Button from "../ui/Button";
 import type { Vehiculo } from "../../types";
 
-const COBERTURAS = ["Terceros", "Terceros completo", "Todo riesgo"];
+// Misma lista de combustibles que se usa al cargar una póliza nueva.
+const COMBUSTIBLES = ["Nafta", "Diesel", "GNC", "Híbrido", "Eléctrico"];
 
 const schema = z.object({
   marca: z.string().min(1, "Requerido").max(60),
@@ -14,10 +16,9 @@ const schema = z.object({
   patente: z.string().min(1, "Requerido").max(10),
   chasis: z.string().max(50).optional().or(z.literal("")),
   motor: z.string().max(50).optional().or(z.literal("")),
-  tipoCobertura: z.string().optional().or(z.literal("")),
 });
 
-export type VehiculoFormValues = z.infer<typeof schema>;
+export type VehiculoFormValues = z.infer<typeof schema> & { combustion?: string };
 
 interface Props {
   vehiculo?: Vehiculo;
@@ -27,7 +28,7 @@ interface Props {
 
 export default function VehiculoForm({ vehiculo, onSubmit, enviando }: Props) {
   const editar = !!vehiculo;
-  const { register, handleSubmit, formState: { errors } } = useForm<VehiculoFormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       marca: vehiculo?.marca ?? "",
@@ -36,12 +37,18 @@ export default function VehiculoForm({ vehiculo, onSubmit, enviando }: Props) {
       patente: vehiculo?.patente ?? "",
       chasis: vehiculo?.chasis ?? "",
       motor: vehiculo?.motor ?? "",
-      tipoCobertura: vehiculo?.tipoCobertura ?? "",
     },
   });
 
+  // Combustión: hasta 2 (ej. "Nafta / GNC"), igual que en el Alta.
+  const [comb, setComb] = useState<string[]>(
+    vehiculo?.combustion ? vehiculo.combustion.split("/").map((s) => s.trim()).filter(Boolean).slice(0, 2) : []
+  );
+  const toggle = (k: string) =>
+    setComb((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : cur.length >= 2 ? cur : [...cur, k]));
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit((v) => onSubmit({ ...v, combustion: comb.length ? comb.join(" / ") : undefined }))}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="Marca" error={errors.marca?.message}><Input {...register("marca")} placeholder="Toyota" /></Field>
         <Field label="Modelo" error={errors.modelo?.message}><Input {...register("modelo")} placeholder="Corolla" /></Field>
@@ -53,11 +60,25 @@ export default function VehiculoForm({ vehiculo, onSubmit, enviando }: Props) {
             style={editar ? { background: "var(--canvas)", color: "var(--ink-500)" } : undefined} />
         </Field>
       </div>
-      <Field label="Tipo de cobertura" error={errors.tipoCobertura?.message}>
-        <Select {...register("tipoCobertura")}>
-          <option value="">— Sin especificar —</option>
-          {COBERTURAS.map((c) => <option key={c} value={c}>{c}</option>)}
-        </Select>
+      <Field label="Tipo de combustión" error={undefined}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {COMBUSTIBLES.map((k) => {
+            const sel = comb.includes(k);
+            const maxed = !sel && comb.length >= 2;
+            return (
+              <button type="button" key={k} onClick={() => toggle(k)} disabled={maxed}
+                style={{
+                  padding: "9px 14px", borderRadius: 9, cursor: maxed ? "not-allowed" : "pointer",
+                  border: "1.5px solid " + (sel ? "var(--navy-900)" : "var(--line)"),
+                  background: sel ? "var(--blue-100)" : "var(--paper)",
+                  color: sel ? "var(--navy-900)" : maxed ? "var(--ink-400)" : "var(--ink-700)",
+                  fontSize: 13.5, fontWeight: 500, opacity: maxed ? 0.55 : 1,
+                }}>
+                {sel ? "✓ " : ""}{k}
+              </button>
+            );
+          })}
+        </div>
       </Field>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="N° de chasis" error={errors.chasis?.message}><Input {...register("chasis")} /></Field>

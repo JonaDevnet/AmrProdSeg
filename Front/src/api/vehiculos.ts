@@ -9,7 +9,7 @@ export interface CrearVehiculoDto {
   patente: string;
   chasis?: string;
   motor?: string;
-  tipoCobertura?: string;
+  combustion?: string;
 }
 
 export interface ActualizarVehiculoDto {
@@ -18,7 +18,7 @@ export interface ActualizarVehiculoDto {
   anio: number;
   chasis?: string;
   motor?: string;
-  tipoCobertura?: string;
+  combustion?: string;
 }
 
 export async function getVehiculosPorCliente(clienteId: number): Promise<Vehiculo[]> {
