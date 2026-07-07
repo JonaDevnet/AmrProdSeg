@@ -11,6 +11,7 @@ const schema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().max(30).optional().or(z.literal("")),
   direccion: z.string().max(200).optional().or(z.literal("")),
+  fechaNacimiento: z.string().optional().or(z.literal("")),
 });
 
 export type ClienteFormValues = z.infer<typeof schema>;
@@ -35,6 +36,7 @@ export default function ClienteForm({ cliente, onSubmit, enviando }: Props) {
       email: cliente?.email ?? "",
       telefono: cliente?.telefono ?? "",
       direccion: cliente?.direccion ?? "",
+      fechaNacimiento: cliente?.fechaNacimiento ? cliente.fechaNacimiento.slice(0, 10) : "",
     },
   });
 
@@ -59,6 +61,10 @@ export default function ClienteForm({ cliente, onSubmit, enviando }: Props) {
 
       <Field label="Email" error={errors.email?.message}>
         <Input {...register("email")} placeholder="cliente@mail.com" />
+      </Field>
+
+      <Field label="Fecha de nacimiento" error={errors.fechaNacimiento?.message}>
+        <Input type="date" {...register("fechaNacimiento")} />
       </Field>
 
       <Field label="Teléfono" error={errors.telefono?.message}>

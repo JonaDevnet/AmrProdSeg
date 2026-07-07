@@ -7,6 +7,7 @@ export interface CrearClienteDto {
   email?: string;
   telefono?: string;
   direccion?: string;
+  fechaNacimiento?: string;
 }
 
 export interface ActualizarClienteDto {
@@ -14,6 +15,7 @@ export interface ActualizarClienteDto {
   email?: string;
   telefono?: string;
   direccion?: string;
+  fechaNacimiento?: string;
 }
 
 export async function listarClientes(

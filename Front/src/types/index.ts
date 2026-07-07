@@ -24,6 +24,7 @@ export interface Cliente {
   telefono?: string | null;
   direccion?: string | null;
   tipoDocumento?: string | null;
+  fechaNacimiento?: string | null;
   fechaAlta: string;
   activo: boolean;
   oficinaId?: number | null;
@@ -276,6 +277,7 @@ export interface AltaAsegurado {
   telefono?: string;
   direccion?: string;
   tipoDocumento?: string;
+  fechaNacimiento?: string;
   marca?: string;
   modelo?: string;
   anio?: number;

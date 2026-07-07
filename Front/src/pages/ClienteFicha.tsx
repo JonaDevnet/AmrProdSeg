@@ -83,6 +83,7 @@ export default function ClienteFicha() {
       email: limpio(v.email),
       telefono: limpio(v.telefono),
       direccion: limpio(v.direccion),
+      fechaNacimiento: limpio(v.fechaNacimiento),
     };
     try {
       await actualizar.mutateAsync(dto);
@@ -138,6 +139,7 @@ export default function ClienteFicha() {
           <Dato label="Email" valor={cliente.email} />
           <Dato label="Teléfono" valor={cliente.telefono} />
           <Dato label="Dirección" valor={cliente.direccion} />
+          <Dato label="Nacimiento" valor={cliente.fechaNacimiento ? formatFecha(cliente.fechaNacimiento) : null} />
           <Dato label="Alta" valor={formatFecha(cliente.fechaAlta)} />
         </div>
       </div>

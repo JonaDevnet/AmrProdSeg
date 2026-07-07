@@ -238,6 +238,7 @@ export default function Alta() {
       telefono: limpio(form.telefono),
       direccion: domicilio || undefined,
       tipoDocumento: form.idType,
+      fechaNacimiento: form.nac || undefined,
       companiaId,
       ramoId: Number(form.ramoId),
       fechaInicio: isoHoy(),

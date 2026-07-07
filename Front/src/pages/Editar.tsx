@@ -79,7 +79,7 @@ export default function Editar() {
     setError(undefined); setGuardando(true);
     const limpio = (s?: string) => (s && s.trim() !== "" ? s.trim() : undefined);
     try {
-      await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion) });
+      await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion), fechaNacimiento: limpio(v.fechaNacimiento) });
       setSaved(true);
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }
