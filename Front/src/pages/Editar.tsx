@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { listarClientes, actualizarCliente } from "../api/clientes";
 import { getVehiculoPorPatente, actualizarVehiculo } from "../api/vehiculos";
+import { useQueryClient } from "@tanstack/react-query";
 import { getPoliza, actualizarPoliza } from "../api/polizas";
 import { buscarGlobal } from "../api/search";
 import { useCompanias } from "../hooks/polizas";
@@ -238,6 +239,7 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
+  const qc = useQueryClient();
 
   async function guardar() {
     setError(undefined); setGuardando(true);
@@ -250,6 +252,8 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
       });
+      // Al cambiar vigencia/cantidad de cuotas se regeneran los cobros: refrescar Cobranzas.
+      qc.invalidateQueries({ queryKey: ["cobros"] });
       onSaved();
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }

@@ -9,6 +9,7 @@ import type { RenovarPolizaDto } from "../../api/polizas";
 
 const schema = z
   .object({
+    numero: z.string().min(1, "Requerido").max(20),
     companiaId: z.coerce.number().int().positive(),
     cobertura: z.string().min(1, "Elegí una cobertura"),
     fechaInicio: z.string().min(1, "Requerido"),
@@ -54,6 +55,7 @@ export default function RenovarForm({ poliza, companias, onSubmit, enviando }: P
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
+      numero: poliza.numero,
       companiaId: poliza.companiaId,
       cobertura: poliza.cobertura ?? "",
       fechaInicio: isoHoy(),
@@ -72,6 +74,7 @@ export default function RenovarForm({ poliza, companias, onSubmit, enviando }: P
 
   function enviar(v: Values) {
     return onSubmit({
+      numero: v.numero.trim(),
       companiaId: v.companiaId,
       cobertura: v.cobertura,
       fechaInicio: v.fechaInicio,
@@ -87,6 +90,10 @@ export default function RenovarForm({ poliza, companias, onSubmit, enviando }: P
       <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--ink-500)" }}>
         Se creará una nueva póliza y la actual quedará marcada como <strong>Renovada</strong>.
       </p>
+
+      <Field label="Número de póliza" error={errors.numero?.message}>
+        <Input {...register("numero")} placeholder="Número de la póliza renovada" />
+      </Field>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="Compañía" error={errors.companiaId?.message}>

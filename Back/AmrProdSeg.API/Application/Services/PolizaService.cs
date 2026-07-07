@@ -110,7 +110,19 @@ public class PolizaService : IPolizaService
         var nuevoId = await _polizaRepo.InsertarAsync(nueva);
         nueva.Id = nuevoId;
 
+        // Se marca la original como Renovada ANTES de asignar el número: así su número queda
+        // libre para la renovación (el check de AsignarNumero ignora las canceladas y renovadas).
         await _polizaRepo.CambiarEstadoAsync(polizaOrigenId, EstadoPoliza.Renovada);
+
+        // Número de la renovación: el indicado (por defecto, el de la póliza original).
+        if (!string.IsNullOrWhiteSpace(dto.Numero))
+        {
+            var r = await _polizaRepo.AsignarNumeroAsync(nuevoId, dto.Numero.Trim());
+            if (r == -1)
+                throw new BusinessException($"Ya existe otra póliza vigente con el número {dto.Numero}.");
+            nueva.Numero = dto.Numero.Trim();
+        }
+
         await GenerarCuotasAsync(nueva);
 
         var pdfUrl = await _pdfService.GenerarComprobantePdfAsync(nueva);

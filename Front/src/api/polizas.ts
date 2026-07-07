@@ -2,6 +2,7 @@ import api from "../security/axiosInstance";
 import type { Poliza, PagedResult, RenovacionResult } from "../types";
 
 export interface RenovarPolizaDto {
+  numero?: string;
   companiaId?: number;
   fechaInicio: string;
   fechaFin: string;

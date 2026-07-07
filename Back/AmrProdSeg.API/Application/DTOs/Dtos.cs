@@ -76,6 +76,7 @@ public class AsignarNumeroDto
 
 public class RenovarPolizaDto
 {
+    public string? Numero { get; set; }      // número de la póliza renovada (por defecto, el de la original)
     public int? CompaniaId { get; set; }
     public DateTime FechaInicio { get; set; }
     public DateTime FechaFin { get; set; }

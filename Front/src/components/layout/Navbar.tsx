@@ -84,7 +84,7 @@ export default function Navbar() {
       <header style={nav}>
         <div style={navInner}>
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => navigate("/cartera")}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }} onClick={() => navigate("/cartera")}>
             <img src="/logo.png" alt="AMR" style={logoMark} />
             <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
               <span style={{ fontSize: 14, fontWeight: 600 }}>AMR</span>
@@ -95,7 +95,7 @@ export default function Navbar() {
           {/* ---------- Desktop ---------- */}
           {!mobile && (<>
           {/* Nav links */}
-          <nav style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 18 }}>
+          <nav style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 18, flexShrink: 0 }}>
             {itemsA.map((i) => (
               <NavLink key={i.to} to={i.to} end={i.end} style={({ isActive }) => navLink(isActive)}>
                 {i.icon}{i.label}
@@ -128,9 +128,9 @@ export default function Navbar() {
 
           {/* Buscador embebido (abre el command-palette) */}
           <button style={search} onClick={() => setBuscar(true)} title="Buscar (⌘K)">
-            <IconSearch size={16} style={{ color: "oklch(0.78 0.04 240)" }} />
-            <span style={{ flex: 1, textAlign: "left", color: "oklch(0.80 0.03 240)" }}>Buscar cliente, póliza o patente…</span>
-            <span className="mono" style={kbd}>⌘K</span>
+            <IconSearch size={16} style={{ color: "oklch(0.78 0.04 240)", flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0, textAlign: "left", color: "oklch(0.80 0.03 240)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Buscar cliente, póliza o patente…</span>
+            <span className="mono" style={{ ...kbd, flexShrink: 0 }}>⌘K</span>
           </button>
 
           <NotificacionesBell />
@@ -322,7 +322,9 @@ function navLink(active: boolean): CSSProperties {
 }
 const search: CSSProperties = {
   marginLeft: "auto", display: "flex", alignItems: "center", gap: 10,
-  background: "oklch(1 0 0 / 0.08)", borderRadius: 10, padding: "0 12px", height: 40, width: 340,
+  background: "oklch(1 0 0 / 0.08)", borderRadius: 10, padding: "0 12px", height: 40,
+  // Flexible: hasta 340px, pero se achica (no se sale) cuando falta espacio.
+  flex: "0 1 340px", minWidth: 40, maxWidth: 340, overflow: "hidden",
   border: "1px solid oklch(1 0 0 / 0.10)", cursor: "pointer", fontSize: 14,
 };
 const kbd: CSSProperties = {

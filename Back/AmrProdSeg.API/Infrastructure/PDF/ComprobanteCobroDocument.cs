@@ -96,7 +96,7 @@ public static class ComprobanteCobroDocument
         }
         else
         {
-            page.Size(210, 74, Unit.Millimetre);   // A4 de ancho, 1/4 de alto (parte de arriba)
+            page.Size(210, 99, Unit.Millimetre);   // A4 de ancho, 1/3 de alto (99 mm = 297/3)
             page.Margin(6);
             page.Header().Element(e => Membrete(e, logo, QrPng(d.QrUrl)));
             page.Content().Element(e => ContenidoComprobante(e, d, sello, logoSsn));

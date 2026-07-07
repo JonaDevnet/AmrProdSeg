@@ -107,19 +107,23 @@ html {
 }
 
 /* ============================================================================
-   Densidad en laptops — en pantallas de poca altura (13–15"), compactar toda
-   la interfaz para que las ventanas entren y no se vea todo tan grande.
-   `zoom` escala px y rem de forma uniforme; soportado en Chrome/Edge/Firefox/Safari.
-   Se basa en la altura del viewport, que es el eje donde los modales no entran.
+   Densidad en laptops — compactar TODA la interfaz (px, rem, elementos y letras)
+   cuando la pantalla es de laptop (ancho o alto reducidos). `zoom` escala todo de
+   forma uniforme (Chrome/Edge/Firefox/Safari). Se excluye el teléfono (≤860px),
+   que usa su propio layout táctil y no debe achicarse.
    ============================================================================ */
-@media (max-height: 880px) {
-  :root {
-    zoom: 0.9;
-  }
+/* Laptops / ventanas medianas → 90% */
+@media (min-width: 861px) and (max-width: 1536px) {
+  :root { zoom: 0.9; }
 }
-@media (max-height: 720px) {
-  :root {
-    zoom: 0.82;
-  }
+@media (min-width: 861px) and (max-height: 900px) {
+  :root { zoom: 0.9; }
+}
+/* Laptops chicas / pantallas bajas → 84% (van después: ganan en el cascade) */
+@media (min-width: 861px) and (max-width: 1200px) {
+  :root { zoom: 0.84; }
+}
+@media (min-width: 861px) and (max-height: 720px) {
+  :root { zoom: 0.84; }
 }
 

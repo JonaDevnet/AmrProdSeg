@@ -1,4 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   useCliente,
@@ -12,7 +13,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { useCompanias } from "../hooks/polizas";
 import { useRamos, useCoberturas } from "../hooks/admin";
-import { actualizarPoliza } from "../api/polizas";
+import { actualizarPoliza, asignarNumeroPoliza } from "../api/polizas";
 import { Field, Input, Select } from "../components/ui/Field";
 import type { Poliza } from "../types";
 import type { ActualizarClienteDto } from "../api/clientes";
@@ -40,6 +41,7 @@ export default function ClienteFicha() {
   const vehiculos = useVehiculosPorCliente(clienteId);
   const polizas = usePolizasPorCliente(clienteId);
 
+  const qc = useQueryClient();
   const companias = useCompanias();
   const actualizar = useActualizarCliente(clienteId);
   const corregirDoc = useActualizarDocumento(clienteId);
@@ -246,7 +248,7 @@ export default function ClienteFicha() {
           poliza={editPoliza}
           vehiculo={vehiculos.data?.find((v) => v.id === editPoliza.vehiculoId) ?? null}
           onClose={() => setEditPoliza(null)}
-          onSaved={() => { setEditPoliza(null); polizas.refetch(); vehiculos.refetch(); }}
+          onSaved={() => { setEditPoliza(null); polizas.refetch(); vehiculos.refetch(); qc.invalidateQueries({ queryKey: ["cobros"] }); }}
         />
       )}
 
@@ -388,6 +390,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const companias = useCompanias();
   const ramos = useRamos();
   const coberturas = useCoberturas();
+  const [numero, setNumero] = useState(poliza.numero);
   const [companiaId, setCompaniaId] = useState(String(poliza.companiaId));
   const [ramoId, setRamoId] = useState(poliza.ramoId ? String(poliza.ramoId) : "");
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? vehiculo?.tipoCobertura ?? "");
@@ -413,6 +416,10 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
       });
+      // El número se cambia por su endpoint propio (valida que no esté en uso por una póliza viva).
+      if (numero.trim() && numero.trim() !== poliza.numero) {
+        await asignarNumeroPoliza(poliza.id, numero.trim());
+      }
       onSaved();
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }
@@ -420,6 +427,9 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   return (
     <Modal titulo={`Editar póliza ${poliza.numero}`} onClose={onClose}>
       {error && <Banner mensaje={error} />}
+      <Field label="Número de póliza">
+        <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Número de póliza" />
+      </Field>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="Compañía"><Select value={companiaId} onChange={(e) => setCompaniaId(e.target.value)}>{companias.data?.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</Select></Field>
         <Field label="Ramo"><Select value={ramoId} onChange={(e) => setRamoId(e.target.value)}><option value="">—</option>{ramos.data?.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}</Select></Field>

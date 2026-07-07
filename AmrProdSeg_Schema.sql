@@ -3309,5 +3309,42 @@ END
 GO
 
 /* =============================================================================
+   §53 — El número de una póliza CANCELADA (baja) o ELIMINADA puede reutilizarse.
+   Se cambia el UNIQUE de tabla por un índice único FILTRADO que solo exige unicidad
+   entre pólizas vivas (Estado <> 2 = no cancelada, y Eliminada = 0).
+   ============================================================================= */
+-- Quitar el constraint UNIQUE de tabla sobre Numero (tiene nombre autogenerado)
+DECLARE @uqNumero NVARCHAR(200) = (
+    SELECT kc.name FROM sys.key_constraints kc
+    JOIN sys.index_columns ic ON ic.object_id = kc.parent_object_id AND ic.index_id = kc.unique_index_id
+    JOIN sys.columns col ON col.object_id = ic.object_id AND col.column_id = ic.column_id
+    WHERE kc.parent_object_id = OBJECT_ID('dbo.Polizas') AND kc.type = 'UQ' AND col.name = 'Numero');
+IF @uqNumero IS NOT NULL
+    EXEC('ALTER TABLE dbo.Polizas DROP CONSTRAINT ' + @uqNumero);
+GO
+
+-- Nota: NO se usa índice único filtrado a propósito. Un índice filtrado obliga a
+-- QUOTED_IDENTIFIER ON en TODO INSERT/UPDATE de Polizas, lo que rompería el import y
+-- cualquier operación por sqlcmd. La unicidad se valida a nivel aplicación en el SP; los
+-- números automáticos ya son únicos por la secuencia seq_Poliza. Si quedó de un intento
+-- previo, se elimina.
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Polizas_Numero_Vivas' AND object_id = OBJECT_ID('dbo.Polizas'))
+    DROP INDEX UX_Polizas_Numero_Vivas ON dbo.Polizas;
+GO
+
+-- El check de asignación de número ignora las canceladas (2), renovadas (3) y eliminadas,
+-- así el número de una póliza dada de baja, eliminada o renovada puede reutilizarse
+-- (p. ej. la renovación conserva el número de la original, que queda en estado Renovada).
+CREATE OR ALTER PROCEDURE sp_Poliza_AsignarNumero @Id INT, @Numero VARCHAR(20) AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Polizas WHERE Numero = @Numero AND Id <> @Id AND Estado NOT IN (2, 3) AND Eliminada = 0)
+    BEGIN SELECT CAST(-1 AS INT) AS Afectadas; RETURN; END
+    UPDATE Polizas SET Numero = @Numero WHERE Id = @Id;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */
