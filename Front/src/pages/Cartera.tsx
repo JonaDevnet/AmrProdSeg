@@ -34,6 +34,7 @@ const PESO_EST: Record<Est, number> = { vencida: 0, porvencer: 1, vigente: 2 };
 
 interface Row {
   id: number;
+  clienteId: number;
   coIdx: number;
   coName: string;
   coColorHex: string;
@@ -90,6 +91,7 @@ export default function Cartera() {
         const coIdx = companias.findIndex((c) => c.id === p.companiaId);
         return {
           id: p.id,
+          clienteId: p.clienteId,
           coIdx: coIdx < 0 ? 0 : coIdx,
           coName: companias[coIdx]?.nombre ?? "—",
           coColorHex: companias[coIdx]?.color || coColor(coIdx < 0 ? 0 : coIdx),
@@ -296,6 +298,7 @@ export default function Cartera() {
                         esET={r.pol.startsWith("E/T")}
                         esAdmin={esAdmin}
                         onVerFicha={() => setFicha(r.id)}
+                        onDetalles={() => navigate(`/clientes/${r.clienteId}`)}
                         onEditar={() => setAsignar(r)}
                         onCobrar={() => navigate(`/cobranzas?poliza=${r.id}`)}
                         onEliminar={() => { setEliminar(r); setElimAviso(""); }}
@@ -535,7 +538,7 @@ function StatCard({ label, n, warn, icon }: { label: string; n: string; warn?: b
   );
 }
 
-function RowMenu({ esET, esAdmin, onVerFicha, onEditar, onCobrar, onEliminar }: { esET?: boolean; esAdmin?: boolean; onVerFicha: () => void; onEditar: () => void; onCobrar: () => void; onEliminar: () => void }) {
+function RowMenu({ esET, esAdmin, onVerFicha, onDetalles, onEditar, onCobrar, onEliminar }: { esET?: boolean; esAdmin?: boolean; onVerFicha: () => void; onDetalles: () => void; onEditar: () => void; onCobrar: () => void; onEliminar: () => void }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -569,6 +572,7 @@ function RowMenu({ esET, esAdmin, onVerFicha, onEditar, onCobrar, onEliminar }: 
   const items = [
     { l: "Cobrar cuota", action: () => { onCobrar(); setOpen(false); }, danger: false },
     { l: "Ver ficha", action: () => { onVerFicha(); setOpen(false); }, danger: false },
+    { l: "Detalles", action: () => { onDetalles(); setOpen(false); }, danger: false },
     { l: esET ? "Asignar N° de póliza" : "Editar N° de póliza", action: () => { onEditar(); setOpen(false); }, danger: false },
     { l: esAdmin ? "Eliminar póliza" : "Solicitar eliminación", action: () => { onEliminar(); setOpen(false); }, danger: true },
   ];
