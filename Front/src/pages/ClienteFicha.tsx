@@ -11,7 +11,7 @@ import {
   useActualizarVehiculo,
 } from "../hooks/clientes";
 import { useAuth } from "../auth/AuthContext";
-import { useCompanias } from "../hooks/polizas";
+import { useCompanias, useCobrosPorPoliza } from "../hooks/polizas";
 import { useRamos, useCoberturas } from "../hooks/admin";
 import { actualizarPoliza, asignarNumeroPoliza } from "../api/polizas";
 import { Field, Input, Select } from "../components/ui/Field";
@@ -29,7 +29,6 @@ import { EstadoPolizaBadge, Plate } from "../components/ui/Badge";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import { IconArrowLeft, IconEdit, IconCar, IconFile } from "../components/Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
-import { estadoPolizaUI } from "../utils/poliza";
 import CopyableValue from "../components/ui/CopyableValue";
 
 export default function ClienteFicha() {
@@ -213,7 +212,7 @@ export default function ClienteFicha() {
                       <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
                     ) : <span>Sin vehículo asociado</span>}
                   </div>
-                  <VencimientoEstado fechaFin={p.fechaFin} estado={p.estado} />
+                  <VencimientoEstado polizaId={p.id} />
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
                     <MiniDato k="Compañía" v={cia?.nombre} />
                     <MiniDato k="Ramo" v={p.ramoNombre} />
@@ -284,22 +283,40 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
   );
 }
 
-// Próximo vencimiento de la póliza + estado UI (vigente / por vencer / vencida).
-function VencimientoEstado({ fechaFin, estado }: { fechaFin: string; estado: Poliza["estado"] }) {
-  const ui = estadoPolizaUI(estado, fechaFin);
-  const cfg: Record<string, { label: string; bg: string; fg: string }> = {
+// Vencimiento de la PRÓXIMA CUOTA a cobrar (impaga) + estado según esa cuota.
+function VencimientoEstado({ polizaId }: { polizaId: number }) {
+  const cobros = useCobrosPorPoliza(polizaId);
+  const cuotas = cobros.data ?? [];
+  // Próxima cuota impaga (estado != Pagado=1), la de vencimiento más temprano.
+  const prox = cuotas
+    .filter((c) => c.estado !== 1)
+    .sort((a, b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime())[0];
+
+  let key: "vigente" | "porvencer" | "vencida" | "aldia" = "aldia";
+  if (prox) {
+    const dias = Math.ceil((new Date(prox.fechaVencimiento).getTime() - Date.now()) / 86_400_000);
+    key = dias < 0 ? "vencida" : dias <= 10 ? "porvencer" : "vigente";
+  }
+  const cfg = {
     vigente:   { label: "Vigente",    bg: "var(--ok-100)",   fg: "var(--ok-700)" },
     porvencer: { label: "Por vencer", bg: "var(--warn-100)", fg: "var(--warn-700)" },
     vencida:   { label: "Vencida",    bg: "var(--bad-100)",  fg: "var(--bad-700)" },
-  };
-  const c = ui ? cfg[ui] : null;
+    aldia:     { label: "Al día",     bg: "var(--ok-100)",   fg: "var(--ok-700)" },
+  }[key];
+
   return (
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", borderRadius: 8, background: "var(--canvas)", border: "1px solid var(--line-2)" }}>
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
-        <span style={{ fontSize: 10.5, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Próximo vencimiento</span>
-        <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)" }}>{formatFecha(fechaFin)}</span>
+        <span style={{ fontSize: 10.5, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          Próx. vencimiento{prox ? ` · cuota ${prox.numeroCuota}/${cuotas.length}` : ""}
+        </span>
+        <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)" }}>
+          {cobros.isLoading ? "…" : prox ? formatFecha(prox.fechaVencimiento) : "—"}
+        </span>
       </div>
-      {c && <span style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, background: c.bg, color: c.fg, whiteSpace: "nowrap" }}>{c.label}</span>}
+      {cobros.isLoading
+        ? <span style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, background: "var(--line-2)", color: "var(--ink-500)" }}>…</span>
+        : <span style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, background: cfg.bg, color: cfg.fg, whiteSpace: "nowrap" }}>{cfg.label}</span>}
     </div>
   );
 }
