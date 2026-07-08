@@ -75,7 +75,7 @@ public static class ComprobanteCobroDocument
     /// franja superior + talón recortable a la derecha. Online = franja compacta (1/4 de A4).</summary>
     private static void PaginaComprobante(PageDescriptor page, ComprobanteCobroData d, byte[]? logo, bool conTalon, byte[]? sello = null, byte[]? logoSsn = null)
     {
-        page.DefaultTextStyle(t => t.FontFamily(FUENTE).FontSize(6.5f).FontColor("#000000"));
+        page.DefaultTextStyle(t => t.FontFamily(FUENTE).FontSize(8f).FontColor("#000000"));
 
         if (conTalon)
         {
@@ -159,9 +159,9 @@ public static class ComprobanteCobroDocument
     /// El sello "PAGADO" (si viene) se estampa sobre la celda del próximo vencimiento.</summary>
     private static void ContenidoComprobante(IContainer container, ComprobanteCobroData d, byte[]? sello = null, byte[]? logoSsn = null)
     {
-        container.PaddingTop(2).Column(col =>
+        container.PaddingTop(3).Column(col =>
         {
-            col.Spacing(1.6f);
+            col.Spacing(3f);
 
             // Cabecera: Fecha de pago | Recibo N° | Póliza N° | Compañía
             col.Item().Table(t =>
@@ -205,18 +205,18 @@ public static class ComprobanteCobroDocument
             });
 
             // Banco arriba (compacto), código de barras abajo
-            col.Item().Text(BANCO).SemiBold().FontSize(5.5f);
+            col.Item().Text(BANCO).SemiBold().FontSize(6.8f);
             col.Item().Element(e => Barcode(e, d.ReciboNumero + d.PolizaNumero));
 
-            // Leyes compactadas
-            col.Item().PaddingTop(1).Text(LEGAL).FontSize(4.2f).FontColor("#1e1e1e").LineHeight(0.95f);
+            // Leyes (letra chica: es fine print legal)
+            col.Item().PaddingTop(1).Text(LEGAL).FontSize(4.8f).FontColor("#1e1e1e").LineHeight(1.0f);
             // Leyenda final + logo SSN a su derecha
             col.Item().PaddingTop(1).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("*** EL PAGO SE VERA REFLEJADO 2 DIAS HABILES DESPUES DE LA FECHA DE EMISION.")
-                    .FontSize(4.8f).SemiBold().FontColor("#333333");
+                    .FontSize(5.6f).SemiBold().FontColor("#333333");
                 if (logoSsn is not null)
-                    r.AutoItem().PaddingLeft(8).AlignMiddle().Height(7).Image(logoSsn).FitHeight();
+                    r.AutoItem().PaddingLeft(8).AlignMiddle().Height(15).Image(logoSsn).FitHeight();
                 r.RelativeItem();
             });
         });
@@ -263,8 +263,8 @@ public static class ComprobanteCobroDocument
     }
 
     // Celdas de tabla reutilizables (tonos claros para que no salga oscuro al imprimir)
-    private static IContainer H(IContainer c) => c.Background("#f4f7fb").PaddingVertical(1.4f).PaddingHorizontal(3).DefaultTextStyle(t => t.SemiBold());
-    private static IContainer V(IContainer c) => c.Border(0.4f).BorderColor("#dbe1ec").PaddingVertical(1.4f).PaddingHorizontal(3);
+    private static IContainer H(IContainer c) => c.Background("#f4f7fb").PaddingVertical(3.2f).PaddingHorizontal(4).DefaultTextStyle(t => t.SemiBold());
+    private static IContainer V(IContainer c) => c.Border(0.4f).BorderColor("#dbe1ec").PaddingVertical(3.2f).PaddingHorizontal(4);
 
     /// <summary>Membrete del productor (fijo) — logo + razón social + datos. Opcionalmente QR al extremo derecho.</summary>
     private static void Membrete(IContainer container, byte[]? logo, byte[]? qr = null)
@@ -275,17 +275,17 @@ public static class ComprobanteCobroDocument
                 r.ConstantItem(46).Height(38).AlignMiddle().Image(logo).FitArea();
             r.RelativeItem().PaddingLeft(8).AlignMiddle().Column(c =>
             {
-                c.Item().Text(RAZON).FontSize(10f).Bold().FontColor("#000000");
-                c.Item().Text(TITULAR).FontSize(8f);
-                c.Item().PaddingTop(1).Text(RUBRO).FontSize(5.5f).FontColor("#1e1e1e");
-                c.Item().Text(DIR1).FontSize(5.5f).FontColor("#1e1e1e");
-                c.Item().Text(DIR2).FontSize(5.5f).FontColor("#1e1e1e");
+                c.Item().Text(RAZON).FontSize(11f).Bold().FontColor("#000000");
+                c.Item().Text(TITULAR).FontSize(9f);
+                c.Item().PaddingTop(1).Text(RUBRO).FontSize(6.5f).FontColor("#1e1e1e");
+                c.Item().Text(DIR1).FontSize(6.5f).FontColor("#1e1e1e");
+                c.Item().Text(DIR2).FontSize(6.5f).FontColor("#1e1e1e");
             });
             if (qr is not null)
                 r.ConstantItem(50).PaddingLeft(6).AlignMiddle().Column(q =>
                 {
                     q.Item().AlignCenter().Height(46).Image(qr).FitArea();
-                    q.Item().AlignCenter().Text("Verificar con QR").FontSize(4.5f).FontColor("#333333");
+                    q.Item().AlignCenter().Text("Verificar con QR").FontSize(5.5f).FontColor("#333333");
                 });
         });
     }
@@ -294,7 +294,7 @@ public static class ComprobanteCobroDocument
     private static void Barcode(IContainer container, string seed)
     {
         var rnd = new Random(Math.Abs(seed.GetHashCode()));
-        container.Height(10).Row(r =>
+        container.Height(12).Row(r =>
         {
             for (int i = 0; i < 110; i++)
             {

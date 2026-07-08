@@ -49,6 +49,13 @@ function ramoIcon(nombre: string): ReactNode {
 
 function isoHoy() { return new Date().toISOString().slice(0, 10); }
 function isoEnMeses(meses: number) { const d = new Date(); d.setMonth(d.getMonth() + meses); return d.toISOString().slice(0, 10); }
+// Suma meses a una fecha "AAAA-MM-DD" (en UTC, sin corrimiento de zona horaria).
+function addMesesISO(iso: string, meses: number) {
+  const [y, m, d] = (iso || isoHoy()).split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCMonth(base.getUTCMonth() + meses);
+  return base.toISOString().slice(0, 10);
+}
 
 interface Form {
   idType: string; idNumber: string; nombre: string; apellido: string; nac: string;
@@ -56,7 +63,7 @@ interface Form {
   calle: string; numero: string; piso: string; localidad: string; provincia: string;
   patente: string; marca: string; modelo: string; anio: string; chasis: string; motor: string; combustion: string[];
   companiaNombre: string; ramoId: string; ramoNombre: string; cobertura: string;
-  vencimiento: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
+  inicio: string; vencimiento: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
 }
 
 const FORM0: Form = {
@@ -65,7 +72,7 @@ const FORM0: Form = {
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   patente: "", marca: "", modelo: "", anio: "", chasis: "", motor: "", combustion: [],
   companiaNombre: "", ramoId: "", ramoNombre: "", cobertura: "",
-  vencimiento: isoEnMeses(1), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
+  inicio: isoHoy(), vencimiento: isoEnMeses(1), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
 };
 
 export default function Alta() {
@@ -163,8 +170,8 @@ export default function Alta() {
   // Ej: alta hoy 1/7 con Trimestral → vence 1/10 (3 meses). Se calcula solo; el campo es de lectura.
   useEffect(() => {
     const meses = PERIODO_CUOTAS[form.periodoCuotas] ?? 1;
-    setForm((f) => ({ ...f, vencimiento: isoEnMeses(meses) }));
-  }, [form.periodoCuotas]);
+    setForm((f) => ({ ...f, vencimiento: addMesesISO(f.inicio, meses) }));
+  }, [form.periodoCuotas, form.inicio]);
 
   // Wizard fijo de 3 pasos como el diseño. El vehículo es opcional (se omite si no
   // se carga patente), respetando multi-ramo.
@@ -241,7 +248,7 @@ export default function Alta() {
       fechaNacimiento: form.nac || undefined,
       companiaId,
       ramoId: Number(form.ramoId),
-      fechaInicio: isoHoy(),
+      fechaInicio: form.inicio || isoHoy(),
       fechaFin: form.vencimiento,
       precioTotal,
       cantidadCuotas,
@@ -505,23 +512,30 @@ export default function Alta() {
                 </div>
                 <Sp h={16} />
                 <div style={grid("1fr 1fr")}>
+                  <Field label="Fecha de inicio (vigencia)" hint="Por defecto hoy; cambiala si la póliza empezó antes">
+                    <InputBox focus={focus === "ini"} onFocus={() => setFocus("ini")} onBlur={() => setFocus(null)}>
+                      <IconCal size={16} style={{ color: "var(--ink-400)" }} />
+                      <input type="date" style={S.input} value={form.inicio} onChange={(e) => set("inicio")(e.target.value)} />
+                    </InputBox>
+                  </Field>
                   <Field label="Vencimiento (vigencia)" hint="Se calcula según el plan; podés ajustarlo">
                     <InputBox focus={focus === "ven"} onFocus={() => setFocus("ven")} onBlur={() => setFocus(null)}>
                       <IconCal size={16} style={{ color: "var(--ink-400)" }} />
                       <input type="date" style={S.input} value={form.vencimiento} onChange={(e) => set("vencimiento")(e.target.value)} />
                     </InputBox>
                   </Field>
-                  <Field label="Período de cuotas" required hint="Frecuencia de pago">
-                    <div style={{ display: "flex", gap: 6, height: 42 }}>
-                      {Object.keys(PERIODO_CUOTAS).map((p) => (
-                        <button key={p} onClick={() => set("periodoCuotas")(p)}
-                          style={{ flex: 1, borderRadius: 9, border: "1.5px solid " + (form.periodoCuotas === p ? "var(--navy-900)" : "var(--line)"), background: form.periodoCuotas === p ? "var(--blue-100)" : "var(--paper)", color: form.periodoCuotas === p ? "var(--navy-900)" : "var(--ink-700)", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                          {form.periodoCuotas === p && <IconCheck size={13} />}{p}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
                 </div>
+                <Sp h={16} />
+                <Field label="Período de cuotas" required hint="Frecuencia de pago">
+                  <div style={{ display: "flex", gap: 6, height: 42, maxWidth: 360 }}>
+                    {Object.keys(PERIODO_CUOTAS).map((p) => (
+                      <button key={p} onClick={() => set("periodoCuotas")(p)}
+                        style={{ flex: 1, borderRadius: 9, border: "1.5px solid " + (form.periodoCuotas === p ? "var(--navy-900)" : "var(--line)"), background: form.periodoCuotas === p ? "var(--blue-100)" : "var(--paper)", color: form.periodoCuotas === p ? "var(--navy-900)" : "var(--ink-700)", fontSize: 13, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                        {form.periodoCuotas === p && <IconCheck size={13} />}{p}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
                 <Sp h={16} />
                 <div style={grid(esCuponera ? "1fr" : "1fr 1fr")}>
                   {!esCuponera && (
