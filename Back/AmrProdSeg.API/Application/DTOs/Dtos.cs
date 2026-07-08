@@ -54,6 +54,7 @@ public class CrearPolizaDto
     public decimal PrecioTotal { get; set; }
     public int CantidadCuotas { get; set; }
     public string? Cobertura { get; set; }
+    public DateTime? PrimerVencimiento { get; set; }   // venc. de la 1ª cuota (default: inicio + 1 mes)
 }
 
 public class ActualizarPolizaDto
@@ -67,6 +68,7 @@ public class ActualizarPolizaDto
     public string? FormaPago { get; set; }
     public decimal? PrimaOG { get; set; }
     public string? Cobertura { get; set; }
+    public DateTime? PrimerVencimiento { get; set; }   // venc. de la 1ª cuota (regenera las pendientes)
 }
 
 public class AsignarNumeroDto
@@ -84,6 +86,7 @@ public class RenovarPolizaDto
     public int CantidadCuotas { get; set; }
     public decimal? PrimaOG { get; set; }
     public string? Cobertura { get; set; }   // por defecto la de la póliza original
+    public DateTime? PrimerVencimiento { get; set; }   // venc. de la 1ª cuota (default: 1ª original + 1 mes)
 }
 
 public class PolizaDto
@@ -358,6 +361,7 @@ public class AltaAseguradoDto
     public int? RamoId { get; set; }
     public DateTime FechaInicio { get; set; }
     public DateTime FechaFin { get; set; }
+    public DateTime? PrimerVencimiento { get; set; }   // venc. de la 1ª cuota (default: inicio + 1 mes)
     public decimal PrecioTotal { get; set; }
     public int CantidadCuotas { get; set; }
     public string? FormaPago { get; set; }        // Débito automático | Tarjeta | CBU | Efectivo

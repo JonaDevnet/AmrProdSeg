@@ -3273,7 +3273,7 @@ GO
    Reemplaza al recálculo simple de monto (§49).
    ============================================================================= */
 CREATE OR ALTER PROCEDURE sp_Cobro_RegenerarPendientes
-    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT, @FechaInicio DATE
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT, @PrimerVencimiento DATE
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3296,7 +3296,8 @@ BEGIN
     WHILE @i <= @total
     BEGIN
         SET @monto = CASE WHEN @i >= @CantidadCuotas THEN @ultima ELSE @base END;
-        SET @venc  = DATEADD(MONTH, @i, @FechaInicio);
+        -- La cuota 1 vence en @PrimerVencimiento; las siguientes, un mes después de la anterior.
+        SET @venc  = DATEADD(MONTH, @i - 1, @PrimerVencimiento);
         IF EXISTS (SELECT 1 FROM Cobros WHERE PolizaId=@PolizaId AND NumeroCuota=@i)
             UPDATE Cobros SET Monto=@monto, FechaVencimiento=@venc
             WHERE PolizaId=@PolizaId AND NumeroCuota=@i AND Estado<>1;   -- no toca pagadas

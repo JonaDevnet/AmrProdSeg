@@ -63,7 +63,7 @@ interface Form {
   calle: string; numero: string; piso: string; localidad: string; provincia: string;
   patente: string; marca: string; modelo: string; anio: string; chasis: string; motor: string; combustion: string[];
   companiaNombre: string; ramoId: string; ramoNombre: string; cobertura: string;
-  inicio: string; vencimiento: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
+  vencimiento: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
 }
 
 const FORM0: Form = {
@@ -72,7 +72,7 @@ const FORM0: Form = {
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   patente: "", marca: "", modelo: "", anio: "", chasis: "", motor: "", combustion: [],
   companiaNombre: "", ramoId: "", ramoNombre: "", cobertura: "",
-  inicio: isoHoy(), vencimiento: isoEnMeses(1), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
+  vencimiento: isoEnMeses(1), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
 };
 
 export default function Alta() {
@@ -166,12 +166,8 @@ export default function Alta() {
     } catch { /* silencioso */ }
   }
 
-  // La vigencia de la póliza = cantidad de cuotas en meses (Mensual=1, Bimestral=2, Trimestral=3).
-  // Ej: alta hoy 1/7 con Trimestral → vence 1/10 (3 meses). Se calcula solo; el campo es de lectura.
-  useEffect(() => {
-    const meses = PERIODO_CUOTAS[form.periodoCuotas] ?? 1;
-    setForm((f) => ({ ...f, vencimiento: addMesesISO(f.inicio, meses) }));
-  }, [form.periodoCuotas, form.inicio]);
+  // La fecha de inicio es HOY. El campo "vencimiento" es la fecha de la 1ª cuota (editable,
+  // por defecto hoy + 1 mes); las siguientes cuotas vencen un mes después cada una.
 
   // Wizard fijo de 3 pasos como el diseño. El vehículo es opcional (se omite si no
   // se carga patente), respetando multi-ramo.
@@ -248,8 +244,10 @@ export default function Alta() {
       fechaNacimiento: form.nac || undefined,
       companiaId,
       ramoId: Number(form.ramoId),
-      fechaInicio: form.inicio || isoHoy(),
-      fechaFin: form.vencimiento,
+      fechaInicio: isoHoy(),
+      // "vencimiento" = fecha de la 1ª cuota; la vigencia (fin) = última cuota.
+      primerVencimiento: form.vencimiento,
+      fechaFin: addMesesISO(form.vencimiento, Math.max(0, cantidadCuotas - 1)),
       precioTotal,
       cantidadCuotas,
       formaPago: usarCuponera ? "Cuponera" : limpio(form.formaPago),
@@ -511,20 +509,12 @@ export default function Alta() {
                   </Field>
                 </div>
                 <Sp h={16} />
-                <div style={grid("1fr 1fr")}>
-                  <Field label="Fecha de inicio (vigencia)" hint="Por defecto hoy; cambiala si la póliza empezó antes">
-                    <InputBox focus={focus === "ini"} onFocus={() => setFocus("ini")} onBlur={() => setFocus(null)}>
-                      <IconCal size={16} style={{ color: "var(--ink-400)" }} />
-                      <input type="date" style={S.input} value={form.inicio} onChange={(e) => set("inicio")(e.target.value)} />
-                    </InputBox>
-                  </Field>
-                  <Field label="Vencimiento (vigencia)" hint="Se calcula según el plan; podés ajustarlo">
-                    <InputBox focus={focus === "ven"} onFocus={() => setFocus("ven")} onBlur={() => setFocus(null)}>
-                      <IconCal size={16} style={{ color: "var(--ink-400)" }} />
-                      <input type="date" style={S.input} value={form.vencimiento} onChange={(e) => set("vencimiento")(e.target.value)} />
-                    </InputBox>
-                  </Field>
-                </div>
+                <Field label="Vencimiento de la 1ª cuota" hint="La póliza inicia hoy; la 1ª cuota vence en esta fecha (por defecto hoy + 30 días). Las siguientes, un mes después cada una.">
+                  <InputBox focus={focus === "ven"} onFocus={() => setFocus("ven")} onBlur={() => setFocus(null)}>
+                    <IconCal size={16} style={{ color: "var(--ink-400)" }} />
+                    <input type="date" style={{ ...S.input, maxWidth: 220 }} value={form.vencimiento} onChange={(e) => set("vencimiento")(e.target.value)} />
+                  </InputBox>
+                </Field>
                 <Sp h={16} />
                 <Field label="Período de cuotas" required hint="Frecuencia de pago">
                   <div style={{ display: "flex", gap: 6, height: 42, maxWidth: 360 }}>

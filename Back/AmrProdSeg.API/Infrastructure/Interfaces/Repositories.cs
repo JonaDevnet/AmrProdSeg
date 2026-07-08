@@ -31,10 +31,10 @@ public interface ICobroRepository
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
     Task MarcarVencidosAsync();
     /// <summary>
-    /// Regenera las cuotas NO pagadas según el nuevo precio, cantidad de cuotas y fecha de
-    /// inicio (agrega/quita cuotas y recalcula montos y vencimientos). Las pagadas no se tocan.
+    /// Regenera las cuotas NO pagadas según el nuevo precio, cantidad de cuotas y vencimiento de
+    /// la 1ª cuota (cuota i = primerVencimiento + (i-1) meses). Las pagadas no se tocan.
     /// </summary>
-    Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime fechaInicio);
+    Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento);
 }
 
 public interface IClienteRepository

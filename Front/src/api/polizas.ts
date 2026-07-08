@@ -6,6 +6,7 @@ export interface RenovarPolizaDto {
   companiaId?: number;
   fechaInicio: string;
   fechaFin: string;
+  primerVencimiento?: string;
   precioTotal: number;
   cantidadCuotas: number;
   primaOG?: number;
@@ -51,6 +52,7 @@ export interface ActualizarPolizaDto {
   formaPago?: string;
   primaOG?: number;
   cobertura?: string;
+  primerVencimiento?: string;
 }
 
 export async function actualizarPoliza(id: number, dto: ActualizarPolizaDto): Promise<void> {

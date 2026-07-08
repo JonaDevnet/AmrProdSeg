@@ -1,11 +1,11 @@
-import { useState, type CSSProperties } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { listarClientes, actualizarCliente } from "../api/clientes";
 import { getVehiculoPorPatente, actualizarVehiculo } from "../api/vehiculos";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPoliza, actualizarPoliza } from "../api/polizas";
 import { buscarGlobal } from "../api/search";
-import { useCompanias } from "../hooks/polizas";
+import { useCompanias, useCobrosPorPoliza } from "../hooks/polizas";
 import { useVehiculosPorCliente } from "../hooks/clientes";
 import { useRamos, useCoberturas } from "../hooks/admin";
 import ClienteForm, { type ClienteFormValues } from "../components/clientes/ClienteForm";
@@ -241,6 +241,15 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [guardando, setGuardando] = useState(false);
   const qc = useQueryClient();
 
+  // Vencimiento de la 1ª cuota (default: la 1ª cuota actual; si se cambia, regenera las pendientes).
+  const cobrosEdit = useCobrosPorPoliza(poliza.id);
+  const [primerVenc, setPrimerVenc] = useState<string | null>(null);
+  useEffect(() => {
+    if (primerVenc !== null || !cobrosEdit.data) return;
+    const c1 = [...cobrosEdit.data].sort((a, b) => a.numeroCuota - b.numeroCuota)[0];
+    setPrimerVenc(c1 ? c1.fechaVencimiento.slice(0, 10) : fechaInicio);
+  }, [cobrosEdit.data, primerVenc, fechaInicio]);
+
   async function guardar() {
     setError(undefined); setGuardando(true);
     try {
@@ -251,6 +260,7 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         cantidadCuotas: Number(cantidadCuotas),
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
+        primerVencimiento: primerVenc || undefined,
       });
       // Al cambiar vigencia/cantidad de cuotas se regeneran los cobros: refrescar Cobranzas.
       qc.invalidateQueries({ queryKey: ["cobros"] });
@@ -283,7 +293,11 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
           Total de la póliza: <strong>{formatMoneda(Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100)}</strong> ({cantidadCuotas} cuotas)
         </div>
       )}
-      <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+        <Field label="Vencimiento de la 1ª cuota"><Input type="date" value={primerVenc ?? ""} onChange={(e) => setPrimerVenc(e.target.value)} /></Field>
+        <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "-6px 0 12px" }}>Las cuotas no pagadas se regeneran desde el vencimiento de la 1ª cuota (mensual). Las pagadas no se tocan.</div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>
       </div>

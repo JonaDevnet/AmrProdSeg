@@ -297,6 +297,7 @@ export default function PolizaDetalle() {
           <RenovarForm
             poliza={poliza}
             companias={companias.data}
+            primeraCuotaOriginal={[...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota)[0]?.fechaVencimiento?.slice(0, 10)}
             onSubmit={confirmarRenovacion}
             enviando={renovar.isPending}
           />

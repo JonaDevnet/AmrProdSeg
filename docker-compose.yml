@@ -37,6 +37,7 @@ services:
       - traefik.http.routers.amr-api.entrypoints=websecure
       - traefik.http.routers.amr-api.tls.certresolver=letsencrypt
       - traefik.http.routers.amr-api.priority=100
+      - traefik.http.routers.amr-api.middlewares=sec-headers@docker
       - traefik.http.services.amr-api.loadbalancer.server.port=8080
     networks: [amrnet]
 
@@ -52,7 +53,20 @@ services:
       - traefik.http.routers.amr-web.entrypoints=websecure
       - traefik.http.routers.amr-web.tls.certresolver=letsencrypt
       - traefik.http.routers.amr-web.priority=1
+      - traefik.http.routers.amr-web.middlewares=sec-headers@docker
       - traefik.http.services.amr-web.loadbalancer.server.port=80
+      # ── Cabeceras de seguridad (aplicadas a amr-web y amr-api) ────────────────
+      # FASE 1 (actual): CSP en Report-Only → NO bloquea, solo reporta violaciones
+      # en la consola del navegador (pestaña Console/Network). Dejalo unos días,
+      # revisá que no aparezcan violaciones legítimas, y luego pasá a FASE 2.
+      - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.Content-Security-Policy-Report-Only=default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      # FASE 2 (para activar el bloqueo real): comentá la línea de arriba y
+      # descomentá esta (mismo valor, sin "-Report-Only"):
+      # - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.Content-Security-Policy=default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.Strict-Transport-Security=max-age=31536000; includeSubDomains"
+      - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.X-Content-Type-Options=nosniff"
+      - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.X-Frame-Options=DENY"
+      - "traefik.http.middlewares.sec-headers.headers.customresponseheaders.Referrer-Policy=strict-origin-when-cross-origin"
     networks: [amrnet]
 
   # ── Evolution API (WhatsApp) ────────────────────────────────────────────────

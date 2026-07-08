@@ -38,7 +38,7 @@ public class FakeCobroRepository : ICobroRepository
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio) => Task.FromResult(new List<Cobro>());
     public Task<List<Cobro>> GetPorPolizaAsync(int polizaId) => Task.FromResult(new List<Cobro>());
     public Task MarcarVencidosAsync() => Task.CompletedTask;
-    public Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime fechaInicio) => Task.CompletedTask;
+    public Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento) => Task.CompletedTask;
 }
 
 public class FakeVehiculoRepository : IVehiculoRepository

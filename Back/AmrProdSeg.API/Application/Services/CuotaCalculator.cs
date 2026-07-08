@@ -9,7 +9,11 @@ namespace AmrProdSeg.API.Application.Services;
 /// </summary>
 public static class CuotaCalculator
 {
-    public static List<Cobro> Generar(Poliza poliza)
+    /// <summary>
+    /// Genera las cuotas. La 1ª vence en <paramref name="primerVencimiento"/> (por defecto
+    /// ~30 días después del inicio) y las siguientes, un mes después de la anterior.
+    /// </summary>
+    public static List<Cobro> Generar(Poliza poliza, DateTime primerVencimiento)
     {
         var montoBase = Math.Round(poliza.PrecioTotal / poliza.CantidadCuotas, 2, MidpointRounding.AwayFromZero);
         var ultima    = poliza.PrecioTotal - montoBase * (poliza.CantidadCuotas - 1);
@@ -21,8 +25,7 @@ public static class CuotaCalculator
             {
                 PolizaId         = poliza.Id,
                 NumeroCuota      = i,
-                // La 1ª cuota vence ~30 días después del inicio; las siguientes, mensualmente.
-                FechaVencimiento = poliza.FechaInicio.AddMonths(i),
+                FechaVencimiento = primerVencimiento.AddMonths(i - 1),
                 Monto            = i < poliza.CantidadCuotas ? montoBase : ultima,
                 Estado           = EstadoCobro.Pendiente
             });

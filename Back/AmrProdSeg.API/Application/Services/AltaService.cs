@@ -107,7 +107,7 @@ public class AltaService : IAltaService
             nuevoPolizaId =>
             {
                 poliza.Id = nuevoPolizaId;
-                return CuotaCalculator.Generar(poliza);
+                return CuotaCalculator.Generar(poliza, dto.PrimerVencimiento ?? poliza.FechaInicio.AddMonths(1));
             });
 
         // Comprobante PDF (fuera de la transacción)

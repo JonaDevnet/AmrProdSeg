@@ -290,6 +290,7 @@ export interface AltaAsegurado {
   ramoId?: number;
   fechaInicio: string;
   fechaFin: string;
+  primerVencimiento?: string;
   precioTotal: number;
   cantidadCuotas: number;
   formaPago?: string;

@@ -70,7 +70,8 @@ public class PolizaService : IPolizaService
         var id = await _polizaRepo.InsertarAsync(poliza);
         poliza.Id = id;
 
-        await GenerarCuotasAsync(poliza);
+        // 1ª cuota: la indicada o, por defecto, un mes después del inicio.
+        await GenerarCuotasAsync(poliza, dto.PrimerVencimiento ?? poliza.FechaInicio.AddMonths(1));
 
         return poliza.ToDto();
     }
@@ -113,6 +114,7 @@ public class PolizaService : IPolizaService
         // Se marca la original como Renovada ANTES de asignar el número: así su número queda
         // libre para la renovación (el check de AsignarNumero ignora las canceladas y renovadas).
         await _polizaRepo.CambiarEstadoAsync(polizaOrigenId, EstadoPoliza.Renovada);
+        // NOTA: la 1ª cuota de la renovación se genera más abajo con dto.PrimerVencimiento.
 
         // Número de la renovación: el indicado (por defecto, el de la póliza original).
         if (!string.IsNullOrWhiteSpace(dto.Numero))
@@ -123,7 +125,7 @@ public class PolizaService : IPolizaService
             nueva.Numero = dto.Numero.Trim();
         }
 
-        await GenerarCuotasAsync(nueva);
+        await GenerarCuotasAsync(nueva, dto.PrimerVencimiento ?? nueva.FechaInicio.AddMonths(1));
 
         var pdfUrl = await _pdfService.GenerarComprobantePdfAsync(nueva);
 
@@ -167,10 +169,11 @@ public class PolizaService : IPolizaService
         poliza.Cobertura      = dto.Cobertura;
         await _polizaRepo.ActualizarAsync(poliza);
 
-        // Regenera las cuotas AÚN NO cobradas según el nuevo precio, cantidad y fecha de inicio
-        // (agrega/quita cuotas y recalcula montos y vencimientos). Las ya pagadas conservan su
-        // monto y vencimiento (lo realmente cobrado), para que los reportes no cambien.
-        await _cobroRepo.RegenerarPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas, dto.FechaInicio);
+        // Regenera las cuotas AÚN NO cobradas según el nuevo precio, cantidad y vencimiento de
+        // la 1ª cuota (agrega/quita cuotas y recalcula montos y vencimientos). Las ya pagadas
+        // conservan su monto y vencimiento (lo realmente cobrado), para que los reportes no cambien.
+        await _cobroRepo.RegenerarPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas,
+            dto.PrimerVencimiento ?? dto.FechaInicio.AddMonths(1));
     }
 
     public async Task AsignarNumeroAsync(int id, string numero)
@@ -197,6 +200,6 @@ public class PolizaService : IPolizaService
         return await _pdfService.GenerarComprobanteAsync(poliza);
     }
 
-    private Task GenerarCuotasAsync(Poliza poliza)
-        => _cobroRepo.InsertarLoteAsync(CuotaCalculator.Generar(poliza));
+    private Task GenerarCuotasAsync(Poliza poliza, DateTime primerVencimiento)
+        => _cobroRepo.InsertarLoteAsync(CuotaCalculator.Generar(poliza, primerVencimiento));
 }
