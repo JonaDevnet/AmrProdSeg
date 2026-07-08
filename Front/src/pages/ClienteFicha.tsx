@@ -29,6 +29,7 @@ import { EstadoPolizaBadge, Plate } from "../components/ui/Badge";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import { IconArrowLeft, IconEdit, IconCar, IconFile } from "../components/Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
+import { estadoPolizaUI } from "../utils/poliza";
 import CopyableValue from "../components/ui/CopyableValue";
 
 export default function ClienteFicha() {
@@ -212,6 +213,7 @@ export default function ClienteFicha() {
                       <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
                     ) : <span>Sin vehículo asociado</span>}
                   </div>
+                  <VencimientoEstado fechaFin={p.fechaFin} estado={p.estado} />
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
                     <MiniDato k="Compañía" v={cia?.nombre} />
                     <MiniDato k="Ramo" v={p.ramoNombre} />
@@ -278,6 +280,26 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 12.5 }}>
       <span style={{ color: "var(--ink-500)" }}>{k}</span>
       <CopyableValue value={v} mono={mono} />
+    </div>
+  );
+}
+
+// Próximo vencimiento de la póliza + estado UI (vigente / por vencer / vencida).
+function VencimientoEstado({ fechaFin, estado }: { fechaFin: string; estado: Poliza["estado"] }) {
+  const ui = estadoPolizaUI(estado, fechaFin);
+  const cfg: Record<string, { label: string; bg: string; fg: string }> = {
+    vigente:   { label: "Vigente",    bg: "var(--ok-100)",   fg: "var(--ok-700)" },
+    porvencer: { label: "Por vencer", bg: "var(--warn-100)", fg: "var(--warn-700)" },
+    vencida:   { label: "Vencida",    bg: "var(--bad-100)",  fg: "var(--bad-700)" },
+  };
+  const c = ui ? cfg[ui] : null;
+  return (
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", borderRadius: 8, background: "var(--canvas)", border: "1px solid var(--line-2)" }}>
+      <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
+        <span style={{ fontSize: 10.5, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Próximo vencimiento</span>
+        <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)" }}>{formatFecha(fechaFin)}</span>
+      </div>
+      {c && <span style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, background: c.bg, color: c.fg, whiteSpace: "nowrap" }}>{c.label}</span>}
     </div>
   );
 }
