@@ -503,7 +503,7 @@ function RendicionTab({ companias, colorDe, vendedor }: { companias: { id: numbe
 
 /* ───────── Hechos del día ───────── */
 function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vendedor?: VendedorFiltro }) {
-  const { usuario } = useAuth();
+  const { esAdmin, usuario } = useAuth();
   const cfgKey = `amr_horarios_hechos_${usuario?.nombre ?? "x"}`;
   const [horarios, setHorarios] = useState<{ mananaD: string; mananaH: string; tardeD: string; tardeH: string }>(() => {
     try { const r = JSON.parse(localStorage.getItem(cfgKey) || "null"); if (r) return r; } catch { /* ignore */ }
@@ -514,6 +514,7 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
   const [hDesde, setHDesde] = useState("00:00");
   const [hHasta, setHHasta] = useState("23:59");
   const [verTodo, setVerTodo] = useState(false);
+  const [conPrimaOg, setConPrimaOg] = useState(false); // solo Admin: agrega Prima OG + diferencia al export
   const { data: pagos = [] } = usePagos(fecha, fecha, undefined, vendedor);
 
   function guardarHorarios(next: typeof horarios) {
@@ -537,11 +538,27 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
   ];
 
   const exportar = () => {
+    // La Prima OG es interna: solo se agrega si es Admin y activó el check.
+    const incluirOg = esAdmin && conPrimaOg;
+    const totalPrimaOg = incluirOg ? filtered.reduce((a, p) => a + (p.primaOG || 0), 0) : 0;
+    const totalDif = incluirOg ? filtered.reduce((a, p) => a + (p.monto - (p.primaOG || 0)), 0) : 0;
+
+    const header = ["Hora", "Cliente", "Póliza", "Patente", "Compañía", "Ramo", "Método", "Monto"];
+    const totalRow: (string | number)[] = ["", "", "", "", "", "", "TOTAL", total];
+    if (incluirOg) {
+      header.push("Prima OG", "Diferencia");
+      totalRow.push(Math.round(totalPrimaOg), Math.round(totalDif));
+    }
+
     const filas: (string | number)[][] = [
       ["Hechos del día — cuotas pagadas"], ["Fecha", fmtDate(fecha)], ["Rango horario", `${hDesde} - ${hHasta}`], [],
-      ["Hora", "Cliente", "Póliza", "Patente", "Compañía", "Ramo", "Método", "Monto"],
-      ...filtered.map((p) => [p.hora, p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.compania, p.ramo, p.metodo, p.monto]),
-      [], ["", "", "", "", "", "", "TOTAL", total],
+      header,
+      ...filtered.map((p) => {
+        const row: (string | number)[] = [p.hora, p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.compania, p.ramo, p.metodo, p.monto];
+        if (incluirOg) { const prima = p.primaOG || 0; row.push(prima, p.monto - prima); }
+        return row;
+      }),
+      [], totalRow,
     ];
     descargarCSV(`AMR-Hechos-${fecha}.csv`, filas);
   };
@@ -565,7 +582,15 @@ function HechosTab({ colorDe, vendedor }: { colorDe: Map<number, string>; vended
           ))}
           <button onClick={() => setCfgOpen((o) => !o)} title="Configurar horarios de mañana/tarde" style={{ height: 34, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}>⚙ Horarios</button>
         </div>
-        <button style={{ ...S.exportBtn, marginLeft: "auto" }} onClick={exportar} disabled={filtered.length === 0}><IconDown size={15} /> Exportar Excel</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginLeft: "auto", flexWrap: "wrap" }}>
+          {esAdmin && (
+            <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-700)", cursor: "pointer", userSelect: "none" }}>
+              <input type="checkbox" checked={conPrimaOg} onChange={(e) => setConPrimaOg(e.target.checked)} style={{ width: 16, height: 16 }} />
+              <span>Agregar Prima OG y diferencia</span>
+            </label>
+          )}
+          <button style={S.exportBtn} onClick={exportar} disabled={filtered.length === 0}><IconDown size={15} /> Exportar Excel</button>
+        </div>
       </div>
 
       {cfgOpen && (
