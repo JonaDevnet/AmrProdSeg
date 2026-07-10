@@ -515,7 +515,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         <Field label="Prima OG (por cuota, interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Vencimiento de la 1ª cuota">
+        <Field label="Inicio de poliza. (1er cuota 30 dias despues)">
           <Input type="date" value={primerVenc ?? ""} onChange={(e) => setPrimerVenc(e.target.value)} />
         </Field>
       </div>
