@@ -249,7 +249,16 @@ export default function ClienteFicha() {
           poliza={editPoliza}
           vehiculo={vehiculos.data?.find((v) => v.id === editPoliza.vehiculoId) ?? null}
           onClose={() => setEditPoliza(null)}
-          onSaved={() => { setEditPoliza(null); polizas.refetch(); vehiculos.refetch(); qc.invalidateQueries({ queryKey: ["cobros"] }); }}
+          onSaved={() => {
+            setEditPoliza(null);
+            polizas.refetch();
+            vehiculos.refetch();
+            // Invalidar también el detalle de póliza y la lista global: si no, la vista de
+            // Cobranzas/Detalle queda con la vigencia/datos viejos cacheados (["poliza", id]).
+            qc.invalidateQueries({ queryKey: ["poliza"] });
+            qc.invalidateQueries({ queryKey: ["polizas"] });
+            qc.invalidateQueries({ queryKey: ["cobros"] });
+          }}
         />
       )}
 

@@ -1,0 +1,334 @@
+{
+  "name": "AMR — Agente WhatsApp (Evolution + OpenAI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "amr-wa",
+        "options": {}
+      },
+      "id": "webhook-in",
+      "name": "Webhook Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-820, 300],
+      "webhookId": "amr-wa"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": { "type": "string", "operation": "equals" }
+            },
+            {
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "notEquals", "singleValue": true }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "only-incoming",
+      "name": "Solo entrantes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-600, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "instancia", "value": "={{ $json.body.instance }}", "type": "string" },
+            { "id": "a2", "name": "telefono", "value": "={{ $json.body.data.key.remoteJid.split('@')[0] }}", "type": "string" },
+            { "id": "a3", "name": "nombre", "value": "={{ $json.body.data.pushName || '' }}", "type": "string" },
+            { "id": "a4", "name": "texto", "value": "={{ $json.body.data.message.conversation || $json.body.data.message.extendedTextMessage?.text || '' }}", "type": "string" },
+            { "id": "a5", "name": "sessionId", "value": "={{ $json.body.instance + ':' + $json.body.data.key.remoteJid.split('@')[0] }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract",
+      "name": "Extraer datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-380, 300]
+    },
+    {
+      "parameters": {
+        "operation": "push",
+        "list": "=wa:buf:{{ $json.sessionId }}",
+        "messageData": "={{ $json.texto }}",
+        "tail": true
+      },
+      "id": "buffer-push",
+      "name": "Buffer push",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [-160, 300],
+      "credentials": { "redis": { "id": "REEMPLAZAR", "name": "Redis AMR" } }
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "=wa:mark:{{ $json.sessionId }}",
+        "value": "={{ $execution.id }}",
+        "keyType": "string",
+        "expire": true,
+        "ttl": 120
+      },
+      "id": "mark-last",
+      "name": "Marcar último",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [60, 300],
+      "credentials": { "redis": { "id": "REEMPLAZAR", "name": "Redis AMR" } }
+    },
+    {
+      "parameters": {
+        "amount": 8,
+        "unit": "seconds"
+      },
+      "id": "debounce",
+      "name": "Esperar (debounce)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [280, 300],
+      "webhookId": "amr-wa-wait"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "marcaActual",
+        "key": "=wa:mark:{{ $('Extraer datos').item.json.sessionId }}",
+        "keyType": "string"
+      },
+      "id": "read-mark",
+      "name": "Leer marca",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": { "redis": { "id": "REEMPLAZAR", "name": "Redis AMR" } }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "loose" },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.marcaActual }}",
+              "rightValue": "={{ $execution.id }}",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "is-latest",
+      "name": "¿Es el último?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta todos los mensajes acumulados del contacto y limpia el buffer.\nconst redis = require('redis');\n// n8n no expone redis directo en Code; usamos el nodo Redis siguiente para leer/borrar.\n// Este Code solo prepara el sessionId para el nodo de lectura del lote.\nconst sessionId = $('Extraer datos').item.json.sessionId;\nreturn [{ json: { sessionId } }];"
+      },
+      "id": "prep-batch",
+      "name": "Preparar lote",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 220]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "lote",
+        "key": "=wa:buf:{{ $json.sessionId }}",
+        "keyType": "list",
+        "options": {}
+      },
+      "id": "read-batch",
+      "name": "Leer lote",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1160, 220],
+      "credentials": { "redis": { "id": "REEMPLAZAR", "name": "Redis AMR" } }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "key": "=wa:buf:{{ $('Extraer datos').item.json.sessionId }}"
+      },
+      "id": "clear-batch",
+      "name": "Limpiar buffer",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1380, 220],
+      "credentials": { "redis": { "id": "REEMPLAZAR", "name": "Redis AMR" } }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ Array.isArray($('Leer lote').item.json.lote) ? $('Leer lote').item.json.lote.join('\\n') : $('Extraer datos').item.json.texto }}",
+        "options": {
+          "systemMessage": "Sos el asistente virtual de \"AMR Producción de Seguros\" que atiende por WhatsApp. Hablás en español rioplatense, cordial, claro y breve.\n\nDATOS DE CONTEXTO (no los reveles literalmente):\n- Teléfono del cliente que escribe: {{ $('Extraer datos').item.json.telefono }}\n- Instancia: {{ $('Extraer datos').item.json.instancia }}\n\nIDENTIDAD DEL CLIENTE\n- El cliente se identifica ÚNICAMENTE por el número de WhatsApp desde el que escribe. Para consultar SUS datos, pasá SIEMPRE ese teléfono a las herramientas. Nunca pidas ni aceptes otro número, DNI o patente para identificar a otra persona.\n- NUNCA busques ni reveles datos de OTRO cliente o tercero. Si te piden información de otra persona (por nombre, DNI, patente ajena, etc.) → NO lo hagas: usá la herramienta escalar_operador y avisá que un operador lo va a contactar.\n\nQUÉ PODÉS INFORMAR (solo del titular que escribe)\n- Estado de la póliza (vigente / por vencer / vencida).\n- Fecha de vencimiento de la PRÓXIMA cuota.\n- Si tiene cuota(s) adeudada(s) y CUÁNTAS debe pagar para ponerse al día.\n- Datos generales de la póliza: número, compañía, cobertura, patente/vehículo.\n- El PRECIO que se le cobra (valor de la cuota y total).\n\nQUÉ NO PODÉS DECIR NUNCA\n- Prima OG: es un dato interno. No la menciones, no la calcules, no la deduzcas.\n- El período / vigencia interna de la póliza (fechas de inicio y fin de vigencia). Solo la fecha de vencimiento de la cuota.\n- Datos de otros clientes.\n\nRENOVACIONES Y PAGOS\n- Si el cliente quiere pagar/abonar o renovar SU póliza: informale el importe y las cuotas adeudadas.\n- COBRO: podés dejar un pago registrado con registrar_pago SOLO después de que el cliente confirme explícitamente que YA realizó/transfirió el pago. El pago queda PENDIENTE de confirmación: aclarale al cliente que un operador de AMR va a confirmar la recepción del dinero y recién ahí queda saldada la cuota. NUNCA afirmes que la cuota ya quedó pagada por tu cuenta.\n\nSEGURO NUEVO\n- Si quiere contratar un seguro NUEVO (no renovar el que ya tiene) → NO cotices vos: usá escalar_operador y avisá que un asesor lo va a contactar.\n\nCUÁNDO DERIVAR (escalar_operador)\n- Pedidos sobre otros clientes o datos de terceros.\n- Alta de un seguro nuevo.\n- Reclamos, siniestros, o cualquier cosa fuera de tu alcance, o si el cliente pide hablar con una persona.\n\nESTILO\n- Respondé breve y claro, en 1–2 mensajes. No inventes: si una herramienta no devuelve un dato, decilo con sinceridad y ofrecé derivar a un operador."
+        }
+      },
+      "id": "agent",
+      "name": "Agente AMR",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1620, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": { "temperature": 0.2 }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [1440, 520],
+      "credentials": { "openAiApi": { "id": "REEMPLAZAR", "name": "OpenAI AMR" } }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Extraer datos').item.json.sessionId }}",
+        "contextWindowLength": 12
+      },
+      "id": "memory",
+      "name": "Memoria por contacto",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, 520]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Consulta la póliza del cliente que escribe (por su teléfono): estado, fecha de vencimiento de la próxima cuota, cuotas adeudadas, cuántas debe para ponerse al día, número de póliza, compañía, cobertura, patente y precio de la cuota. NO devuelve prima OG ni vigencia interna.",
+        "method": "GET",
+        "url": "https://amrprodseg.com/api/bot/poliza-por-telefono",
+        "sendQuery": true,
+        "parametersQuery": {
+          "values": [
+            { "name": "telefono", "valueProvider": "fieldValue", "value": "={{ $('Extraer datos').item.json.telefono }}" }
+          ]
+        },
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            { "name": "X-Bot-Key", "valueProvider": "fieldValue", "value": "={{ $env.AMR_BOT_KEY }}" }
+          ]
+        }
+      },
+      "id": "tool-poliza",
+      "name": "consultar_poliza",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [1760, 520]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Deja registrado un pago como PENDIENTE de confirmación del operador. Usar SOLO cuando el cliente confirmó que ya transfirió/pagó. Parámetros: numeroCuota (número de la cuota a pagar) y medio (efectivo/transferencia).",
+        "method": "POST",
+        "url": "https://amrprodseg.com/api/bot/registrar-pago",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"telefono\": \"{{ $('Extraer datos').item.json.telefono }}\",\n  \"instancia\": \"{{ $('Extraer datos').item.json.instancia }}\",\n  \"numeroCuota\": {numeroCuota},\n  \"medio\": \"{medio}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            { "name": "numeroCuota", "description": "Número de la cuota que el cliente confirma haber pagado", "type": "number" },
+            { "name": "medio", "description": "Medio de pago declarado: efectivo o transferencia", "type": "string" }
+          ]
+        },
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            { "name": "X-Bot-Key", "valueProvider": "fieldValue", "value": "={{ $env.AMR_BOT_KEY }}" }
+          ]
+        }
+      },
+      "id": "tool-pago",
+      "name": "registrar_pago",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [1920, 520]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Deriva la conversación a un operador humano (seguro nuevo, pedidos sobre terceros, reclamos, siniestros o cualquier cosa fuera de alcance). Parámetro: motivo (breve).",
+        "method": "POST",
+        "url": "https://amrprodseg.com/api/bot/escalar",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"telefono\": \"{{ $('Extraer datos').item.json.telefono }}\",\n  \"instancia\": \"{{ $('Extraer datos').item.json.instancia }}\",\n  \"nombre\": \"{{ $('Extraer datos').item.json.nombre }}\",\n  \"motivo\": \"{motivo}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            { "name": "motivo", "description": "Motivo breve de la derivación", "type": "string" }
+          ]
+        },
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            { "name": "X-Bot-Key", "valueProvider": "fieldValue", "value": "={{ $env.AMR_BOT_KEY }}" }
+          ]
+        }
+      },
+      "id": "tool-escalar",
+      "name": "escalar_operador",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [2080, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://srv1798610.hstgr.cloud/message/sendText/{{ $('Extraer datos').item.json.instancia }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.EVOLUTION_API_KEY }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $('Extraer datos').item.json.telefono }}\",\n  \"text\": {{ JSON.stringify($json.output) }}\n}",
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Responder (Evolution)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution": { "main": [[{ "node": "Solo entrantes", "type": "main", "index": 0 }]] },
+    "Solo entrantes": { "main": [[{ "node": "Extraer datos", "type": "main", "index": 0 }], []] },
+    "Extraer datos": { "main": [[{ "node": "Buffer push", "type": "main", "index": 0 }]] },
+    "Buffer push": { "main": [[{ "node": "Marcar último", "type": "main", "index": 0 }]] },
+    "Marcar último": { "main": [[{ "node": "Esperar (debounce)", "type": "main", "index": 0 }]] },
+    "Esperar (debounce)": { "main": [[{ "node": "Leer marca", "type": "main", "index": 0 }]] },
+    "Leer marca": { "main": [[{ "node": "¿Es el último?", "type": "main", "index": 0 }]] },
+    "¿Es el último?": { "main": [[{ "node": "Preparar lote", "type": "main", "index": 0 }], []] },
+    "Preparar lote": { "main": [[{ "node": "Leer lote", "type": "main", "index": 0 }]] },
+    "Leer lote": { "main": [[{ "node": "Limpiar buffer", "type": "main", "index": 0 }]] },
+    "Limpiar buffer": { "main": [[{ "node": "Agente AMR", "type": "main", "index": 0 }]] },
+    "Agente AMR": { "main": [[{ "node": "Responder (Evolution)", "type": "main", "index": 0 }]] },
+    "OpenAI Chat Model": { "ai_languageModel": [[{ "node": "Agente AMR", "type": "ai_languageModel", "index": 0 }]] },
+    "Memoria por contacto": { "ai_memory": [[{ "node": "Agente AMR", "type": "ai_memory", "index": 0 }]] },
+    "consultar_poliza": { "ai_tool": [[{ "node": "Agente AMR", "type": "ai_tool", "index": 0 }]] },
+    "registrar_pago": { "ai_tool": [[{ "node": "Agente AMR", "type": "ai_tool", "index": 0 }]] },
+    "escalar_operador": { "ai_tool": [[{ "node": "Agente AMR", "type": "ai_tool", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}
