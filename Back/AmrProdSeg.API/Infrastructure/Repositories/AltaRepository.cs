@@ -38,6 +38,8 @@ public class AltaRepository : IAltaRepository
             {
                 // Vehículo ya existente (patente cargada, póliza anterior dada de baja):
                 // se reutiliza y se actualizan sus datos, sin duplicar la patente única.
+                // Se reasigna al cliente de la nueva póliza (@ClienteId): si el vehículo
+                // venía de otro cliente, si no se movería quedaría "sin vehículo asociado".
                 vehiculoId = vehiculo.Id;
                 await EjecutarAsync(conn, tran, "sp_Vehiculo_Actualizar",
                     ("@Id", vehiculo.Id),
@@ -47,7 +49,8 @@ public class AltaRepository : IAltaRepository
                     ("@Chasis", (object?)vehiculo.Chasis ?? DBNull.Value),
                     ("@Motor", (object?)vehiculo.Motor ?? DBNull.Value),
                     ("@TipoCobertura", (object?)vehiculo.TipoCobertura ?? DBNull.Value),
-                    ("@Combustion", (object?)vehiculo.Combustion ?? DBNull.Value));
+                    ("@Combustion", (object?)vehiculo.Combustion ?? DBNull.Value),
+                    ("@ClienteId", clienteId));
             }
             else if (vehiculo != null)
             {

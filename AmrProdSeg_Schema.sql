@@ -3347,5 +3347,75 @@ END
 GO
 
 /* =============================================================================
+   §54 — Al reutilizar un vehículo existente en un alta (misma patente, póliza
+   anterior dada de baja/eliminada), el vehículo puede pertenecer a OTRO cliente.
+   Si no se reasigna, la póliza nueva queda "sin vehículo asociado" porque la
+   ficha lista los vehículos por ClienteId. Se agrega @ClienteId OPCIONAL: el alta
+   lo manda para mover el vehículo al cliente de la nueva póliza; la edición desde
+   la ficha NO lo manda (queda NULL) y el ClienteId no cambia.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Vehiculo_Actualizar
+    @Id INT, @Marca VARCHAR(60), @Modelo VARCHAR(60), @Anio SMALLINT,
+    @Chasis VARCHAR(50) = NULL, @Motor VARCHAR(50) = NULL,
+    @TipoCobertura VARCHAR(40) = NULL, @Combustion VARCHAR(40) = NULL,
+    @ClienteId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Vehiculos
+    SET Marca = @Marca, Modelo = @Modelo, Anio = @Anio, Chasis = @Chasis, Motor = @Motor,
+        TipoCobertura = COALESCE(@TipoCobertura, TipoCobertura),
+        Combustion    = COALESCE(@Combustion, Combustion),
+        ClienteId     = COALESCE(@ClienteId, ClienteId)
+    WHERE Id = @Id;
+END
+GO
+
+/* =============================================================================
+   §55 — Modelo "Inicio de póliza": al editar el inicio se re-fechan TODAS las
+   cuotas (incluidas las PAGADAS): cuota_i vence en @PrimerVencimiento + (i-1) meses
+   (la 1ª = inicio + 1 mes; luego +1 mes cada una). En las pagadas SOLO se corrige la
+   FechaVencimiento: no se toca el monto cobrado, ni el estado, ni quién/cuándo pagó.
+   En las pendientes se recalcula fecha y monto. Reemplaza a §52.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Cobro_RegenerarPendientes
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT, @PrimerVencimiento DATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    -- No se puede bajar la cantidad por debajo de las ya cobradas.
+    DECLARE @maxPag INT = ISNULL((SELECT MAX(NumeroCuota) FROM Cobros WHERE PolizaId=@PolizaId AND Estado=1), 0);
+    DECLARE @total  INT = CASE WHEN @CantidadCuotas < @maxPag THEN @maxPag ELSE @CantidadCuotas END;
+
+    -- Borra las pendientes que sobran (más allá del total), salvo las referidas por una anulación.
+    DELETE FROM Cobros
+    WHERE PolizaId=@PolizaId AND Estado<>1 AND NumeroCuota > @total
+      AND Id NOT IN (SELECT CobroId FROM AnulacionesCobro);
+
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+    DECLARE @monto DECIMAL(18,2), @venc DATE;
+    DECLARE @i INT = 1;   -- desde la 1ª: se re-fechan también las pagadas
+    WHILE @i <= @total
+    BEGIN
+        SET @monto = CASE WHEN @i >= @CantidadCuotas THEN @ultima ELSE @base END;
+        SET @venc  = DATEADD(MONTH, @i - 1, @PrimerVencimiento);
+        IF EXISTS (SELECT 1 FROM Cobros WHERE PolizaId=@PolizaId AND NumeroCuota=@i)
+            UPDATE Cobros
+            SET FechaVencimiento = @venc,
+                Monto = CASE WHEN Estado = 1 THEN Monto ELSE @monto END   -- pagada: no se toca el monto
+            WHERE PolizaId=@PolizaId AND NumeroCuota=@i;
+        ELSE
+            INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado)
+            VALUES (@PolizaId, @i, @venc, @monto, 0);
+        SET @i = @i + 1;
+    END
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

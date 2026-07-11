@@ -48,7 +48,7 @@ public class EvolutionApiWhatsAppSender : IWhatsAppSender
         req.Headers.Add("apikey", opt.ApiKey);
 
         var resp = await _http.SendAsync(req);
-        resp.EnsureSuccessStatusCode();
+        await GarantizarOkAsync(resp, telefono);
         _logger.LogInformation("WhatsApp enviado a {Telefono}", telefono);
     }
 
@@ -80,8 +80,20 @@ public class EvolutionApiWhatsAppSender : IWhatsAppSender
         req.Headers.Add("apikey", opt.ApiKey);
 
         var resp = await _http.SendAsync(req);
-        resp.EnsureSuccessStatusCode();
+        await GarantizarOkAsync(resp, telefono);
         _logger.LogInformation("WhatsApp (documento) enviado a {Telefono}", telefono);
+    }
+
+    /// <summary>
+    /// Si Evolution respondió con error, lee el cuerpo y lanza una excepción descriptiva
+    /// (en vez de un 500 opaco). El servicio la traduce a un mensaje accionable para el usuario.
+    /// </summary>
+    private async Task GarantizarOkAsync(HttpResponseMessage resp, string telefono)
+    {
+        if (resp.IsSuccessStatusCode) return;
+        var body = await resp.Content.ReadAsStringAsync();
+        _logger.LogWarning("Evolution respondió {Code} al enviar a {Telefono}: {Body}", (int)resp.StatusCode, telefono, body);
+        throw new HttpRequestException($"Evolution respondió {(int)resp.StatusCode}. {body}");
     }
 
     /// <summary>

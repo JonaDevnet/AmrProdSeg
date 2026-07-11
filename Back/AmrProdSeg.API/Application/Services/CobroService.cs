@@ -147,7 +147,11 @@ public class CobroService : ICobroService
             QrUrl           = $"{baseUrl}/verificar/{poliza.TokenPublico}",
         };
 
-        var nombreArchivo = "Comprobante-" + string.Concat(poliza.Numero.Split(Path.GetInvalidFileNameChars())) + ".pdf";
+        // Nombre del PDF: {nroRecibo}-{patente}-{fechaDePago}.pdf  (ej. 5580-SRS851-10-07-2026.pdf)
+        static string Limpiar(string s) => string.Concat((s ?? "").Split(Path.GetInvalidFileNameChars()));
+        var patenteArch = Limpiar(veh?.Patente ?? "SN");
+        var fechaPagoArch = (cobro.FechaPago ?? DateTime.Now).ToString("dd-MM-yyyy");
+        var nombreArchivo = $"{cobro.Id}-{patenteArch}-{fechaPagoArch}.pdf";
         return new ComprobanteContexto(dto, nombreArchivo, cliente, cobro, poliza, compania);
     }
 
@@ -197,7 +201,14 @@ public class CobroService : ICobroService
         {
             if (string.IsNullOrWhiteSpace(cliente.Email))
                 throw new BusinessException("El cliente no tiene email cargado.");
-            await _email.EnviarConAdjuntoAsync(cliente.Email, asunto, cuerpo, pdf, nombreArchivo, usuarioId);
+            try
+            {
+                await _email.EnviarConAdjuntoAsync(cliente.Email, asunto, cuerpo, pdf, nombreArchivo, usuarioId);
+            }
+            catch (Exception ex) when (ex is not BusinessException)
+            {
+                throw new BusinessException($"No se pudo enviar el email. Verificá tu configuración SMTP en Configuración. Detalle: {ex.Message}");
+            }
             return await _email.HabilitadoParaAsync(usuarioId)
                 ? new EnviarComprobanteResultDto { Enviado = true, Mensaje = $"Comprobante (PDF) enviado a {cliente.Email}." }
                 : new EnviarComprobanteResultDto { Enviado = false, Mensaje = "Canal de Email desactivado. Configurá tu SMTP en Configuración para enviar." };
@@ -205,7 +216,14 @@ public class CobroService : ICobroService
 
         if (string.IsNullOrWhiteSpace(cliente.Telefono))
             throw new BusinessException("El cliente no tiene teléfono cargado.");
-        await _whatsapp.EnviarDocumentoAsync(cliente.Telefono, pdf, nombreArchivo, $"{asunto}\n{cuerpo}", usuarioId);
+        try
+        {
+            await _whatsapp.EnviarDocumentoAsync(cliente.Telefono, pdf, nombreArchivo, $"{asunto}\n{cuerpo}", usuarioId);
+        }
+        catch (Exception ex) when (ex is not BusinessException)
+        {
+            throw new BusinessException($"No se pudo enviar por WhatsApp. Verificá que la instancia esté conectada (Configuración → probar WhatsApp). Detalle: {ex.Message}");
+        }
         return await _whatsapp.HabilitadoParaAsync(usuarioId)
             ? new EnviarComprobanteResultDto { Enviado = true, Mensaje = $"Comprobante (PDF) enviado por WhatsApp a {cliente.Telefono}." }
             : new EnviarComprobanteResultDto { Enviado = false, Mensaje = "Canal de WhatsApp desactivado. Configurá tu WhatsApp en Configuración para enviar." };

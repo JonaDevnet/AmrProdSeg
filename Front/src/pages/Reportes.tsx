@@ -19,7 +19,11 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const fmtDate = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}/${m}/${y}`; };
 const horaDe = (iso: string) => (iso.length > 11 ? iso.slice(11, 16) : "00:00");
 
-function hoyISO() { return isoDate(new Date()); }
+function hoyISO() {
+  // Fecha local (no UTC) para no adelantar el día de tarde/noche en Argentina (UTC-3).
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function haceISO(dias: number) { const d = new Date(); d.setDate(d.getDate() - dias); return isoDate(d); }
 
 function descargarCSV(nombre: string, filas: (string | number)[][]) {

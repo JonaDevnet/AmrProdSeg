@@ -9,7 +9,11 @@ import { IconPlus, IconDown } from "../design/icons";
 import { useIsMobile } from "../hooks/useMediaQuery";
 
 const fmt = (n: number) => "$ " + Number(n).toLocaleString("es-AR");
-const hoyISO = () => new Date().toISOString().slice(0, 10);
+const hoyISO = () => {
+  // Fecha local (no UTC) para no adelantar el día de tarde/noche en Argentina (UTC-3).
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const fmtFecha = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split("-"); return `${d}/${m}/${y}`; };
 
 function inicioMesISO() { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); }

@@ -8,6 +8,7 @@ using AmrProdSeg.API.Infrastructure.Jobs;
 using AmrProdSeg.API.Infrastructure.Notifications;
 using AmrProdSeg.API.Infrastructure.PDF;
 using AmrProdSeg.API.Infrastructure.Repositories;
+using AmrProdSeg.API.Security;
 using AmrProdSeg.API.Security.Filters;
 using AmrProdSeg.API.Security.Helpers;
 using AmrProdSeg.API.Security.Middlewares;
@@ -72,6 +73,10 @@ builder.Services.Configure<EvolutionOptions>(builder.Configuration.GetSection("E
 builder.Services.Configure<NotificacionOptions>(builder.Configuration.GetSection("Notificaciones"));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 builder.Services.AddHttpClient<IWhatsAppSender, EvolutionApiWhatsAppSender>();
+
+// Bloqueo geográfico (solo Argentina) — usa ipquery.io, cacheado y fail-open.
+builder.Services.Configure<GeoBlockingOptions>(builder.Configuration.GetSection("GeoBlocking"));
+builder.Services.AddHttpClient("geo");
 
 // Servicios (BLL)
 builder.Services.AddScoped<IPolizaService,   PolizaService>();
@@ -181,7 +186,7 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    o.KnownNetworks.Clear();   // confiamos en el proxy dentro de la red Docker
+    o.KnownIPNetworks.Clear(); // confiamos en el proxy dentro de la red Docker
     o.KnownProxies.Clear();
 });
 
@@ -230,6 +235,7 @@ var app = builder.Build();
 app.UseForwardedHeaders();            // 0. IP/esquema reales detrás de Traefik/nginx
 app.UseExceptionHandlingMiddleware(); // captura excepciones de toda la cadena
 app.UseIpRateLimiting();              // 1. Rate limiting (usa la IP real del cliente)
+app.UseGeoBlocking();                 // 1b. Bloqueo geográfico (solo Argentina)
 // El HTTPS lo termina Traefik en el borde; dentro del contenedor el tráfico es HTTP.
 // Se puede desactivar la redirección con UseHttpsRedirection=false (ver docker-compose).
 if (!app.Environment.IsDevelopment() && builder.Configuration.GetValue("UseHttpsRedirection", true))

@@ -47,8 +47,11 @@ function ramoIcon(nombre: string): ReactNode {
   return <IconShield size={16} />;
 }
 
-function isoHoy() { return new Date().toISOString().slice(0, 10); }
-function isoEnMeses(meses: number) { const d = new Date(); d.setMonth(d.getMonth() + meses); return d.toISOString().slice(0, 10); }
+function isoHoy() {
+  // Fecha local (no UTC) para no adelantar el día de tarde/noche en Argentina (UTC-3).
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 // Suma meses a una fecha "AAAA-MM-DD" (en UTC, sin corrimiento de zona horaria).
 function addMesesISO(iso: string, meses: number) {
   const [y, m, d] = (iso || isoHoy()).split("-").map(Number);
@@ -63,7 +66,7 @@ interface Form {
   calle: string; numero: string; piso: string; localidad: string; provincia: string;
   patente: string; marca: string; modelo: string; anio: string; chasis: string; motor: string; combustion: string[];
   companiaNombre: string; ramoId: string; ramoNombre: string; cobertura: string;
-  vencimiento: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
+  inicio: string; periodoPoliza: string; periodoCuotas: string; cuota: string; formaPago: string; primaOG: string;
 }
 
 const FORM0: Form = {
@@ -72,7 +75,7 @@ const FORM0: Form = {
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   patente: "", marca: "", modelo: "", anio: "", chasis: "", motor: "", combustion: [],
   companiaNombre: "", ramoId: "", ramoNombre: "", cobertura: "",
-  vencimiento: isoEnMeses(1), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
+  inicio: isoHoy(), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
 };
 
 export default function Alta() {
@@ -166,8 +169,8 @@ export default function Alta() {
     } catch { /* silencioso */ }
   }
 
-  // La fecha de inicio es HOY. El campo "vencimiento" es la fecha de la 1ª cuota (editable,
-  // por defecto hoy + 1 mes); las siguientes cuotas vencen un mes después cada una.
+  // El campo "inicio" es la fecha de inicio de la póliza (editable, por defecto hoy).
+  // La 1ª cuota vence 1 mes después del inicio; las siguientes, un mes después cada una.
 
   // Wizard fijo de 3 pasos como el diseño. El vehículo es opcional (se omite si no
   // se carga patente), respetando multi-ramo.
@@ -196,7 +199,7 @@ export default function Alta() {
     if (stepKey === "poliza") {
       if (!form.ramoId) return fail("Elegí un ramo.");
       if (!form.companiaNombre) return fail("Elegí una compañía.");
-      if (!form.vencimiento) return fail("Indicá el vencimiento.");
+      if (!form.inicio) return fail("Indicá el inicio de la póliza.");
       if (esCuponera) {
         if (Number((form.primaOG || "").replace(/\D/g, "")) <= 0) return fail("Ingresá el precio (prima OG).");
       } else if (Number((form.cuota || "").replace(/\D/g, "")) <= 0) {
@@ -244,10 +247,10 @@ export default function Alta() {
       fechaNacimiento: form.nac || undefined,
       companiaId,
       ramoId: Number(form.ramoId),
-      fechaInicio: isoHoy(),
-      // "vencimiento" = fecha de la 1ª cuota; la vigencia (fin) = última cuota.
-      primerVencimiento: form.vencimiento,
-      fechaFin: addMesesISO(form.vencimiento, Math.max(0, cantidadCuotas - 1)),
+      fechaInicio: form.inicio,
+      // Modelo "inicio de póliza": 1ª cuota = inicio + 1 mes; la vigencia (fin) = última cuota.
+      primerVencimiento: addMesesISO(form.inicio, 1),
+      fechaFin: addMesesISO(form.inicio, cantidadCuotas),
       precioTotal,
       cantidadCuotas,
       formaPago: usarCuponera ? "Cuponera" : limpio(form.formaPago),
@@ -509,10 +512,10 @@ export default function Alta() {
                   </Field>
                 </div>
                 <Sp h={16} />
-                <Field label="Vencimiento de la 1ª cuota" hint="La póliza inicia hoy; la 1ª cuota vence en esta fecha (por defecto hoy + 30 días). Las siguientes, un mes después cada una.">
+                <Field label="Inicio de póliza" hint="Fecha de inicio de la póliza (por defecto hoy). La 1ª cuota vence 1 mes después del inicio; las siguientes, un mes después cada una.">
                   <InputBox focus={focus === "ven"} onFocus={() => setFocus("ven")} onBlur={() => setFocus(null)}>
                     <IconCal size={16} style={{ color: "var(--ink-400)" }} />
-                    <input type="date" style={{ ...S.input, maxWidth: 220 }} value={form.vencimiento} onChange={(e) => set("vencimiento")(e.target.value)} />
+                    <input type="date" style={{ ...S.input, maxWidth: 220 }} value={form.inicio} onChange={(e) => set("inicio")(e.target.value)} />
                   </InputBox>
                 </Field>
                 <Sp h={16} />
@@ -703,7 +706,7 @@ function SummaryPanel({ form }: { form: Form }) {
         <Row k="Compañía" v={form.companiaNombre || null} />
         <Row k="Vigencia" v={`${PERIODO_CUOTAS[form.periodoCuotas] ?? 1} mes(es)`} />
         <Row k="Cuotas" v={form.periodoCuotas || null} />
-        <Row k="Vencimiento" v={form.vencimiento || null} mono last />
+        <Row k="Inicio" v={form.inicio || null} mono last />
       </div>
     </aside>
   );

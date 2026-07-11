@@ -430,7 +430,8 @@ function ExportarModal({ onClose }: { onClose: () => void }) {
         ]),
       ];
       const nombreVend = modo === "vendedor" ? "-" + (usuarios.data?.find((u) => u.id === vendedorId)?.nombre ?? "vendedor").replace(/\s/g, "_") : "";
-      descargarCSV(`AMR-Cartera${nombreVend}-${new Date().toISOString().slice(0, 10)}.csv`, filas);
+      const hoyLocal = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+      descargarCSV(`AMR-Cartera${nombreVend}-${hoyLocal}.csv`, filas);
       onClose();
     } catch {
       setError("No se pudo generar el export.");

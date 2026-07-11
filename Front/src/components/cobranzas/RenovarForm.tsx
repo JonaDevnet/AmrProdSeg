@@ -12,7 +12,7 @@ const schema = z
     numero: z.string().min(1, "Requerido").max(20),
     companiaId: z.coerce.number().int().positive(),
     cobertura: z.string().min(1, "Elegí una cobertura"),
-    primerVencimiento: z.string().min(1, "Requerido"),
+    inicioPoliza: z.string().min(1, "Requerido"),
     precioCuota: z.coerce.number().positive("Debe ser mayor a 0"),
     cantidadCuotas: z.coerce.number().int().min(1).max(3),
     primaOG: z.coerce.number().min(0).optional(),
@@ -21,7 +21,9 @@ const schema = z
 type Values = z.infer<typeof schema>;
 
 function isoHoy() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha local (no UTC) para no adelantar el día de tarde/noche en Argentina (UTC-3).
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function addMesesISO(iso: string, meses: number) {
   const [y, m, d] = (iso || isoHoy()).split("-").map(Number);
@@ -45,8 +47,9 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
   // Precio de cada cuota por defecto = precio total actual / cantidad de cuotas actual.
   const cuotaActual = Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100;
   const cuotasDefault = [1, 2, 3].includes(poliza.cantidadCuotas) ? poliza.cantidadCuotas : 1;
-  // 1ª cuota de la renovación por defecto = la 1ª de la original + 1 mes (o hoy + 1 mes).
-  const primerVencDefault = addMesesISO(primeraCuotaOriginal ?? isoHoy(), 1);
+  // Inicio de la renovación por defecto = la 1ª cuota de la original (así la 1ª cuota
+  // de la renovación = inicio + 1 mes = 1ª de la original + 1 mes).
+  const inicioDefault = primeraCuotaOriginal ?? isoHoy();
 
   const {
     register,
@@ -58,7 +61,7 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
       numero: poliza.numero,
       companiaId: poliza.companiaId,
       cobertura: poliza.cobertura ?? "",
-      primerVencimiento: primerVencDefault,
+      inicioPoliza: inicioDefault,
       precioCuota: cuotaActual,
       cantidadCuotas: cuotasDefault,
       primaOG: poliza.primaOG ?? undefined,
@@ -72,13 +75,15 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
     : nombresCob;
 
   function enviar(v: Values) {
+    // La 1ª cuota vence 1 mes después del inicio; las siguientes +1 mes cada una.
+    const primerVenc = addMesesISO(v.inicioPoliza, 1);
     return onSubmit({
       numero: v.numero.trim(),
       companiaId: v.companiaId,
       cobertura: v.cobertura,
-      fechaInicio: isoHoy(),
-      primerVencimiento: v.primerVencimiento,
-      fechaFin: addMesesISO(v.primerVencimiento, Math.max(0, v.cantidadCuotas - 1)),
+      fechaInicio: v.inicioPoliza,
+      primerVencimiento: primerVenc,
+      fechaFin: addMesesISO(primerVenc, Math.max(0, v.cantidadCuotas - 1)),
       precioTotal: Math.round(v.precioCuota * v.cantidadCuotas * 100) / 100,
       cantidadCuotas: v.cantidadCuotas,
       primaOG: v.primaOG,
@@ -89,6 +94,7 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
     <form onSubmit={handleSubmit(enviar)}>
       <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--ink-500)" }}>
         Se creará una nueva póliza y la actual quedará marcada como <strong>Renovada</strong>.
+        La 1ª cuota vence <strong>1 mes después del inicio</strong> y las siguientes +1 mes cada una.
       </p>
 
       <Field label="Número de póliza" error={errors.numero?.message}>
@@ -113,8 +119,8 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Vencimiento de la 1ª cuota" error={errors.primerVencimiento?.message}>
-          <Input type="date" {...register("primerVencimiento")} />
+        <Field label="Inicio de póliza" error={errors.inicioPoliza?.message}>
+          <Input type="date" {...register("inicioPoliza")} />
         </Field>
         <Field label="Precio por cuota" error={errors.precioCuota?.message}>
           <Input type="number" step="0.01" {...register("precioCuota")} />

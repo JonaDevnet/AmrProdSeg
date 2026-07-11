@@ -1,11 +1,11 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { listarClientes, actualizarCliente } from "../api/clientes";
 import { getVehiculoPorPatente, actualizarVehiculo } from "../api/vehiculos";
 import { useQueryClient } from "@tanstack/react-query";
 import { getPoliza, actualizarPoliza } from "../api/polizas";
 import { buscarGlobal } from "../api/search";
-import { useCompanias, useCobrosPorPoliza } from "../hooks/polizas";
+import { useCompanias } from "../hooks/polizas";
 import { useVehiculosPorCliente } from "../hooks/clientes";
 import { useRamos, useCoberturas } from "../hooks/admin";
 import ClienteForm, { type ClienteFormValues } from "../components/clientes/ClienteForm";
@@ -241,14 +241,9 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [guardando, setGuardando] = useState(false);
   const qc = useQueryClient();
 
-  // Vencimiento de la 1ª cuota (default: la 1ª cuota actual; si se cambia, regenera las pendientes).
-  const cobrosEdit = useCobrosPorPoliza(poliza.id);
-  const [primerVenc, setPrimerVenc] = useState<string | null>(null);
-  useEffect(() => {
-    if (primerVenc !== null || !cobrosEdit.data) return;
-    const c1 = [...cobrosEdit.data].sort((a, b) => a.numeroCuota - b.numeroCuota)[0];
-    setPrimerVenc(c1 ? c1.fechaVencimiento.slice(0, 10) : fechaInicio);
-  }, [cobrosEdit.data, primerVenc, fechaInicio]);
+  // Modelo "Inicio de póliza": la 1ª cuota vence 1 mes después del inicio y las
+  // siguientes +1 mes cada una. Se DERIVA del inicio (no se edita a mano).
+  const primeraCuota = sumarMesesEditar(fechaInicio, 1);
 
   async function guardar() {
     setError(undefined); setGuardando(true);
@@ -260,7 +255,7 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         cantidadCuotas: Number(cantidadCuotas),
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
-        primerVencimiento: primerVenc || undefined,
+        primerVencimiento: primeraCuota,
       });
       // Al cambiar vigencia/cantidad de cuotas se regeneran los cobros: refrescar Cobranzas.
       qc.invalidateQueries({ queryKey: ["cobros"] });
@@ -294,10 +289,11 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Vencimiento de la 1ª cuota"><Input type="date" value={primerVenc ?? ""} onChange={(e) => setPrimerVenc(e.target.value)} /></Field>
         <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       </div>
-      <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "-6px 0 12px" }}>Las cuotas no pagadas se regeneran desde el vencimiento de la 1ª cuota (mensual). Las pagadas no se tocan.</div>
+      <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "-6px 0 12px" }}>
+        Las cuotas se generan desde el <strong>inicio</strong>: la 1ª vence el <strong>{primeraCuota.split("-").reverse().join("/")}</strong> (inicio + 1 mes) y las siguientes +1 mes cada una. Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro).
+      </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>
       </div>
@@ -322,3 +318,10 @@ function lookupWrap(f: boolean): CSSProperties {
 const ctxPanel: CSSProperties = { background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 16, boxShadow: "var(--shadow-sm)", overflow: "hidden", position: "sticky", top: 84 };
 const ctxHead: CSSProperties = { padding: "16px 18px", background: "linear-gradient(180deg, var(--navy-950), var(--navy-800))", color: "white" };
 const linkBtn: CSSProperties = { border: 0, background: "transparent", color: "var(--blue-600)", cursor: "pointer", fontSize: 13.5, fontWeight: 500, padding: 0 };
+
+/** Suma meses a una fecha ISO (YYYY-MM-DD), en UTC (mes calendario, mismo día). */
+function sumarMesesEditar(iso: string, meses: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCMonth(d.getUTCMonth() + meses);
+  return d.toISOString().slice(0, 10);
+}

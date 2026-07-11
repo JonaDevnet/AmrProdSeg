@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -441,15 +441,9 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string>();
 
-  // Vencimiento de la 1ª cuota: por defecto, la fecha de la 1ª cuota actual (para no correr
-  // las fechas al editar). Si se cambia, se regeneran las cuotas pendientes desde ahí.
-  const cobrosEdit = useCobrosPorPoliza(poliza.id);
-  const [primerVenc, setPrimerVenc] = useState<string | null>(null);
-  useEffect(() => {
-    if (primerVenc !== null || !cobrosEdit.data) return;
-    const c1 = [...cobrosEdit.data].sort((a, b) => a.numeroCuota - b.numeroCuota)[0];
-    setPrimerVenc(c1 ? c1.fechaVencimiento.slice(0, 10) : sumarMeses(fechaInicio, 1));
-  }, [cobrosEdit.data, primerVenc, fechaInicio]);
+  // Modelo "Inicio de póliza": la 1ª cuota vence 1 mes después del inicio y las
+  // siguientes +1 mes cada una. Se DERIVA del inicio (no se edita a mano).
+  const primeraCuota = sumarMeses(fechaInicio, 1);
 
   // "Período de cuotas" ↔ cantidad: Mensual=1, Bimestral=2, Trimestral=3.
   const periodoCuotas = Object.entries(PLAN_CUOTAS).find(([, n]) => n === Number(cantidadCuotas))?.[0] ?? "";
@@ -464,7 +458,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         fechaInicio, fechaFin, precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100, cantidadCuotas: Number(cantidadCuotas),
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
-        primerVencimiento: primerVenc || undefined,
+        primerVencimiento: primeraCuota,
       });
       // El número se cambia por su endpoint propio (valida que no esté en uso por una póliza viva).
       if (numero.trim() && numero.trim() !== poliza.numero) {
@@ -514,13 +508,10 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
         <Field label="Prima OG (por cuota, interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Inicio de poliza. (1er cuota 30 dias despues)">
-          <Input type="date" value={primerVenc ?? ""} onChange={(e) => setPrimerVenc(e.target.value)} />
-        </Field>
-      </div>
-      <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
-        Las cuotas <strong>no pagadas</strong> se regeneran desde esta fecha (mensual). Las pagadas no se tocan.<br />
+      <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
+        Las cuotas se generan desde el <strong>inicio de póliza</strong> (arriba): la 1ª vence el{" "}
+        <strong>{primeraCuota.split("-").reverse().join("/")}</strong> (inicio + 1 mes) y las siguientes +1 mes cada una.
+        Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro).
       </div>
       <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
         Total de la póliza: <strong>{formatMoneda((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0))}</strong> ({cantidadCuotas} cuotas)

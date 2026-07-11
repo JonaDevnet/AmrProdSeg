@@ -7,7 +7,10 @@ import { formatMoneda } from "../../utils/format";
 import type { Cobro } from "../../types";
 
 function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha local (NO UTC): con toISOString, de tarde/noche en Argentina (UTC-3) el día
+  // se adelantaba y el pago quedaba registrado con la fecha del día siguiente.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 interface Props {
