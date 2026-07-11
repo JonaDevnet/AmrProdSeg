@@ -241,6 +241,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
           {compania && <span style={pBadge}><span style={{ width: 8, height: 8, borderRadius: 2, background: companiaColor(poliza.companiaId) }} />{compania}</span>}
           {poliza.ramoNombre && <span style={pBadge}>{poliza.ramoNombre}</span>}
           {poliza.patente && <span style={pBadge} className="mono">{poliza.patente}</span>}
+          {(poliza.marca || poliza.modelo) && <span style={pBadge}>{[poliza.marca, poliza.modelo].filter(Boolean).join(" ")}</span>}
           {poliza.formaPago === "Cuponera" && <span style={{ ...pBadge, background: "oklch(0.55 0.14 60 / 0.25)", border: "1px solid oklch(1 0 0 / 0.18)" }}>Cuponera · sin comprobante</span>}
         </div>
       </div>
@@ -252,6 +253,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
           <div><div style={iL}>Ramo</div><div style={iV}>{poliza.ramoNombre ?? "—"}</div></div>
           <div><div style={iL}>Compañía</div><div style={iV}>{compania ?? "—"}</div></div>
           <div><div style={iL}>Patente</div><div style={iV} className="mono">{poliza.patente ?? "—"}</div></div>
+          <div><div style={iL}>Vehículo</div><div style={iV}>{[poliza.marca, poliza.modelo].filter(Boolean).join(" ") || "—"}</div></div>
           <div><div style={iL}>Vigencia</div><div style={iV} className="mono">{formatFecha(poliza.fechaInicio)} – {formatFecha(vigenciaHasta)}</div></div>
           <div><div style={iL}>Cliente de</div><div style={iV}>{poliza.clienteVendedorNombre ?? "—"}</div></div>
         </div>

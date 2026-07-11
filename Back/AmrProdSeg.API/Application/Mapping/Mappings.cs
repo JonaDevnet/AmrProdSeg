@@ -25,6 +25,8 @@ public static class Mappings
         Cobertura      = p.Cobertura,
         ClienteNombre  = p.ClienteNombre,
         Patente        = p.Patente,
+        Marca          = p.Marca,
+        Modelo         = p.Modelo,
         RamoNombre     = p.RamoNombre,
         CuotasTotal    = p.CuotasTotal,
         CuotasPagadas  = p.CuotasPagadas,

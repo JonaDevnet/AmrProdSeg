@@ -67,6 +67,8 @@ public class Poliza
     // Campos de sólo lectura para listados (provienen de JOINs, no se persisten)
     public string? ClienteNombre { get; set; }
     public string? Patente { get; set; }
+    public string? Marca { get; set; }
+    public string? Modelo { get; set; }
     public string? RamoNombre { get; set; }
     public int? CuotasTotal { get; set; }
     public int? CuotasPagadas { get; set; }

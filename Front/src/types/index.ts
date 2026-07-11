@@ -73,6 +73,8 @@ export interface Poliza {
   cobertura?: string | null;
   clienteNombre?: string | null;
   patente?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
   ramoId?: number | null;
   ramoNombre?: string | null;
   cuotasTotal?: number | null;

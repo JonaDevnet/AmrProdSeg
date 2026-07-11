@@ -3417,5 +3417,42 @@ END
 GO
 
 /* =============================================================================
+   §56 — El listado de pólizas (Cobranzas, etc.) también trae marca y modelo del
+   vehículo, para mostrar QUÉ auto se está por pagar además de la patente.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_Listar
+    @ClienteId INT = NULL, @Estado INT = NULL, @Offset INT, @PageSize INT,
+    @UsuarioId INT = NULL, @EsAdmin BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
+    SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
+           p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
+           p.RamoId, r.Nombre AS RamoNombre, c.Nombre AS ClienteNombre,
+           v.Patente, v.Marca AS VehiculoMarca, v.Modelo AS VehiculoModelo,
+           p.FormaPago, p.PrimaOG, p.Cobertura,
+           uv.Nombre AS VendedorNombre, uc.Nombre AS ClienteVendedorNombre,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id)                  AS CuotasTotal,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=1)  AS CuotasPagadas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=2)  AS CuotasVencidas,
+           COUNT(*) OVER() AS Total
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    LEFT  JOIN Ramos     r ON r.Id = p.RamoId
+    LEFT  JOIN Usuarios uv ON uv.Id = p.VendedorId
+    LEFT  JOIN Usuarios uc ON uc.Id = c.VendedorId
+    WHERE p.Eliminada = 0
+      AND (@ClienteId IS NULL OR p.ClienteId = @ClienteId)
+      AND (@Estado    IS NULL OR p.Estado    = @Estado)
+      AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
+           OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))
+    ORDER BY p.FechaEmision DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

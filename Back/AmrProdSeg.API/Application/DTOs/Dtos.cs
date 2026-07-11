@@ -109,6 +109,8 @@ public class PolizaDto
     public string? Cobertura { get; set; }
     public string? ClienteNombre { get; set; }
     public string? Patente { get; set; }
+    public string? Marca { get; set; }
+    public string? Modelo { get; set; }
     public string? RamoNombre { get; set; }
     public int? CuotasTotal { get; set; }
     public int? CuotasPagadas { get; set; }

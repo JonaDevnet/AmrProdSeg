@@ -182,6 +182,8 @@ public class PolizaRepository : IPolizaRepository
             var poliza = MapPoliza(reader);
             poliza.ClienteNombre = reader.GetString(reader.GetOrdinal("ClienteNombre"));
             poliza.Patente = reader.IsDBNull(reader.GetOrdinal("Patente")) ? null : reader.GetString(reader.GetOrdinal("Patente"));
+            if (Tiene(reader, "VehiculoMarca"))  poliza.Marca  = reader.IsDBNull(reader.GetOrdinal("VehiculoMarca"))  ? null : reader.GetString(reader.GetOrdinal("VehiculoMarca"));
+            if (Tiene(reader, "VehiculoModelo")) poliza.Modelo = reader.IsDBNull(reader.GetOrdinal("VehiculoModelo")) ? null : reader.GetString(reader.GetOrdinal("VehiculoModelo"));
             poliza.RamoNombre = reader.IsDBNull(reader.GetOrdinal("RamoNombre")) ? null : reader.GetString(reader.GetOrdinal("RamoNombre"));
             if (Tiene(reader, "CuotasTotal"))    poliza.CuotasTotal    = reader.GetInt32(reader.GetOrdinal("CuotasTotal"));
             if (Tiene(reader, "CuotasPagadas"))  poliza.CuotasPagadas  = reader.GetInt32(reader.GetOrdinal("CuotasPagadas"));
