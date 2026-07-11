@@ -184,9 +184,9 @@ public static class ComprobanteCobroDocument
             col.Item().Table(t =>
             {
                 t.ColumnsDefinition(c => { c.RelativeColumn(1.1f); c.RelativeColumn(0.7f); c.RelativeColumn(0.7f); c.RelativeColumn(1.3f); c.RelativeColumn(1.1f); });
-                t.Cell().Element(H).Text("Dominio"); t.Cell().Element(H).Text("Año"); t.Cell().Element(H).Text("Cuota"); t.Cell().Element(H).Text("Próx. Venc. (12 Hs)"); t.Cell().Element(H).Text("IMPORTE");
+                t.Cell().Element(H).Text("Dominio"); t.Cell().Element(H).Text("Año"); t.Cell().Element(H).Text("Cuota"); t.Cell().Element(H).Text("Vencimiento"); t.Cell().Element(H).Text("IMPORTE");
                 t.Cell().Element(V).Text(d.Dominio); t.Cell().Element(V).Text(d.Anio); t.Cell().Element(V).Text($"{d.CuotaActual}/{d.CuotasTotal}");
-                // Próx. vencimiento con el sello "PAGADO" estampado encima
+                // Vencimiento de la cuota con el sello "PAGADO" estampado encima
                 t.Cell().Element(V).Layers(l =>
                 {
                     l.PrimaryLayer().Text(d.ProxVencimiento is null ? "—" : d.ProxVencimiento.Value.ToString("d/M/yyyy", Es));

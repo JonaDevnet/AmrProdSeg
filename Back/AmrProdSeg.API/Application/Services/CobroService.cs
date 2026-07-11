@@ -121,10 +121,8 @@ public class CobroService : ICobroService
             medioPago = $"{NombreMedio(cobro.MetodoPagoId)} $ {(cobro.Monto - m2).ToString("N2", ar)} + {NombreMedio(cobro.MetodoPago2Id)} $ {m2.ToString("N2", ar)}";
         }
 
-        // Próximo vencimiento = vencimiento de la cuota siguiente a la cobrada
-        var cuotas = await _cobroRepo.GetPorPolizaAsync(poliza.Id);
-        var siguiente = cuotas.Where(c => c.NumeroCuota > cobro.NumeroCuota).OrderBy(c => c.NumeroCuota).FirstOrDefault();
-        var proxVenc = siguiente?.FechaVencimiento ?? cobro.FechaVencimiento;
+        // Vencimiento de la cuota que se está cobrando (cada comprobante muestra el de SU cuota).
+        var proxVenc = cobro.FechaVencimiento;
 
         var baseUrl = (_configuration["PublicBaseUrl"] ?? _configuration["AllowedOrigin"] ?? "http://localhost:5173").TrimEnd('/');
 
