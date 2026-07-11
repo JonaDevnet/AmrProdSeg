@@ -292,12 +292,17 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
   );
 }
 
-// Vencimiento de la PRÓXIMA CUOTA a cobrar (impaga) + estado según esa cuota.
+// Vencimiento de la CUOTA ACTUAL (la última pagada; si ninguna, la 1ª) + estado según cobranza.
 function VencimientoEstado({ polizaId }: { polizaId: number }) {
   const cobros = useCobrosPorPoliza(polizaId);
   const cuotas = cobros.data ?? [];
-  // Próxima cuota impaga (estado != Pagado=1), la de vencimiento más temprano.
-  const prox = cuotas
+  const ordenadas = [...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota);
+  // Cuota actual = la última PAGADA (estado=1); si no hay ninguna pagada, la 1ª cuota.
+  const pagadas = ordenadas.filter((c) => c.estado === 1);
+  const actual = pagadas.length ? pagadas[pagadas.length - 1] : ordenadas[0];
+  // El estado (al día / por vencer / vencida) se calcula sobre la próxima cuota IMPAGA,
+  // así el badge sigue avisando si el cliente se atrasa aunque se muestre la cuota actual.
+  const prox = ordenadas
     .filter((c) => c.estado !== 1)
     .sort((a, b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime())[0];
 
@@ -317,10 +322,10 @@ function VencimientoEstado({ polizaId }: { polizaId: number }) {
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", borderRadius: 8, background: "var(--canvas)", border: "1px solid var(--line-2)" }}>
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.25 }}>
         <span style={{ fontSize: 10.5, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          Próx. vencimiento{prox ? ` · cuota ${prox.numeroCuota}/${cuotas.length}` : ""}
+          Vencimiento{actual ? ` · cuota ${actual.numeroCuota}/${cuotas.length}` : ""}
         </span>
         <span className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)" }}>
-          {cobros.isLoading ? "…" : prox ? formatFecha(prox.fechaVencimiento) : "—"}
+          {cobros.isLoading ? "…" : actual ? formatFecha(actual.fechaVencimiento) : "—"}
         </span>
       </div>
       {cobros.isLoading
