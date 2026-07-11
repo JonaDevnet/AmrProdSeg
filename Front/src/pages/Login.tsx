@@ -7,7 +7,7 @@ import { useIsMobile } from "../hooks/useMediaQuery";
 import { Icon, IconMail, IconLock, IconEye, IconCheck, IconArrowR, IconShield } from "../design/icons";
 
 const loginStyles: Record<string, CSSProperties> = {
-  page: { minHeight: "100vh", display: "grid", gridTemplateColumns: "minmax(420px, 1fr) minmax(520px, 1fr)", background: "var(--paper)" },
+  page: { display: "grid", gridTemplateColumns: "minmax(420px, 1fr) minmax(520px, 1fr)", background: "var(--paper)" },
   brandSide: { position: "relative", background: "linear-gradient(165deg, var(--navy-950) 0%, var(--navy-800) 60%, var(--blue-600) 130%)", color: "white", padding: "44px 56px", display: "flex", flexDirection: "column", overflow: "hidden" },
   brandTop: { display: "flex", alignItems: "center", gap: 12, fontWeight: 600, letterSpacing: "-0.01em" },
   logoMark: { width: 38, height: 38, borderRadius: 9, background: "white", color: "var(--navy-900)", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 17, letterSpacing: "-0.03em" },
@@ -67,7 +67,7 @@ export default function Login() {
   };
 
   return (
-    <div style={{ ...loginStyles.page, ...(mobile ? { gridTemplateColumns: "1fr" } : null) }}>
+    <div className="login-page" style={{ ...loginStyles.page, ...(mobile ? { gridTemplateColumns: "1fr" } : null) }}>
       {/* LEFT — Brand panel (se oculta en móvil) */}
       {!mobile && (
       <aside style={loginStyles.brandSide}>
@@ -92,7 +92,7 @@ export default function Login() {
 
         <div style={loginStyles.brandFoot}>
           <span>© 2026 AMR Producción de Seguros</span>
-          <span>Mat. SSN nº 80.451</span>
+          <span>Mat. SSN nº 91873</span>
         </div>
       </aside>
       )}
