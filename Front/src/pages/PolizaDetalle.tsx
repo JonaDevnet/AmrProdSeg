@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza, useEndosarTitular, useEndosos } from "../hooks/polizas";
 import { useCliente, useVehiculosPorCliente } from "../hooks/clientes";
 import { descargarPolizaPdf, type RenovarPolizaDto, type EndosoTitularDto } from "../api/polizas";
@@ -21,6 +21,13 @@ export default function PolizaDetalle() {
   const { id } = useParams();
   const polizaId = Number(id);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Si se llegó acá desde el botón "Pagar" de la ficha del cliente, tras cobrar y cerrar
+  // el comprobante/ticket se vuelve a esa ficha a los 3 segundos.
+  const volverCliente = searchParams.get("volverCliente");
+  const volverAClienteEn3s = () => {
+    if (volverCliente) setTimeout(() => navigate(`/clientes/${volverCliente}`), 3000);
+  };
   const { esAdmin } = useAuth();
 
   const { data: poliza, isLoading, isError } = usePoliza(polizaId);
@@ -268,7 +275,7 @@ export default function PolizaDetalle() {
           tituloContexto={poliza.numero}
           onClose={() => setCuotaPago(null)}
           onPagado={() => {
-            // Cuponera: sólo se marca el pago, sin comprobante.
+            // Cuponera: sólo se marca el pago, sin comprobante → se vuelve directo.
             if (poliza.formaPago !== "Cuponera") {
               setComprobante({
                 cobroId: cuotaPago.id,
@@ -280,12 +287,14 @@ export default function PolizaDetalle() {
                 compania: compania?.nombre ?? "—",
                 ramo: poliza.ramoNombre ?? "—",
               });
+            } else {
+              volverAClienteEn3s();
             }
             setCuotaPago(null);
           }}
         />
       )}
-      {comprobante && <ComprobanteModal c={comprobante} onClose={() => setComprobante(null)} />}
+      {comprobante && <ComprobanteModal c={comprobante} onClose={() => { setComprobante(null); volverAClienteEn3s(); }} />}
 
       {renovarOpen && companias.data && (
         <Modal titulo="Renovar póliza" onClose={() => setRenovarOpen(false)} ancho={520}>
@@ -297,7 +306,7 @@ export default function PolizaDetalle() {
           <RenovarForm
             poliza={poliza}
             companias={companias.data}
-            primeraCuotaOriginal={[...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota)[0]?.fechaVencimiento?.slice(0, 10)}
+            ultimaCuotaOriginal={[...cuotas].sort((a, b) => b.numeroCuota - a.numeroCuota)[0]?.fechaVencimiento?.slice(0, 10)}
             onSubmit={confirmarRenovacion}
             enviando={renovar.isPending}
           />
@@ -352,6 +361,7 @@ const backBtn: CSSProperties = {
   color: "var(--ink-500)",
   cursor: "pointer",
   fontSize: 13.5,
+  marginTop: 14,
   marginBottom: 16,
   padding: 0,
 };

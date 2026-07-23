@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { polizasPorVencer } from "../api/reportes";
 import { getAnulacionesPendientes, aprobarAnulacion, rechazarAnulacion } from "../api/anulaciones";
 import { getEliminacionesPendientes, aprobarEliminacion, rechazarEliminacion } from "../api/eliminaciones";
+import { exportacionesRecientes } from "../api/polizas";
 import { useAuth } from "../auth/AuthContext";
 import { IconBell } from "./Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
@@ -37,12 +38,33 @@ export default function NotificacionesBell() {
     enabled: esAdmin,
     staleTime: 60 * 1000,
   });
+  const exp = useQuery({
+    queryKey: ["notif", "exportaciones"],
+    queryFn: () => exportacionesRecientes(20),
+    enabled: esAdmin,
+    staleTime: 60 * 1000,
+  });
+
+  // Exportaciones vistas (dismiss por usuario en este equipo).
+  const expKey = `amr_notif_exp_${usuario?.nombre ?? "x"}`;
+  const [expVistas, setExpVistas] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(expKey) || "[]")); } catch { return new Set(); }
+  });
 
   const clave = (p: { nroPoliza: string; fechaFin: string }) => `${p.nroPoliza}|${p.fechaFin}`;
   const items = (data ?? []).filter((p) => !vistas.has(clave(p)));
   const anulaciones = anul.data ?? [];
   const eliminaciones = elim.data ?? [];
-  const total = items.length + anulaciones.length + eliminaciones.length;
+  const exportaciones = exp.data ?? [];
+  const exportacionesNuevas = exportaciones.filter((e) => !expVistas.has(e.id));
+  const total = items.length + anulaciones.length + eliminaciones.length + exportacionesNuevas.length;
+
+  function limpiarExportaciones() {
+    const nuevas = new Set(expVistas);
+    exportaciones.forEach((e) => nuevas.add(e.id));
+    setExpVistas(nuevas);
+    try { localStorage.setItem(expKey, JSON.stringify([...nuevas].slice(-500))); } catch { /* ignore */ }
+  }
 
   function limpiarVencimientos() {
     const nuevas = new Set(vistas);
@@ -135,6 +157,37 @@ export default function NotificacionesBell() {
                     </div>
                   </div>
                 ))}
+              </>
+            )}
+
+            {/* Exportaciones recientes (Admin) */}
+            {esAdmin && (
+              <>
+                <div style={head}>
+                  Exportaciones recientes
+                  {exportacionesNuevas.length > 0 && (
+                    <button onClick={limpiarExportaciones} title="Marcar como vistas"
+                      style={{ border: 0, background: "transparent", color: "var(--blue-600)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "2px 4px" }}>
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  {exportaciones.length === 0 ? (
+                    <div style={vacio}>Sin exportaciones.</div>
+                  ) : (
+                    exportaciones.map((e) => (
+                      <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)", background: expVistas.has(e.id) ? "transparent" : "var(--blue-50)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
+                          {e.usuarioNombre ?? "Alguien"} exportó <span className="mono">{e.polizaNumero ?? "—"}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                          {e.clienteNombre ?? "—"} · {formatFecha(e.fecha)}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </>
             )}
 

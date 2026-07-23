@@ -35,6 +35,14 @@ public class ClientesController : ControllerBase
         return cliente is null ? NotFound() : Ok(cliente);
     }
 
+    /// <summary>Ficha completa del cliente en PDF (datos + vehículos + todas las pólizas). Se abre inline.</summary>
+    [HttpGet("{id:int}/dossier-pdf")]
+    public async Task<IActionResult> DossierPdf(int id)
+    {
+        var bytes = await _service.GenerarDossierPdfAsync(id, UsuarioActualId(), EsAdmin());
+        return File(bytes, "application/pdf");
+    }
+
     [HttpPost]
     public async Task<IActionResult> Crear([FromBody] CrearClienteDto dto)
     {

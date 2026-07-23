@@ -68,6 +68,26 @@ export async function descargarPolizaPdf(id: number): Promise<Blob> {
   return resp.data as Blob;
 }
 
+/** Exporta una póliza (cliente + póliza + vehículo) en PDF. Registra aviso a admins. */
+export async function exportarPolizaPdf(id: number): Promise<Blob> {
+  const resp = await api.get(`/exportaciones/poliza/${id}/pdf`, { responseType: "blob" });
+  return resp.data as Blob;
+}
+
+export interface AvisoExportacion {
+  id: number;
+  usuarioNombre?: string | null;
+  polizaNumero?: string | null;
+  clienteNombre?: string | null;
+  fecha: string;
+}
+
+/** Exportaciones recientes (solo admins) para la campanita. */
+export async function exportacionesRecientes(top = 20): Promise<AvisoExportacion[]> {
+  const { data } = await api.get<AvisoExportacion[]>("/exportaciones/recientes", { params: { top } });
+  return data;
+}
+
 export async function renovarPoliza(
   id: number,
   dto: RenovarPolizaDto

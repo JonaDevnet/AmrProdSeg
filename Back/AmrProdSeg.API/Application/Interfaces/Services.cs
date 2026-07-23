@@ -77,6 +77,7 @@ public interface IClienteService
     Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId);
     Task<Cliente?> GetByIdAsync(int id);
     Task<PagedResult<Cliente>> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
+    Task<byte[]> GenerarDossierPdfAsync(int clienteId, int? usuarioId, bool esAdmin);
 }
 
 public interface IOficinaService
@@ -190,6 +191,12 @@ public interface IReporteService
     Task<List<CarteraExportDto>> CarteraExportAsync(int? vendedorId);
 }
 
+public interface IExportacionService
+{
+    Task<byte[]> ExportarPolizaAsync(int polizaId, int? usuarioId);
+    Task<List<AvisoExportacionDto>> RecientesAsync(int top);
+}
+
 public interface IPdfService
 {
     Task<byte[]> GenerarComprobanteAsync(Poliza poliza);
@@ -201,6 +208,8 @@ public interface IPdfService
     byte[] GenerarComprobanteImpresion(ComprobanteCobroDto dto);
     /// <summary>Impresión: solo el ticket (2ª hoja), sin logo.</summary>
     byte[] GenerarTicketImpresion(ComprobanteCobroDto dto);
+    /// <summary>Ficha completa del cliente (datos, vehículos y todas las pólizas) en PDF.</summary>
+    byte[] GenerarDossierCliente(ClienteDossierData data);
 }
 
 public interface IExcelExportService

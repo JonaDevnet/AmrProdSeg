@@ -94,6 +94,10 @@ public class PdfService : IPdfService
     public byte[] GenerarTicketImpresion(ComprobanteCobroDto dto)
         => ComprobanteCobroDocument.GenerarTicket(MapearComprobante(dto));
 
+    // Ficha completa del cliente
+    public byte[] GenerarDossierCliente(ClienteDossierData data)
+        => ClienteDossierDocument.Generar(data, CargarLogo());
+
     public byte[] GenerarTabla(string titulo, List<Dictionary<string, object?>> filas)
     {
         var columnas = filas.Count > 0 ? filas[0].Keys.ToList() : new List<string>();

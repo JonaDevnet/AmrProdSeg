@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePolizas, useCompanias } from "../hooks/polizas";
+import { exportarPolizaPdf } from "../api/polizas";
+import { IconDownload, IconSearch } from "../components/Icons";
 import PageHeader from "../components/ui/PageHeader";
 import Pagination from "../components/ui/Pagination";
 import { EstadoPolizaBadge, Plate } from "../components/ui/Badge";
@@ -22,12 +24,29 @@ export default function Polizas() {
   const navigate = useNavigate();
   const [estado, setEstado] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
+  const [exportando, setExportando] = useState<number | null>(null);
 
   useEffect(() => { setPage(1); }, [estado]);
 
   const { data, isLoading, isError, isFetching } = usePolizas(estado, page, PAGE_SIZE);
   const companias = useCompanias();
   const mapCia = new Map((companias.data ?? []).map((c) => [c.id, c.nombre]));
+
+  // Filtro de texto (sobre lo cargado): número, cliente o patente.
+  const term = q.trim().toLowerCase();
+  const items = (data?.items ?? []).filter((p) =>
+    !term || [p.numero, p.clienteNombre, p.patente].some((x) => (x ?? "").toLowerCase().includes(term)));
+
+  async function abrirExport(id: number) {
+    setExportando(id);
+    try {
+      const blob = await exportarPolizaPdf(id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank"); // se abre en el visor; desde ahí se descarga
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { /* noop */ } finally { setExportando(null); }
+  }
 
   return (
     <div>
@@ -47,11 +66,16 @@ export default function Polizas() {
               );
             })}
           </div>
+          <div style={buscador}>
+            <IconSearch size={15} style={{ color: "var(--ink-400)", flexShrink: 0 }} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por número, cliente o patente…"
+              style={{ border: 0, outline: 0, background: "transparent", fontSize: 13.5, width: "100%", color: "var(--ink-900)" }} />
+          </div>
         </div>
 
         <div style={{ opacity: isFetching ? 0.7 : 1, transition: "opacity .15s" }}>
           {isLoading ? <Cargando /> : isError ? <ErrorState /> :
-            !data || data.items.length === 0 ? <VacioState mensaje="No hay pólizas para este filtro." /> : (
+            !data || items.length === 0 ? <VacioState mensaje="No hay pólizas para este filtro." /> : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
@@ -63,10 +87,11 @@ export default function Polizas() {
                     <th style={th}>Vigencia</th>
                     <th style={th}>Prima</th>
                     <th style={th}>Estado</th>
+                    <th style={th}>Exportar</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.items.map((p) => (
+                  {items.map((p) => (
                     <tr key={p.id} onClick={() => navigate(`/polizas/${p.id}`)}
                       style={{ cursor: "pointer", borderTop: "1px solid var(--line-2)" }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "oklch(0.985 0.008 245)")}
@@ -84,6 +109,12 @@ export default function Polizas() {
                       <td style={{ ...td, color: "var(--ink-500)" }}>{formatFecha(p.fechaInicio)} – {formatFecha(p.fechaFin)}</td>
                       <td style={td}>{formatMoneda(p.precioTotal)}</td>
                       <td style={td}><EstadoPolizaBadge estado={p.estado} /></td>
+                      <td style={td} onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => abrirExport(p.id)} disabled={exportando === p.id} style={exportBtn}
+                          title="Exportar cliente + póliza + vehículo">
+                          <IconDownload size={14} /> {exportando === p.id ? "…" : "Exportar"}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -122,3 +153,11 @@ const th: CSSProperties = {
   letterSpacing: "0.06em", color: "var(--ink-500)", background: "oklch(0.985 0.008 245)", borderBottom: "1px solid var(--line-2)", whiteSpace: "nowrap",
 };
 const td: CSSProperties = { padding: "14px 18px", fontSize: 14, verticalAlign: "middle" };
+const buscador: CSSProperties = {
+  marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, minWidth: 240, maxWidth: 340, flex: "0 1 320px",
+  border: "1px solid var(--line)", borderRadius: 9, padding: "0 12px", height: 36, background: "var(--paper)",
+};
+const exportBtn: CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid var(--line)", borderRadius: 8,
+  background: "var(--paper)", color: "var(--ink-700)", cursor: "pointer", fontSize: 12.5, fontWeight: 500, padding: "6px 10px",
+};

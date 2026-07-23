@@ -161,6 +161,8 @@ export default function Navbar() {
                     <DropItem icon={<IconBan size={15} />} titulo="Registro de movimientos" sub="Eliminaciones y anulaciones"
                       onClick={() => { setUserOpen(false); navigate("/registro"); }} />
                   )}
+                  <DropItem icon={<IconFile size={15} />} titulo="Pólizas" sub="Buscar y exportar"
+                    onClick={() => { setUserOpen(false); navigate("/polizas"); }} />
                   <DropItem icon={<IconMail size={15} />} titulo="Configuración de envío" sub="Tu correo y WhatsApp"
                     onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
                   <DropItem icon={<IconFile size={15} />} titulo="Mis finanzas" sub="Ingresos y egresos (privado)"
@@ -272,7 +274,8 @@ const nav: CSSProperties = {
   borderBottom: "1px solid oklch(1 0 0 / 0.08)",
 };
 const navInner: CSSProperties = {
-  maxWidth: 1440, margin: "0 auto", padding: "0 clamp(14px, 4vw, 28px)", height: 64,
+  // Full-width (sin centrado) y con poco padding izquierdo: el logo queda pegado a la orilla.
+  width: "100%", margin: 0, padding: "0 clamp(14px, 2.5vw, 22px)", height: 64,
   display: "flex", alignItems: "center", gap: 18,
 };
 // Logo original en blanco (se funde con el navbar navy)

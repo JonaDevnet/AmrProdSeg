@@ -10,11 +10,42 @@ public class ClienteService : IClienteService
 {
     private readonly IClienteRepository _clienteRepo;
     private readonly IUsuarioRepository _usuarioRepo;
+    private readonly IVehiculoRepository _vehiculoRepo;
+    private readonly IPolizaRepository _polizaRepo;
+    private readonly ICompaniaRepository _companiaRepo;
+    private readonly IPdfService _pdf;
 
-    public ClienteService(IClienteRepository clienteRepo, IUsuarioRepository usuarioRepo)
+    public ClienteService(IClienteRepository clienteRepo, IUsuarioRepository usuarioRepo,
+        IVehiculoRepository vehiculoRepo, IPolizaRepository polizaRepo, ICompaniaRepository companiaRepo, IPdfService pdf)
     {
         _clienteRepo = clienteRepo;
         _usuarioRepo = usuarioRepo;
+        _vehiculoRepo = vehiculoRepo;
+        _polizaRepo = polizaRepo;
+        _companiaRepo = companiaRepo;
+        _pdf = pdf;
+    }
+
+    /// <summary>Genera la ficha completa del cliente en PDF (datos, vehículos y todas las pólizas).</summary>
+    public async Task<byte[]> GenerarDossierPdfAsync(int clienteId, int? usuarioId, bool esAdmin)
+    {
+        var cliente = await _clienteRepo.GetByIdAsync(clienteId)
+            ?? throw new NotFoundException("Cliente no encontrado.");
+        var vehiculos = await _vehiculoRepo.GetPorClienteAsync(clienteId);
+        var (polizas, _) = await _polizaRepo.ListarAsync(clienteId, null, 1, 1000, usuarioId, esAdmin);
+        var companias = (await _companiaRepo.GetAllAsync()).ToDictionary(c => c.Id, c => c.Nombre);
+
+        var data = new ClienteDossierData(
+            cliente.Nombre, cliente.Documento, cliente.TipoDocumento, cliente.Email, cliente.Telefono,
+            cliente.Direccion, cliente.FechaNacimiento, cliente.FechaAlta,
+            vehiculos.Select(v => new DossierVehiculo(v.Patente, v.Marca, v.Modelo, v.Anio, v.Chasis, v.Motor, v.Combustion)).ToList(),
+            polizas.Select(p => new DossierPoliza(
+                p.Numero, p.Estado.ToString(),
+                companias.TryGetValue(p.CompaniaId, out var cn) ? cn : "—",
+                p.RamoNombre, p.Cobertura, p.Patente,
+                p.FechaInicio, p.FechaFin, p.PrecioTotal, p.CantidadCuotas, p.FormaPago)).ToList());
+
+        return _pdf.GenerarDossierCliente(data);
     }
 
     public async Task<int> CrearAsync(CrearClienteDto dto, int? usuarioId = null)

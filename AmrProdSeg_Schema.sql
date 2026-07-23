@@ -3454,5 +3454,279 @@ END
 GO
 
 /* =============================================================================
+   §57 — Backend del agente de WhatsApp (n8n). Endpoints /api/bot:
+   - Consulta de póliza por teléfono (datos SEGUROS: sin prima OG ni vigencia).
+   - Pago PENDIENTE de confirmación de un operador (no marca la cuota).
+   - Escalación a un humano.
+   El match cliente↔teléfono es por los últimos 8 dígitos (subscriber number),
+   tolerante a prefijos 54/549/0 y separadores.
+   ============================================================================= */
+
+-- Devuelve solo los dígitos de una cadena (para comparar teléfonos con formatos distintos).
+CREATE OR ALTER FUNCTION dbo.fn_SoloDigitos(@s VARCHAR(50))
+RETURNS VARCHAR(50)
+AS
+BEGIN
+    DECLARE @out VARCHAR(50) = '', @i INT = 1, @ch CHAR(1);
+    IF @s IS NULL RETURN '';
+    WHILE @i <= LEN(@s)
+    BEGIN
+        SET @ch = SUBSTRING(@s, @i, 1);
+        IF @ch LIKE '[0-9]' SET @out = @out + @ch;
+        SET @i = @i + 1;
+    END
+    RETURN @out;
+END
+GO
+
+IF OBJECT_ID('dbo.BotPagosPendientes', 'U') IS NULL
+BEGIN
+    CREATE TABLE BotPagosPendientes (
+        Id                INT PRIMARY KEY IDENTITY,
+        PolizaId          INT           NOT NULL,
+        CobroId           INT           NULL,
+        NumeroCuota       INT           NULL,
+        Telefono          NVARCHAR(30)  NOT NULL,
+        Instancia         NVARCHAR(60)  NULL,
+        Medio             NVARCHAR(30)  NULL,
+        Monto             DECIMAL(18,2) NULL,
+        Estado            VARCHAR(20)   NOT NULL DEFAULT 'pendiente',  -- pendiente | confirmado | rechazado
+        FechaSolicitud    DATETIME      NOT NULL DEFAULT GETUTCDATE(),
+        ConfirmadoPor     INT           NULL,
+        FechaConfirmacion DATETIME      NULL
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.BotEscalaciones', 'U') IS NULL
+BEGIN
+    CREATE TABLE BotEscalaciones (
+        Id        INT PRIMARY KEY IDENTITY,
+        Telefono  NVARCHAR(30)  NOT NULL,
+        Instancia NVARCHAR(60)  NULL,
+        Nombre    NVARCHAR(150) NULL,
+        Motivo    NVARCHAR(300) NULL,
+        Estado    VARCHAR(20)   NOT NULL DEFAULT 'abierta',           -- abierta | atendida
+        Fecha     DATETIME      NOT NULL DEFAULT GETUTCDATE()
+    );
+END
+GO
+
+-- Póliza ACTIVA más reciente del cliente cuyo teléfono matchea + cuotas para ponerse al día.
+CREATE OR ALTER PROCEDURE sp_Bot_PolizaPorTelefono @Telefono VARCHAR(30) AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @suf VARCHAR(10) = RIGHT(dbo.fn_SoloDigitos(@Telefono), 8);
+    IF LEN(@suf) < 8 BEGIN SELECT CAST(0 AS BIT) AS Encontrado; RETURN; END
+
+    DECLARE @pid INT = (
+        SELECT TOP 1 p.Id
+        FROM Polizas p
+        INNER JOIN Clientes c ON c.Id = p.ClienteId
+        WHERE p.Eliminada = 0 AND p.Estado = 0
+          AND RIGHT(dbo.fn_SoloDigitos(ISNULL(c.Telefono, '')), 8) = @suf
+        ORDER BY p.FechaEmision DESC);
+
+    IF @pid IS NULL BEGIN SELECT CAST(0 AS BIT) AS Encontrado; RETURN; END
+
+    -- Cabecera (datos seguros: NUNCA PrimaOG ni fechas de vigencia)
+    SELECT CAST(1 AS BIT) AS Encontrado,
+           p.Numero AS NumeroPoliza,
+           cp.Nombre AS Compania,
+           ISNULL(p.Cobertura, v.TipoCobertura) AS Cobertura,
+           v.Patente,
+           LTRIM(RTRIM(ISNULL(v.Marca, '') + ' ' + ISNULL(v.Modelo, ''))) AS Vehiculo,
+           p.PrecioTotal,
+           ROUND(p.PrecioTotal / NULLIF(p.CantidadCuotas, 0), 2) AS PrecioCuota,
+           (SELECT MIN(co.FechaVencimiento) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado <> 1) AS ProximoVencimiento,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado <> 1
+              AND co.FechaVencimiento <= CAST(GETUTCDATE() AS DATE)) AS CuotasAdeudadas,
+           CASE
+             WHEN EXISTS (SELECT 1 FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado <> 1
+                          AND co.FechaVencimiento < CAST(GETUTCDATE() AS DATE)) THEN 'vencida'
+             WHEN EXISTS (SELECT 1 FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado <> 1
+                          AND co.FechaVencimiento <= DATEADD(DAY, 10, CAST(GETUTCDATE() AS DATE))) THEN 'por_vencer'
+             ELSE 'vigente'
+           END AS Estado
+    FROM Polizas p
+    INNER JOIN Companias cp ON cp.Id = p.CompaniaId
+    LEFT  JOIN Vehiculos v  ON v.Id  = p.VehiculoId
+    WHERE p.Id = @pid;
+
+    -- Cuotas para ponerse al día (impagas con vencimiento hasta hoy)
+    SELECT co.NumeroCuota, co.FechaVencimiento AS Vencimiento, co.Monto AS Importe
+    FROM Cobros co
+    WHERE co.PolizaId = @pid AND co.Estado <> 1 AND co.FechaVencimiento <= CAST(GETUTCDATE() AS DATE)
+    ORDER BY co.NumeroCuota;
+END
+GO
+
+-- Deja un pago PENDIENTE (no marca la cuota). Devuelve Ok + Mensaje.
+CREATE OR ALTER PROCEDURE sp_Bot_PagoPendiente_Insertar
+    @Telefono VARCHAR(30), @NumeroCuota INT, @Medio NVARCHAR(30) = NULL, @Instancia NVARCHAR(60) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @suf VARCHAR(10) = RIGHT(dbo.fn_SoloDigitos(@Telefono), 8);
+    DECLARE @pid INT = (
+        SELECT TOP 1 p.Id FROM Polizas p INNER JOIN Clientes c ON c.Id = p.ClienteId
+        WHERE p.Eliminada = 0 AND p.Estado = 0
+          AND RIGHT(dbo.fn_SoloDigitos(ISNULL(c.Telefono, '')), 8) = @suf
+        ORDER BY p.FechaEmision DESC);
+    IF @pid IS NULL BEGIN SELECT CAST(0 AS BIT) AS Ok, 'No se encontró una póliza activa para ese número.' AS Mensaje; RETURN; END
+
+    DECLARE @cid INT, @monto DECIMAL(18,2);
+    SELECT TOP 1 @cid = Id, @monto = Monto FROM Cobros
+    WHERE PolizaId = @pid AND NumeroCuota = @NumeroCuota AND Estado <> 1;
+    IF @cid IS NULL BEGIN SELECT CAST(0 AS BIT) AS Ok, 'Esa cuota no existe o ya está paga.' AS Mensaje; RETURN; END
+
+    -- Evita duplicar un pendiente para la misma cuota.
+    IF EXISTS (SELECT 1 FROM BotPagosPendientes WHERE CobroId = @cid AND Estado = 'pendiente')
+    BEGIN SELECT CAST(1 AS BIT) AS Ok, 'Ya había un pago pendiente para esa cuota; un operador lo va a confirmar.' AS Mensaje; RETURN; END
+
+    INSERT INTO BotPagosPendientes (PolizaId, CobroId, NumeroCuota, Telefono, Instancia, Medio, Monto)
+    VALUES (@pid, @cid, @NumeroCuota, @Telefono, @Instancia, @Medio, @monto);
+    SELECT CAST(1 AS BIT) AS Ok, 'Pago informado. Un operador confirmará la recepción del dinero.' AS Mensaje;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Bot_Escalacion_Insertar
+    @Telefono VARCHAR(30), @Instancia NVARCHAR(60) = NULL, @Nombre NVARCHAR(150) = NULL, @Motivo NVARCHAR(300) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO BotEscalaciones (Telefono, Instancia, Nombre, Motivo)
+    VALUES (@Telefono, @Instancia, @Nombre, @Motivo);
+    SELECT SCOPE_IDENTITY() AS Id;
+END
+GO
+
+/* =============================================================================
+   §58 — Coberturas / Ramos / Métodos de pago usan soft-delete (Activo=0) pero el
+   Nombre es UNIQUE. Al recargar un nombre que se había eliminado, el INSERT
+   violaba el UNIQUE (error interno). Ahora, si ya existe una fila con ese nombre
+   (aunque esté inactiva), se REACTIVA en vez de insertar un duplicado.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Cobertura_Insertar @Nombre NVARCHAR(80) AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Coberturas WHERE Nombre = @Nombre)
+    BEGIN
+        UPDATE Coberturas SET Activo = 1 WHERE Nombre = @Nombre;
+        SELECT Id AS NuevoId FROM Coberturas WHERE Nombre = @Nombre;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Coberturas (Nombre) VALUES (@Nombre);
+        SELECT SCOPE_IDENTITY() AS NuevoId;
+    END
+END
+GO
+CREATE OR ALTER PROCEDURE sp_Ramo_Insertar @Nombre NVARCHAR(60) AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Ramos WHERE Nombre = @Nombre)
+    BEGIN
+        UPDATE Ramos SET Activo = 1 WHERE Nombre = @Nombre;
+        SELECT Id AS NuevoId FROM Ramos WHERE Nombre = @Nombre;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Ramos (Nombre) VALUES (@Nombre);
+        SELECT SCOPE_IDENTITY() AS NuevoId;
+    END
+END
+GO
+CREATE OR ALTER PROCEDURE sp_MetodoPago_Insertar @Nombre NVARCHAR(60) AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM MetodosPago WHERE Nombre = @Nombre)
+    BEGIN
+        UPDATE MetodosPago SET Activo = 1 WHERE Nombre = @Nombre;
+        SELECT Id AS NuevoId FROM MetodosPago WHERE Nombre = @Nombre;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO MetodosPago (Nombre) VALUES (@Nombre);
+        SELECT SCOPE_IDENTITY() AS NuevoId;
+    END
+END
+GO
+
+/* =============================================================================
+   §59 — Búsqueda global: en las pólizas, por cada NÚMERO se muestra la ACTIVA si
+   existe; si ese número no tiene activa pero sí una cancelada/baja/renovada, se
+   muestra esa. Nunca dos resultados con el mismo número.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Busqueda_Global @Termino NVARCHAR(100) AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT 'Cliente' AS Tipo, c.Id, c.Nombre AS Titulo, c.Documento AS Subtitulo, c.Id AS Referencia
+    FROM Clientes c
+    WHERE c.Nombre LIKE '%' + @Termino + '%' OR c.Documento LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Vehiculo' AS Tipo, v.Id, (v.Marca + ' ' + v.Modelo) AS Titulo, v.Patente AS Subtitulo, v.ClienteId AS Referencia
+    FROM Vehiculos v
+    WHERE v.Patente LIKE '%' + @Termino + '%'
+    UNION ALL
+    SELECT 'Poliza' AS Tipo, pol.Id, pol.Numero AS Titulo, pol.Subtitulo, pol.Id AS Referencia
+    FROM (
+        SELECT p.Id, p.Numero,
+               c.Nombre + ISNULL(N' · ' + v.Patente, N'') AS Subtitulo,
+               ROW_NUMBER() OVER (PARTITION BY p.Numero
+                 ORDER BY CASE WHEN p.Estado = 0 THEN 0 ELSE 1 END, p.FechaEmision DESC) AS rn
+        FROM Polizas p
+        INNER JOIN Clientes  c ON c.Id = p.ClienteId
+        LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+        WHERE p.Eliminada = 0
+          AND (p.Numero LIKE '%' + @Termino + '%' OR v.Patente LIKE '%' + @Termino + '%')
+    ) pol
+    WHERE pol.rn = 1;
+END
+GO
+
+/* =============================================================================
+   §60 — Avisos de exportación: cuando un usuario exporta una póliza (datos del
+   cliente + póliza + vehículo) desde /polizas, se registra un aviso que los
+   administradores ven en la campanita.
+   ============================================================================= */
+IF OBJECT_ID('dbo.AvisosExportacion', 'U') IS NULL
+BEGIN
+    CREATE TABLE AvisosExportacion (
+        Id            INT PRIMARY KEY IDENTITY,
+        UsuarioId     INT           NULL,
+        UsuarioNombre NVARCHAR(150) NULL,
+        PolizaId      INT           NULL,
+        PolizaNumero  VARCHAR(20)   NULL,
+        ClienteNombre NVARCHAR(150) NULL,
+        Fecha         DATETIME      NOT NULL DEFAULT GETUTCDATE()
+    );
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_AvisoExportacion_Insertar
+    @UsuarioId INT = NULL, @UsuarioNombre NVARCHAR(150) = NULL,
+    @PolizaId INT = NULL, @PolizaNumero VARCHAR(20) = NULL, @ClienteNombre NVARCHAR(150) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @UsuarioNombre IS NULL AND @UsuarioId IS NOT NULL
+        SET @UsuarioNombre = (SELECT Nombre FROM Usuarios WHERE Id = @UsuarioId);
+    INSERT INTO AvisosExportacion (UsuarioId, UsuarioNombre, PolizaId, PolizaNumero, ClienteNombre)
+    VALUES (@UsuarioId, @UsuarioNombre, @PolizaId, @PolizaNumero, @ClienteNombre);
+    SELECT SCOPE_IDENTITY() AS Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_AvisoExportacion_Listar @Top INT = 20 AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@Top) Id, UsuarioId, UsuarioNombre, PolizaId, PolizaNumero, ClienteNombre, Fecha
+    FROM AvisosExportacion
+    ORDER BY Fecha DESC;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

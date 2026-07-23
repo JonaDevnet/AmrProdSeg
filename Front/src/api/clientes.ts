@@ -34,6 +34,12 @@ export async function getCliente(id: number): Promise<Cliente> {
   return data;
 }
 
+/** Ficha completa del cliente en PDF (datos + vehículos + todas las pólizas). */
+export async function descargarDossierCliente(id: number): Promise<Blob> {
+  const resp = await api.get(`/clientes/${id}/dossier-pdf`, { responseType: "blob" });
+  return resp.data as Blob;
+}
+
 export async function crearCliente(dto: CrearClienteDto): Promise<{ id: number }> {
   const { data } = await api.post<{ id: number }>("/clientes", dto);
   return data;

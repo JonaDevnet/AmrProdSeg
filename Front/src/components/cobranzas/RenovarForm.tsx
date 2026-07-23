@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Field, Input, Select } from "../ui/Field";
 import Button from "../ui/Button";
 import { useCoberturas } from "../../hooks/admin";
+import { formatFecha } from "../../utils/format";
 import type { Poliza, Compania } from "../../types";
 import type { RenovarPolizaDto } from "../../api/polizas";
 
@@ -12,7 +13,7 @@ const schema = z
     numero: z.string().min(1, "Requerido").max(20),
     companiaId: z.coerce.number().int().positive(),
     cobertura: z.string().min(1, "Elegí una cobertura"),
-    inicioPoliza: z.string().min(1, "Requerido"),
+    inicioPoliza: z.string().optional(), // solo aplica cuando el período terminó (renovación real)
     precioCuota: z.coerce.number().positive("Debe ser mayor a 0"),
     cantidadCuotas: z.coerce.number().int().min(1).max(3),
     primaOG: z.coerce.number().min(0).optional(),
@@ -21,7 +22,6 @@ const schema = z
 type Values = z.infer<typeof schema>;
 
 function isoHoy() {
-  // Fecha local (no UTC) para no adelantar el día de tarde/noche en Argentina (UTC-3).
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -31,29 +31,42 @@ function addMesesISO(iso: string, meses: number) {
   base.setUTCMonth(base.getUTCMonth() + meses);
   return base.toISOString().slice(0, 10);
 }
+function mesesEntre(desde: string, hasta: string): number {
+  const a = new Date(desde + "T00:00:00Z"), b = new Date(hasta + "T00:00:00Z");
+  let m = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
+  if (b.getUTCDate() < a.getUTCDate()) m -= 1;
+  return m;
+}
 
 interface Props {
   poliza: Poliza;
   companias: Compania[];
-  /** Vencimiento de la 1ª cuota de la póliza original (para proponer la 1ª de la renovación = +1 mes). */
-  primeraCuotaOriginal?: string;
+  /** Vencimiento de la ÚLTIMA cuota de la póliza original (para continuar el patrón = +1 mes). */
+  ultimaCuotaOriginal?: string;
   onSubmit: (dto: RenovarPolizaDto) => Promise<void> | void;
   enviando: boolean;
 }
 
-export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, onSubmit, enviando }: Props) {
+export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, onSubmit, enviando }: Props) {
   const { data: coberturas = [] } = useCoberturas();
 
-  // Precio de cada cuota por defecto = precio total actual / cantidad de cuotas actual.
   const cuotaActual = Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100;
   const cuotasDefault = [1, 2, 3].includes(poliza.cantidadCuotas) ? poliza.cantidadCuotas : 1;
-  // Inicio de la renovación por defecto = la 1ª cuota de la original (así la 1ª cuota
-  // de la renovación = inicio + 1 mes = 1ª de la original + 1 mes).
-  const inicioDefault = primeraCuotaOriginal ?? isoHoy();
+
+  const fechaInicioOriginal = poliza.fechaInicio.slice(0, 10);
+  const fechaFinOriginal = poliza.fechaFin.slice(0, 10);
+  // Si la vigencia (período de póliza) ya terminó → RENOVACIÓN: fecha nueva editable.
+  // Si sigue vigente → REFACTURACIÓN: solo se renuevan las cuotas, continúan desde la última
+  // (+1 mes) y se hereda la vigencia (misma fecha fin).
+  const periodoTerminado = isoHoy() >= fechaFinOriginal;
+  const periodoMeses = Math.max(1, mesesEntre(fechaInicioOriginal, fechaFinOriginal));
+  // 1ª cuota de la refacturación = última cuota original + 1 mes (continúa el mismo día).
+  const primerVencContinuado = addMesesISO(ultimaCuotaOriginal ?? isoHoy(), 1);
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -61,40 +74,61 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
       numero: poliza.numero,
       companiaId: poliza.companiaId,
       cobertura: poliza.cobertura ?? "",
-      inicioPoliza: inicioDefault,
+      inicioPoliza: isoHoy(),
       precioCuota: cuotaActual,
       cantidadCuotas: cuotasDefault,
       primaOG: poliza.primaOG ?? undefined,
     },
   });
 
-  // La cobertura actual puede no estar en el catálogo: la agregamos como opción para no perderla.
   const nombresCob = coberturas.map((c) => c.nombre);
   const opcionesCob = poliza.cobertura && !nombresCob.includes(poliza.cobertura)
     ? [poliza.cobertura, ...nombresCob]
     : nombresCob;
 
+  const cantidad = Math.max(1, Math.min(3, Number(watch("cantidadCuotas")) || cuotasDefault));
+  // Vista previa de las fechas de cuotas del resultado.
+  const primerVencPreview = periodoTerminado ? addMesesISO(watch("inicioPoliza") || isoHoy(), 1) : primerVencContinuado;
+  const cuotasPreview = Array.from({ length: cantidad }, (_, i) => addMesesISO(primerVencPreview, i));
+
   function enviar(v: Values) {
-    // La 1ª cuota vence 1 mes después del inicio; las siguientes +1 mes cada una.
-    const primerVenc = addMesesISO(v.inicioPoliza, 1);
+    let fechaInicio: string, fechaFin: string, primerVenc: string;
+    if (periodoTerminado) {
+      // Renovación: nueva vigencia desde la fecha elegida (mismo largo de período que la original).
+      fechaInicio = v.inicioPoliza || isoHoy();
+      fechaFin = addMesesISO(fechaInicio, periodoMeses);
+      primerVenc = addMesesISO(fechaInicio, 1);
+    } else {
+      // Refacturación: hereda la vigencia; las cuotas continúan desde la última + 1 mes.
+      fechaInicio = fechaInicioOriginal;
+      fechaFin = fechaFinOriginal;
+      primerVenc = primerVencContinuado;
+    }
     return onSubmit({
       numero: v.numero.trim(),
       companiaId: v.companiaId,
       cobertura: v.cobertura,
-      fechaInicio: v.inicioPoliza,
+      fechaInicio,
+      fechaFin,
       primerVencimiento: primerVenc,
-      fechaFin: addMesesISO(primerVenc, Math.max(0, v.cantidadCuotas - 1)),
       precioTotal: Math.round(v.precioCuota * v.cantidadCuotas * 100) / 100,
       cantidadCuotas: v.cantidadCuotas,
       primaOG: v.primaOG,
     });
   }
 
+  const accion = periodoTerminado ? "Renovar" : "Refacturar";
+
   return (
     <form onSubmit={handleSubmit(enviar)}>
       <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--ink-500)" }}>
-        Se creará una nueva póliza y la actual quedará marcada como <strong>Renovada</strong>.
-        La 1ª cuota vence <strong>1 mes después del inicio</strong> y las siguientes +1 mes cada una.
+        {periodoTerminado ? (
+          <>El período de póliza <strong>terminó</strong>: se renueva con una <strong>vigencia nueva</strong> desde la fecha que elijas.</>
+        ) : (
+          <>La póliza sigue <strong>vigente</strong>: es una <strong>refacturación</strong> (solo se renuevan las cuotas).
+          Se mantiene la vigencia (<span className="mono">{formatFecha(fechaInicioOriginal)} – {formatFecha(fechaFinOriginal)}</span>)
+          y las cuotas continúan desde la última.</>
+        )}
       </p>
 
       <Field label="Número de póliza" error={errors.numero?.message}>
@@ -119,9 +153,15 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Inicio de póliza" error={errors.inicioPoliza?.message}>
-          <Input type="date" {...register("inicioPoliza")} />
-        </Field>
+        {periodoTerminado ? (
+          <Field label="Inicio de la nueva vigencia" error={errors.inicioPoliza?.message}>
+            <Input type="date" {...register("inicioPoliza")} />
+          </Field>
+        ) : (
+          <Field label="1ª cuota (continúa el patrón)">
+            <Input type="date" value={primerVencContinuado} readOnly disabled />
+          </Field>
+        )}
         <Field label="Precio por cuota" error={errors.precioCuota?.message}>
           <Input type="number" step="0.01" {...register("precioCuota")} />
         </Field>
@@ -134,13 +174,17 @@ export default function RenovarForm({ poliza, companias, primeraCuotaOriginal, o
         </Field>
       </div>
 
+      <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "2px 0 6px" }}>
+        Cuotas: <strong className="mono">{cuotasPreview.map((c) => formatFecha(c)).join(" · ")}</strong>
+      </div>
+
       <Field label="Prima OG (por cuota, interna)" error={errors.primaOG?.message}>
         <Input type="number" step="0.01" placeholder="Prima real de la compañía" {...register("primaOG")} />
       </Field>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
         <Button type="submit" disabled={enviando}>
-          {enviando ? "Renovando…" : "Renovar póliza"}
+          {enviando ? `${accion}ando…` : `${accion} póliza`}
         </Button>
       </div>
     </form>

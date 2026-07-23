@@ -1,3 +1,4 @@
+using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Domain;
 using AmrProdSeg.API.Domain.Enums;
 using Microsoft.Data.SqlClient;
@@ -237,4 +238,10 @@ public interface IReporteRepository
 
     Task<(List<Dictionary<string, object?>> Detalle, Dictionary<string, object?>? Totales)> EjecutarDetalleTotalesAsync(
         string storedProcedure, params (string Nombre, object? Valor)[] parametros);
+}
+
+public interface IAvisoRepository
+{
+    Task InsertarExportacionAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? clienteNombre);
+    Task<List<AvisoExportacionDto>> ListarExportacionesAsync(int top);
 }

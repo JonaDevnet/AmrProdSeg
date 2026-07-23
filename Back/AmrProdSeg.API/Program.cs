@@ -66,6 +66,7 @@ builder.Services.AddScoped<IAnulacionRepository,  AnulacionRepository>();
 builder.Services.AddScoped<IEliminacionRepository, EliminacionRepository>();
 builder.Services.AddScoped<IMovimientoRepository, MovimientoRepository>();
 builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
+builder.Services.AddScoped<IAvisoRepository,      AvisoRepository>();
 
 // Notificaciones (recordatorios de vencimiento)
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
@@ -100,6 +101,7 @@ builder.Services.AddScoped<IAnulacionService, AnulacionService>();
 builder.Services.AddScoped<IEliminacionService, EliminacionService>();
 builder.Services.AddScoped<IMovimientoService, MovimientoService>();
 builder.Services.AddScoped<IConfiguracionService, ConfiguracionService>();
+builder.Services.AddScoped<IExportacionService, ExportacionService>();
 
 // PDF / Excel
 builder.Services.AddSingleton<IPdfService, PdfService>();

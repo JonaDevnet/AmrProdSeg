@@ -1,5 +1,26 @@
 namespace AmrProdSeg.API.Application.DTOs;
 
+// ---------- Dossier del cliente (PDF: datos + vehículos + todas las pólizas) ----------
+public record DossierVehiculo(string Patente, string Marca, string Modelo, int Anio, string? Chasis, string? Motor, string? Combustion);
+public record DossierPoliza(string Numero, string Estado, string Compania, string? Ramo, string? Cobertura, string? Patente,
+    DateTime FechaInicio, DateTime FechaFin, decimal PrecioTotal, int CantidadCuotas, string? FormaPago);
+public record ClienteDossierData(
+    string Nombre, string Documento, string? TipoDocumento, string? Email, string? Telefono,
+    string? Direccion, DateTime? FechaNacimiento, DateTime FechaAlta,
+    List<DossierVehiculo> Vehiculos, List<DossierPoliza> Polizas);
+
+// ---------- Aviso de exportación (para la campanita de los admins) ----------
+public class AvisoExportacionDto
+{
+    public int Id { get; set; }
+    public int? UsuarioId { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public int? PolizaId { get; set; }
+    public string? PolizaNumero { get; set; }
+    public string? ClienteNombre { get; set; }
+    public DateTime Fecha { get; set; }
+}
+
 // ---------- Resultado paginado genérico ----------
 public class PagedResult<T>
 {

@@ -27,7 +27,8 @@ import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import { EstadoPolizaBadge, Plate } from "../components/ui/Badge";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
-import { IconArrowLeft, IconEdit, IconCar, IconFile } from "../components/Icons";
+import { descargarDossierCliente } from "../api/clientes";
+import { IconArrowLeft, IconEdit, IconCar, IconFile, IconArrowR, IconDownload } from "../components/Icons";
 import { formatFecha, formatMoneda } from "../utils/format";
 import CopyableValue from "../components/ui/CopyableValue";
 
@@ -51,6 +52,7 @@ export default function ClienteFicha() {
   const [editPoliza, setEditPoliza] = useState<Poliza | null>(null);
   const [editar, setEditar] = useState(false);
   const [editarDoc, setEditarDoc] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [formError, setFormError] = useState<string>();
   const [vehModal, setVehModal] = useState<{ vehiculo?: Vehiculo } | null>(null);
   const [vehError, setVehError] = useState<string>();
@@ -105,8 +107,61 @@ export default function ClienteFicha() {
     }
   }
 
+  async function abrirDossier() {
+    setExportando(true);
+    try {
+      const blob = await descargarDossierCliente(clienteId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank"); // abre el PDF en el visor; desde ahí se puede descargar
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch { /* noop */ } finally { setExportando(false); }
+  }
+
   if (isLoading) return <Cargando />;
   if (isError || !cliente) return <ErrorState mensaje="No se encontró el cliente." />;
+
+  const polizasActivas = polizas.data?.items.filter((p) => p.estado === "Activa") ?? [];
+  const polizasHistorial = polizas.data?.items.filter((p) => p.estado !== "Activa") ?? [];
+
+  const renderPolizaCard = (p: (typeof polizasActivas)[number]) => {
+    const veh = vehiculos.data?.find((v) => v.id === p.vehiculoId);
+    const cia = companias.data?.find((c) => c.id === p.companiaId);
+    return (
+      <div key={p.id} style={miniCard}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span className="mono" style={{ fontWeight: 600 }}>{p.numero}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <EstadoPolizaBadge estado={p.estado} />
+            <button onClick={() => setEditPoliza(p)} title="Editar póliza" style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--ink-400)", padding: 0 }}>
+              <IconEdit size={19} />
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-500)" }}>
+          <IconCar size={13} />
+          {veh ? (
+            <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
+          ) : <span>Sin vehículo asociado</span>}
+        </div>
+        <VencimientoEstado polizaId={p.id} />
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
+          <MiniDato k="Compañía" v={cia?.nombre} />
+          <MiniDato k="Ramo" v={p.ramoNombre} />
+          <MiniDato k="Cobertura" v={p.cobertura ?? veh?.tipoCobertura} />
+          <MiniDato k="Prima OG (por cuota)" v={p.primaOG != null ? formatMoneda(p.primaOG) : null} mono />
+          <MiniDato k="Precio por cuota" v={formatMoneda(p.precioTotal / Math.max(1, p.cantidadCuotas))} mono />
+          <MiniDato k="Período póliza" v={`${nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) ? nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) + " · " : ""}${formatFecha(p.fechaInicio)} – ${formatFecha(p.fechaFin)}`} mono />
+          <MiniDato k="Período cuotas" v={planCuotas(p.cantidadCuotas)} />
+          <MiniDato k="Forma de pago" v={p.formaPago} />
+        </div>
+        {p.estado === "Activa" && (
+          <button onClick={() => navigate(`/polizas/${p.id}?volverCliente=${clienteId}`)} style={pagarBtn}>
+            Pagar cuota <IconArrowR size={15} />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -125,7 +180,10 @@ export default function ClienteFicha() {
               <CopyableValue value={`${cliente.tipoDocumento ? cliente.tipoDocumento + " " : ""}${cliente.documento}`} mono align="start" />
             </div>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Button variant="secondary" onClick={abrirDossier} disabled={exportando}>
+              <IconDownload size={16} /> {exportando ? "Generando…" : "Exportar PDF"}
+            </Button>
             {esAdmin && (
               <Button variant="secondary" onClick={() => { setFormError(undefined); setEditarDoc(true); }}>
                 Corregir documento
@@ -182,53 +240,29 @@ export default function ClienteFicha() {
         )}
       </Seccion>
 
-      {/* Pólizas */}
+      {/* Pólizas activas */}
       <Seccion titulo="Pólizas" icono={<IconFile size={18} />}>
         {polizas.isLoading ? (
           <Cargando />
         ) : polizas.isError ? (
           <ErrorState />
-        ) : !polizas.data || polizas.data.items.length === 0 ? (
-          <VacioState mensaje="Sin pólizas asociadas." />
+        ) : polizasActivas.length === 0 ? (
+          <VacioState mensaje="Sin pólizas activas." />
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
-            {polizas.data.items.map((p) => {
-              const veh = vehiculos.data?.find((v) => v.id === p.vehiculoId);
-              const cia = companias.data?.find((c) => c.id === p.companiaId);
-              return (
-                <div key={p.id} style={miniCard}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                    <span className="mono" style={{ fontWeight: 600 }}>{p.numero}</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <EstadoPolizaBadge estado={p.estado} />
-                      <button onClick={() => setEditPoliza(p)} title="Editar póliza" style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--ink-400)", padding: 0 }}>
-                        <IconEdit size={19} />
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ink-500)" }}>
-                    <IconCar size={13} />
-                    {veh ? (
-                      <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
-                    ) : <span>Sin vehículo asociado</span>}
-                  </div>
-                  <VencimientoEstado polizaId={p.id} />
-                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
-                    <MiniDato k="Compañía" v={cia?.nombre} />
-                    <MiniDato k="Ramo" v={p.ramoNombre} />
-                    <MiniDato k="Cobertura" v={p.cobertura ?? veh?.tipoCobertura} />
-                    <MiniDato k="Prima OG (por cuota)" v={p.primaOG != null ? formatMoneda(p.primaOG) : null} mono />
-                    <MiniDato k="Precio por cuota" v={formatMoneda(p.precioTotal / Math.max(1, p.cantidadCuotas))} mono />
-                    <MiniDato k="Período póliza" v={`${nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) ? nombrePeriodoPoliza(p.fechaInicio, p.fechaFin) + " · " : ""}${formatFecha(p.fechaInicio)} – ${formatFecha(p.fechaFin)}`} mono />
-                    <MiniDato k="Período cuotas" v={planCuotas(p.cantidadCuotas)} />
-                    <MiniDato k="Forma de pago" v={p.formaPago} />
-                  </div>
-                </div>
-              );
-            })}
+            {polizasActivas.map(renderPolizaCard)}
           </div>
         )}
       </Seccion>
+
+      {/* Historial: pólizas vencidas, renovadas o canceladas */}
+      {polizasHistorial.length > 0 && (
+        <Seccion titulo="Historial de pólizas" icono={<IconFile size={18} />}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+            {polizasHistorial.map(renderPolizaCard)}
+          </div>
+        </Seccion>
+      )}
 
       {editar && (
         <Modal titulo="Editar cliente" onClose={() => setEditar(false)}>
@@ -393,6 +427,7 @@ const backBtn: CSSProperties = {
   color: "var(--ink-500)",
   cursor: "pointer",
   fontSize: 13.5,
+  marginTop: 14,
   marginBottom: 16,
   padding: 0,
 };
@@ -407,6 +442,12 @@ const miniCard: CSSProperties = {
   border: "1px solid var(--line-2)",
   borderRadius: 10,
   padding: 14,
+};
+const pagarBtn: CSSProperties = {
+  marginTop: 12, width: "100%", height: 38, border: 0, borderRadius: 9,
+  background: "var(--navy-900)", color: "white", cursor: "pointer",
+  fontSize: 13.5, fontWeight: 600,
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
 };
 
 // Plan de cuotas según la cantidad (Mensual=1, Bimestral=2, Trimestral=3).
