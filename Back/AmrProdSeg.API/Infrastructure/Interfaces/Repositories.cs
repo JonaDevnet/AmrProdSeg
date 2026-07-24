@@ -18,7 +18,7 @@ public interface IPolizaRepository
     Task<Poliza?> GetActivaPorVehiculoAsync(int vehiculoId);
     Task CambiarEstadoAsync(int id, EstadoPoliza estado);
     Task<List<Poliza>> BuscarAsync(string termino, int page, int pageSize);
-    Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
+    Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
     Task ActualizarAsync(Poliza p);
     Task<int> AsignarNumeroAsync(int id, string numero);
 }
@@ -167,6 +167,7 @@ public interface INotificacionRepository
 {
     Task<List<PolizaVencimiento>> GetPolizasPorVencerAsync(int dias);
     Task<List<CuotaVencimiento>> GetCuotasPorVencerAsync(int dias);
+    Task<List<CuotaVencimiento>> GetCuotasVencidasAsync(int dias);
     Task<bool> YaEnviadaAsync(string tipo, int referenciaId, string canal);
     Task RegistrarAsync(string tipo, int referenciaId, string canal, string? destino);
 }

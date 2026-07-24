@@ -23,5 +23,6 @@ public class EvolutionOptions
 public class NotificacionOptions
 {
     public int DiasAnticipacion { get; set; } = 3;
+    public int DiasVencida { get; set; } = 3;              // días DESPUÉS del vencimiento para el aviso de cuota vencida
     public string CronDiario { get; set; } = "0 0 9 * * ?"; // 09:00 todos los días
 }

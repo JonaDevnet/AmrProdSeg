@@ -49,18 +49,33 @@ public class NotificacionVencimientosJob : IJob
             await NotificarAsync("Poliza", p.PolizaId, p.Email, p.Telefono, asunto, mensaje);
         }
 
+        var ar = CultureInfo.GetCultureInfo("es-AR");
+
+        // Cuotas POR VENCER: se avisa 3 días antes para que abonen y mantengan la cobertura.
         var cuotas = await _repo.GetCuotasPorVencerAsync(dias);
         foreach (var c in cuotas)
         {
             var asunto  = $"Tu cuota de la póliza {c.NroPoliza} vence en {dias} días";
             var mensaje = $"Hola {c.ClienteNombre}, te recordamos que la cuota {c.NumeroCuota} " +
-                          $"de tu póliza {c.NroPoliza} por $ {c.Monto.ToString("N2", CultureInfo.GetCultureInfo("es-AR"))} " +
-                          $"vence el {c.FechaVencimiento:dd/MM/yyyy}.";
+                          $"de tu póliza {c.NroPoliza} por $ {c.Monto.ToString("N2", ar)} " +
+                          $"vence el {c.FechaVencimiento:dd/MM/yyyy}. Aboná antes del vencimiento para mantener tu cobertura activa.";
             await NotificarAsync("Cuota", c.CobroId, c.Email, c.Telefono, asunto, mensaje);
         }
 
-        _logger.LogInformation("NotificacionVencimientosJob: {Polizas} pólizas y {Cuotas} cuotas procesadas.",
-            polizas.Count, cuotas.Count);
+        // Cuotas YA VENCIDas e impagas: aviso para que regularicen y no pierdan la cobertura.
+        var vencidas = await _repo.GetCuotasVencidasAsync(_opt.DiasVencida);
+        foreach (var c in vencidas)
+        {
+            var asunto  = $"Tu cuota de la póliza {c.NroPoliza} está vencida";
+            var mensaje = $"Hola {c.ClienteNombre}, la cuota {c.NumeroCuota} de tu póliza {c.NroPoliza} " +
+                          $"por $ {c.Monto.ToString("N2", ar)} venció el {c.FechaVencimiento:dd/MM/yyyy} y figura impaga. " +
+                          $"Regularizá el pago para no perder la cobertura.";
+            await NotificarAsync("CuotaVencida", c.CobroId, c.Email, c.Telefono, asunto, mensaje);
+        }
+
+        _logger.LogInformation(
+            "NotificacionVencimientosJob: {Polizas} pólizas, {Cuotas} cuotas por vencer, {Vencidas} cuotas vencidas procesadas.",
+            polizas.Count, cuotas.Count, vencidas.Count);
     }
 
     private async Task NotificarAsync(

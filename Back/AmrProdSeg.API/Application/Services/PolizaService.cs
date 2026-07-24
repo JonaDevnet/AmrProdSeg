@@ -138,9 +138,9 @@ public class PolizaService : IPolizaService
         return poliza?.ToDto();
     }
 
-    public async Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false)
+    public async Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
     {
-        var (items, total) = await _polizaRepo.ListarAsync(clienteId, estado, page, pageSize, usuarioId, esAdmin);
+        var (items, total) = await _polizaRepo.ListarAsync(clienteId, estado, page, pageSize, usuarioId, esAdmin, termino, campo);
         return new PagedResult<PolizaDto>
         {
             Items    = items.Select(p => p.ToDto()).ToList(),

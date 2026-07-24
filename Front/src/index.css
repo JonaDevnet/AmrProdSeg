@@ -136,3 +136,13 @@ html {
   #root, .login-page { min-height: calc(100vh / 0.84); }
 }
 
+/* ============================================================================
+   Animaciones — cartel de retorno automático tras cobrar (PolizaDetalle)
+   ============================================================================ */
+@keyframes amrShrink { from { width: 100%; } to { width: 0%; } }
+@keyframes amrPop {
+  from { transform: scale(0.92); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.amr-pop { animation: amrPop 0.22s ease-out; }
+

@@ -73,6 +73,15 @@ export default function NotificacionesBell() {
     try { localStorage.setItem(dismissKey, JSON.stringify([...nuevas].slice(-500))); } catch { /* ignore */ }
   }
 
+  // Limpia TODAS las notificaciones descartables de una (vencimientos + exportaciones).
+  // Las solicitudes de anulación/eliminación NO se descartan: son tareas que se resuelven
+  // con Aceptar/Rechazar.
+  function limpiarTodo() {
+    limpiarVencimientos();
+    limpiarExportaciones();
+  }
+  const hayDescartables = items.length + exportacionesNuevas.length > 0;
+
   async function resolver(id: number, aprobar: boolean) {
     if (aprobar) await aprobarAnulacion(id); else await rechazarAnulacion(id);
     qc.invalidateQueries({ queryKey: ["notif", "anulaciones-pend"] });
@@ -104,6 +113,14 @@ export default function NotificacionesBell() {
         <>
           <div onClick={() => setAbierto(false)} style={{ position: "fixed", inset: 0, zIndex: 30 }} />
           <div style={panel}>
+            {/* Cabecera con "Limpiar todo" (descarta vencimientos + exportaciones de una) */}
+            <div style={{ ...head, background: "var(--canvas)" }}>
+              <span>Notificaciones</span>
+              <button onClick={limpiarTodo} disabled={!hayDescartables} title="Descartar todas las notificaciones"
+                style={{ border: 0, background: "transparent", color: hayDescartables ? "var(--blue-600)" : "var(--ink-400)", fontSize: 12.5, fontWeight: 600, cursor: hayDescartables ? "pointer" : "default", padding: "2px 4px" }}>
+                Limpiar todo
+              </button>
+            </div>
             {/* Solicitudes de anulación (Admin) */}
             {esAdmin && (
               <>
@@ -165,12 +182,7 @@ export default function NotificacionesBell() {
               <>
                 <div style={head}>
                   Exportaciones recientes
-                  {exportacionesNuevas.length > 0 && (
-                    <button onClick={limpiarExportaciones} title="Marcar como vistas"
-                      style={{ border: 0, background: "transparent", color: "var(--blue-600)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "2px 4px" }}>
-                      Limpiar
-                    </button>
-                  )}
+                  {exportacionesNuevas.length > 0 && <span style={badge}>{exportacionesNuevas.length}</span>}
                 </div>
                 <div style={{ maxHeight: 220, overflowY: "auto" }}>
                   {exportaciones.length === 0 ? (
@@ -195,10 +207,7 @@ export default function NotificacionesBell() {
             <div style={head}>
               Pólizas por vencer (10 días)
               {items.length > 0 && (
-                <button onClick={limpiarVencimientos} title="Descartar estos avisos"
-                  style={{ border: 0, background: "transparent", color: "var(--blue-600)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "2px 4px" }}>
-                  Limpiar
-                </button>
+                <span style={badge}>{items.length}</span>
               )}
             </div>
             <div style={{ maxHeight: 280, overflowY: "auto" }}>

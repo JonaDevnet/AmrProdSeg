@@ -9,7 +9,7 @@ public interface IPolizaService
     Task<RenovacionResultDto> RenovarAsync(int polizaOrigenId, RenovarPolizaDto dto, int? usuarioId = null);
     Task<PolizaDto?> GetByIdAsync(int id);
     Task<PolizaDto?> GetActivaPorPatenteAsync(string patente);
-    Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
+    Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
     Task ActualizarAsync(int id, ActualizarPolizaDto dto);
     Task AsignarNumeroAsync(int id, string numero);
     Task CancelarAsync(int id);

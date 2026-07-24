@@ -3728,5 +3728,97 @@ END
 GO
 
 /* =============================================================================
+   §61 — Búsqueda optimizada en /polizas: se busca por un CAMPO elegido (número,
+   cliente o patente), en toda la base y con paginación. Número/patente usan LIKE de
+   prefijo (index seek); cliente usa "contiene" (scan inevitable por el comodín inicial).
+   OPTION (RECOMPILE) hace que el optimizador arme el plan para el campo concreto y
+   use el índice correcto en cada caso.
+   ============================================================================= */
+-- El UNIQUE de Numero se quitó en §53 → sin índice. Se agrega uno para buscar por número.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Polizas_Numero' AND object_id=OBJECT_ID('dbo.Polizas'))
+    CREATE INDEX IX_Polizas_Numero ON Polizas(Numero);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Clientes_Nombre' AND object_id=OBJECT_ID('dbo.Clientes'))
+    CREATE INDEX IX_Clientes_Nombre ON Clientes(Nombre);
+GO
+
+CREATE OR ALTER PROCEDURE sp_Poliza_Listar
+    @ClienteId INT = NULL, @Estado INT = NULL, @Offset INT, @PageSize INT,
+    @UsuarioId INT = NULL, @EsAdmin BIT = 0,
+    @Termino NVARCHAR(100) = NULL, @Campo VARCHAR(20) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
+    DECLARE @t NVARCHAR(100) = NULLIF(LTRIM(RTRIM(@Termino)), '');
+
+    -- Predicado de búsqueda armado según el CAMPO elegido (solo fragmentos fijos: sin inyección).
+    -- El texto va como parámetro @t. Prefijo en número/patente → index seek; cliente → "contiene".
+    DECLARE @filtro NVARCHAR(400) = N'';
+    IF @t IS NOT NULL
+    BEGIN
+        IF      @Campo = 'numero'  SET @filtro = N' AND p.Numero  LIKE @t + ''%''';
+        ELSE IF @Campo = 'patente' SET @filtro = N' AND v.Patente LIKE @t + ''%''';
+        ELSE IF @Campo = 'cliente' SET @filtro = N' AND c.Nombre  LIKE ''%'' + @t + ''%''';
+        ELSE                       SET @filtro = N' AND (p.Numero LIKE @t + ''%'' OR v.Patente LIKE @t + ''%'' OR c.Nombre LIKE ''%'' + @t + ''%'')';
+    END
+
+    DECLARE @sql NVARCHAR(MAX) = N'
+    SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
+           p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
+           p.RamoId, r.Nombre AS RamoNombre, c.Nombre AS ClienteNombre,
+           v.Patente, v.Marca AS VehiculoMarca, v.Modelo AS VehiculoModelo,
+           p.FormaPago, p.PrimaOG, p.Cobertura,
+           uv.Nombre AS VendedorNombre, uc.Nombre AS ClienteVendedorNombre,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id)                  AS CuotasTotal,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=1)  AS CuotasPagadas,
+           (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado=2)  AS CuotasVencidas,
+           COUNT(*) OVER() AS Total
+    FROM Polizas p
+    INNER JOIN Clientes  c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    LEFT  JOIN Ramos     r ON r.Id = p.RamoId
+    LEFT  JOIN Usuarios uv ON uv.Id = p.VendedorId
+    LEFT  JOIN Usuarios uc ON uc.Id = c.VendedorId
+    WHERE p.Eliminada = 0
+      AND (@ClienteId IS NULL OR p.ClienteId = @ClienteId)
+      AND (@Estado    IS NULL OR p.Estado    = @Estado)
+      AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
+           OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))'
+      + @filtro + N'
+    ORDER BY p.FechaEmision DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;';
+
+    EXEC sp_executesql @sql,
+        N'@ClienteId INT, @Estado INT, @Offset INT, @PageSize INT, @Ofi INT, @EsAdmin BIT, @t NVARCHAR(100)',
+        @ClienteId, @Estado, @Offset, @PageSize, @Ofi, @EsAdmin, @t;
+END
+GO
+
+/* =============================================================================
+   §62 — Recordatorio de cuota VENCIDA (para que el cliente regularice y no pierda
+   cobertura). Devuelve cuotas IMPAGAS de pólizas ACTIVAS que vencieron hace
+   exactamente @Dias días. El offset exacto hace que avise una sola vez y evita
+   un envío masivo de todo lo vencido histórico al activar la función.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Notif_CuotasVencidas
+    @Dias INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        co.Id AS CobroId, co.NumeroCuota, co.Monto, co.FechaVencimiento,
+        p.Numero AS NroPoliza,
+        c.Nombre AS ClienteNombre, c.Email, c.Telefono
+    FROM Cobros co
+    INNER JOIN Polizas  p ON p.Id = co.PolizaId
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    WHERE co.Estado <> 1                                 -- impaga (pendiente o vencida)
+      AND p.Estado = 0 AND p.Eliminada = 0               -- póliza activa
+      AND co.FechaVencimiento = DATEADD(DAY, -@Dias, CAST(GETUTCDATE() AS DATE));
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

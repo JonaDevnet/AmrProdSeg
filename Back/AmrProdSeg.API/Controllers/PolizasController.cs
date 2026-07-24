@@ -28,8 +28,10 @@ public class PolizasController : ControllerBase
         [FromQuery] int? clienteId,
         [FromQuery] int? estado,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
-        => Ok(await _service.ListarAsync(clienteId, estado, page, pageSize, UsuarioActualId(), EsAdmin()));
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? termino = null,
+        [FromQuery] string? campo = null)
+        => Ok(await _service.ListarAsync(clienteId, estado, page, pageSize, UsuarioActualId(), EsAdmin(), termino, campo));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)

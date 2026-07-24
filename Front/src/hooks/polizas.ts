@@ -8,10 +8,13 @@ import * as polizasApi from "../api/polizas";
 import { getCobrosPorPoliza } from "../api/cobros";
 import { getCompanias } from "../api/companias";
 
-export function usePolizas(estado: number | undefined, page: number, pageSize = 20) {
+export function usePolizas(
+  estado: number | undefined, page: number, pageSize = 20,
+  termino?: string, campo?: "numero" | "cliente" | "patente",
+) {
   return useQuery({
-    queryKey: ["polizas", estado ?? "todas", page, pageSize],
-    queryFn: () => polizasApi.listarPolizas({ estado, page, pageSize }),
+    queryKey: ["polizas", estado ?? "todas", page, pageSize, termino ?? "", campo ?? ""],
+    queryFn: () => polizasApi.listarPolizas({ estado, page, pageSize, termino: termino || undefined, campo }),
     placeholderData: keepPreviousData,
   });
 }

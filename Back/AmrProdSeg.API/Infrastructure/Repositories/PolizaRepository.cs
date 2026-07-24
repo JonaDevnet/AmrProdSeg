@@ -158,7 +158,7 @@ public class PolizaRepository : IPolizaRepository
         return lista;
     }
 
-    public async Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false)
+    public async Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
@@ -173,6 +173,8 @@ public class PolizaRepository : IPolizaRepository
         cmd.Parameters.AddWithValue("@PageSize",  pageSize);
         cmd.Parameters.AddWithValue("@UsuarioId", (object?)usuarioId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@EsAdmin",   esAdmin);
+        cmd.Parameters.AddWithValue("@Termino",   (object?)termino ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Campo",     (object?)campo ?? DBNull.Value);
 
         var lista = new List<Poliza>();
         int total = 0;

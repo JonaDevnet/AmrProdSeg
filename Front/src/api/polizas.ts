@@ -18,6 +18,8 @@ export interface ListarPolizasParams {
   estado?: number;
   page?: number;
   pageSize?: number;
+  termino?: string;
+  campo?: "numero" | "cliente" | "patente";
 }
 
 export async function listarPolizas(

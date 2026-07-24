@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza, useEndosarTitular, useEndosos } from "../hooks/polizas";
 import { useCliente, useVehiculosPorCliente } from "../hooks/clientes";
@@ -23,11 +23,21 @@ export default function PolizaDetalle() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // Si se llegó acá desde el botón "Pagar" de la ficha del cliente, tras cobrar y cerrar
-  // el comprobante/ticket se vuelve a esa ficha a los 3 segundos.
+  // el comprobante/ticket se vuelve a esa ficha con un cartel de cuenta regresiva (3s).
   const volverCliente = searchParams.get("volverCliente");
-  const volverAClienteEn3s = () => {
-    if (volverCliente) setTimeout(() => navigate(`/clientes/${volverCliente}`), 3000);
-  };
+  const [volviendo, setVolviendo] = useState(false);
+  const [segundos, setSegundos] = useState(3);
+  const volverAClienteEn3s = () => { if (volverCliente) setVolviendo(true); };
+
+  // Cuenta regresiva del retorno automático a la ficha del cliente.
+  useEffect(() => {
+    if (!volviendo || !volverCliente) return;
+    setSegundos(3);
+    const iv = setInterval(() => setSegundos((s) => Math.max(0, s - 1)), 1000);
+    const to = setTimeout(() => navigate(`/clientes/${volverCliente}`), 3000);
+    return () => { clearInterval(iv); clearTimeout(to); };
+  }, [volviendo, volverCliente, navigate]);
+
   const { esAdmin } = useAuth();
 
   const { data: poliza, isLoading, isError } = usePoliza(polizaId);
@@ -296,6 +306,21 @@ export default function PolizaDetalle() {
       )}
       {comprobante && <ComprobanteModal c={comprobante} onClose={() => { setComprobante(null); volverAClienteEn3s(); }} />}
 
+      {/* Cartel de retorno automático a la ficha del cliente (cuenta regresiva 3s) */}
+      {volviendo && (
+        <div style={volverOverlay}>
+          <div style={volverToast} className="amr-pop">
+            <div style={volverCheck}>✓</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--ink-900)" }}>Pago registrado</div>
+            <div style={{ fontSize: 13.5, color: "var(--ink-500)", marginTop: 4 }}>
+              Volviendo a la ficha del cliente en <strong className="mono">{segundos}</strong> s…
+            </div>
+            <div style={volverBarTrack}><div style={volverBarFill} /></div>
+            <button style={volverBtn} onClick={() => navigate(`/clientes/${volverCliente}`)}>Volver ahora</button>
+          </div>
+        </div>
+      )}
+
       {renovarOpen && companias.data && (
         <Modal titulo="Renovar póliza" onClose={() => setRenovarOpen(false)} ancho={520}>
           {accionError && (
@@ -364,6 +389,29 @@ const backBtn: CSSProperties = {
   marginTop: 14,
   marginBottom: 16,
   padding: 0,
+};
+const volverOverlay: CSSProperties = {
+  position: "fixed", inset: 0, background: "oklch(0.2 0.03 245 / 0.45)", backdropFilter: "blur(2px)",
+  display: "grid", placeItems: "center", zIndex: 60,
+};
+const volverToast: CSSProperties = {
+  background: "var(--paper)", borderRadius: 16, padding: "26px 30px", textAlign: "center",
+  boxShadow: "var(--shadow-lg)", width: "min(340px, 90vw)", border: "1px solid var(--line)",
+};
+const volverCheck: CSSProperties = {
+  width: 52, height: 52, borderRadius: "50%", margin: "0 auto 12px", display: "grid", placeItems: "center",
+  background: "var(--ok-100)", color: "var(--ok-700)", fontSize: 26, fontWeight: 700,
+};
+const volverBarTrack: CSSProperties = {
+  height: 6, borderRadius: 999, background: "var(--line-2)", overflow: "hidden", marginTop: 16,
+};
+const volverBarFill: CSSProperties = {
+  height: "100%", background: "var(--navy-900)", borderRadius: 999,
+  animation: "amrShrink 3s linear forwards",
+};
+const volverBtn: CSSProperties = {
+  marginTop: 16, height: 38, width: "100%", border: "1px solid var(--line)", borderRadius: 9,
+  background: "var(--paper)", color: "var(--ink-700)", cursor: "pointer", fontSize: 13.5, fontWeight: 600,
 };
 const card: CSSProperties = {
   background: "var(--paper)",

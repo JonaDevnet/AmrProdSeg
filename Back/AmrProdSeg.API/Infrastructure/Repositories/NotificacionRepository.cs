@@ -40,11 +40,17 @@ public class NotificacionRepository : INotificacionRepository
         return lista;
     }
 
-    public async Task<List<CuotaVencimiento>> GetCuotasPorVencerAsync(int dias)
+    public Task<List<CuotaVencimiento>> GetCuotasPorVencerAsync(int dias)
+        => LeerCuotasAsync("sp_Notif_CuotasPorVencer", dias);
+
+    public Task<List<CuotaVencimiento>> GetCuotasVencidasAsync(int dias)
+        => LeerCuotasAsync("sp_Notif_CuotasVencidas", dias);
+
+    private async Task<List<CuotaVencimiento>> LeerCuotasAsync(string sp, int dias)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
-        using var cmd = new SqlCommand("sp_Notif_CuotasPorVencer", conn)
+        using var cmd = new SqlCommand(sp, conn)
         {
             CommandType = CommandType.StoredProcedure
         };
