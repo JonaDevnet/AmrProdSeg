@@ -16,22 +16,50 @@ public class ConfiguracionController : ControllerBase
 {
     private readonly IConfiguracionService _service;
     private readonly IWhatsAppSender _whatsapp;
-    public ConfiguracionController(IConfiguracionService service, IWhatsAppSender whatsapp)
+    private readonly IEmailSender _email;
+    public ConfiguracionController(IConfiguracionService service, IWhatsAppSender whatsapp, IEmailSender email)
     {
         _service  = service;
         _whatsapp = whatsapp;
+        _email    = email;
     }
 
-    /// <summary>Config SMTP propia del usuario (sin exponer la contraseña).</summary>
-    [HttpGet("smtp")]
-    public async Task<IActionResult> GetSmtp() => Ok(await _service.GetSmtpAsync(UsuarioActualId()));
+    /// <summary>Config de correo (Resend) propia del usuario, sin exponer la ApiKey.</summary>
+    [HttpGet("resend")]
+    public async Task<IActionResult> GetResend() => Ok(await _service.GetResendAsync(UsuarioActualId()));
 
-    /// <summary>Actualiza la config SMTP del usuario, incluido su correo emisor.</summary>
-    [HttpPut("smtp")]
-    public async Task<IActionResult> ActualizarSmtp([FromBody] ActualizarSmtpDto dto)
+    /// <summary>Actualiza la config de correo (Resend) del usuario, incluido su remitente.</summary>
+    [HttpPut("resend")]
+    public async Task<IActionResult> ActualizarResend([FromBody] ActualizarResendDto dto)
     {
-        await _service.ActualizarSmtpAsync(UsuarioActualId(), dto);
+        await _service.ActualizarResendAsync(UsuarioActualId(), dto);
         return NoContent();
+    }
+
+    /// <summary>Envía un correo de prueba al destino indicado, usando la config guardada del usuario.</summary>
+    [HttpPost("resend/test")]
+    public async Task<IActionResult> ProbarResend([FromBody] ProbarEmailDto dto)
+    {
+        var uid = UsuarioActualId();
+        if (string.IsNullOrWhiteSpace(dto.Destino))
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "Ingresá un correo de destino." });
+
+        if (!await _email.HabilitadoParaAsync(uid))
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "El envío de correo está desactivado o falta la ApiKey/remitente. Completá y guardá la configuración antes de probar." });
+
+        try
+        {
+            await _email.EnviarAsync(
+                dto.Destino,
+                "Prueba de correo — AMR Producción de Seguros",
+                "<p>✅ Este es un correo de prueba de <b>AMR Producción de Seguros</b>. Si lo estás viendo, Resend quedó configurado correctamente.</p>",
+                uid);
+            return Ok(new ProbarWhatsappResultDto { Ok = true, Mensaje = $"Correo de prueba enviado a {dto.Destino}. Revisá la bandeja (y spam)." });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new ProbarWhatsappResultDto { Ok = false, Mensaje = "No se pudo enviar: " + ex.Message });
+        }
     }
 
     /// <summary>Config de WhatsApp (Evolution API) propia del usuario, sin exponer la ApiKey.</summary>

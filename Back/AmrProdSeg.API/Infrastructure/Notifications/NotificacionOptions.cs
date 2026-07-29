@@ -12,6 +12,14 @@ public class SmtpOptions
     public string FromNombre { get; set; } = "AMR Producción Seguros";
 }
 
+public class ResendOptions
+{
+    public bool Habilitado { get; set; }                       // false: el email queda sin enviarse
+    public string ApiKey { get; set; } = string.Empty;         // API key de Resend (secreto, va por env)
+    public string From { get; set; } = string.Empty;           // ej. "no-reply@amrprodseg.com" (dominio VERIFICADO en Resend)
+    public string FromNombre { get; set; } = "AMR Producción de Seguros";
+}
+
 public class EvolutionOptions
 {
     public bool Habilitado { get; set; }            // ← false: la función queda sin correr

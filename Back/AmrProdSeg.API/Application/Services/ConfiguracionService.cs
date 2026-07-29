@@ -14,15 +14,18 @@ public class ConfiguracionService : IConfiguracionService
 {
     private const string Pref = "Smtp:";
     private const string PrefEvo = "Evolution:";
+    private const string PrefResend = "Resend:";
     private readonly IConfiguracionRepository _repo;
     private readonly SmtpOptions _defaults;
     private readonly EvolutionOptions _evoDefaults;
+    private readonly ResendOptions _resendDefaults;
 
-    public ConfiguracionService(IConfiguracionRepository repo, IOptions<SmtpOptions> defaults, IOptions<EvolutionOptions> evoDefaults)
+    public ConfiguracionService(IConfiguracionRepository repo, IOptions<SmtpOptions> defaults, IOptions<EvolutionOptions> evoDefaults, IOptions<ResendOptions> resendDefaults)
     {
         _repo = repo;
         _defaults = defaults.Value;
         _evoDefaults = evoDefaults.Value;
+        _resendDefaults = resendDefaults.Value;
     }
 
     // Diccionario efectivo para una sección: la del usuario si configuró esa sección
@@ -125,5 +128,43 @@ public class ConfiguracionService : IConfiguracionService
         await _repo.SetAsync(usuarioId, PrefEvo + "Instance", dto.Instance ?? "");
         if (!string.IsNullOrWhiteSpace(dto.ApiKey))
             await _repo.SetAsync(usuarioId, PrefEvo + "ApiKey", dto.ApiKey);
+    }
+
+    // ---------------- Resend (correo) ----------------
+    private ResendOptions BuildResend(Dictionary<string, string?> db)
+    {
+        string S(string k, string fb) => db.TryGetValue(PrefResend + k, out var v) && v is not null ? v : fb;
+        bool B(string k, bool fb) => db.TryGetValue(PrefResend + k, out var v) && bool.TryParse(v, out var b) ? b : fb;
+        return new ResendOptions
+        {
+            Habilitado = B("Habilitado", _resendDefaults.Habilitado),
+            ApiKey     = S("ApiKey", _resendDefaults.ApiKey),
+            From       = S("From", _resendDefaults.From),
+            FromNombre = S("FromNombre", _resendDefaults.FromNombre),
+        };
+    }
+
+    public async Task<ResendOptions> GetResendEffectiveAsync(int? usuarioId)
+        => BuildResend(await ResolverAsync(usuarioId, PrefResend));
+
+    public async Task<ResendConfigDto> GetResendAsync(int usuarioId)
+    {
+        var e = BuildResend(await _repo.GetByUsuarioAsync(usuarioId));
+        return new ResendConfigDto
+        {
+            Habilitado = e.Habilitado,
+            From = e.From,
+            FromNombre = e.FromNombre,
+            ApiKeyConfigurada = !string.IsNullOrEmpty(e.ApiKey),
+        };
+    }
+
+    public async Task ActualizarResendAsync(int usuarioId, ActualizarResendDto dto)
+    {
+        await _repo.SetAsync(usuarioId, PrefResend + "Habilitado", dto.Habilitado.ToString());
+        await _repo.SetAsync(usuarioId, PrefResend + "From", dto.From ?? "");
+        await _repo.SetAsync(usuarioId, PrefResend + "FromNombre", dto.FromNombre ?? "");
+        if (!string.IsNullOrWhiteSpace(dto.ApiKey))
+            await _repo.SetAsync(usuarioId, PrefResend + "ApiKey", dto.ApiKey);
     }
 }

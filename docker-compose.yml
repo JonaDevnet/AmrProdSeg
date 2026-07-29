@@ -30,6 +30,11 @@ services:
       AllowedOrigin: ${AllowedOrigin}
       AllowedHosts: ${AllowedHosts}
       PublicBaseUrl: ${PublicBaseUrl}
+      # Email vía Resend
+      Resend__Habilitado: ${Resend__Habilitado}
+      Resend__ApiKey: ${Resend__ApiKey}
+      Resend__From: ${Resend__From}
+      Resend__FromNombre: ${Resend__FromNombre}
     labels:
       - traefik.enable=true
       # /api, /comprobantes y /health van al backend (prioridad alta)

@@ -1,34 +1,37 @@
 import api from "../security/axiosInstance";
 
-export interface SmtpConfig {
+export interface ResendConfig {
   habilitado: boolean;
-  host: string;
-  port: number;
-  usarSsl: boolean;
-  usuario: string;
   from: string;
   fromNombre: string;
-  passwordConfigurada: boolean;
+  apiKeyConfigurada: boolean;
 }
 
-export interface ActualizarSmtpDto {
+export interface ActualizarResendDto {
   habilitado: boolean;
-  host: string;
-  port: number;
-  usarSsl: boolean;
-  usuario: string;
   from: string;
   fromNombre: string;
-  password?: string; // vacío = mantener la actual
+  apiKey?: string; // vacío = mantener la actual
 }
 
-export async function getSmtpConfig(): Promise<SmtpConfig> {
-  const { data } = await api.get<SmtpConfig>("/configuracion/smtp");
+export async function getResendConfig(): Promise<ResendConfig> {
+  const { data } = await api.get<ResendConfig>("/configuracion/resend");
   return data;
 }
 
-export async function actualizarSmtpConfig(dto: ActualizarSmtpDto): Promise<void> {
-  await api.put("/configuracion/smtp", dto);
+export async function actualizarResendConfig(dto: ActualizarResendDto): Promise<void> {
+  await api.put("/configuracion/resend", dto);
+}
+
+export interface ProbarEmailResult {
+  ok: boolean;
+  mensaje: string;
+}
+
+/** Envía un correo de prueba al destino indicado, usando la config guardada. */
+export async function probarResend(destino: string): Promise<ProbarEmailResult> {
+  const { data } = await api.post<ProbarEmailResult>("/configuracion/resend/test", { destino });
+  return data;
 }
 
 export interface WhatsappConfig {

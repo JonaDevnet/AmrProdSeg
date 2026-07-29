@@ -1,32 +1,31 @@
-// Configuración del sistema (sólo Admin). Hoy: parámetros SMTP, incluido el
-// correo emisor. Se persisten en la base y se aplican al enviar.
+// Configuración del sistema (sólo Admin). Correo emisor vía Resend + WhatsApp.
+// Se persisten en la base y se aplican al enviar.
 import { useEffect, useState, type CSSProperties } from "react";
 import {
-  getSmtpConfig, actualizarSmtpConfig,
+  getResendConfig, actualizarResendConfig, probarResend,
   getWhatsappConfig, actualizarWhatsappConfig, probarWhatsapp,
 } from "../api/configuracion";
 import { Icon, IconMail, IconCheck } from "../design/icons";
 
 export default function Configuracion() {
   const [habilitado, setHabilitado] = useState(false);
-  const [host, setHost] = useState("");
-  const [port, setPort] = useState(587);
-  const [usarSsl, setUsarSsl] = useState(true);
-  const [usuario, setUsuario] = useState("");
   const [from, setFrom] = useState("");
   const [fromNombre, setFromNombre] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfigurada, setPasswordConfigurada] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [apiKeyConfigurada, setApiKeyConfigurada] = useState(false);
 
   const [cargando, setCargando] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
+  // Prueba de envío
+  const [emailTest, setEmailTest] = useState("");
+  const [probando, setProbando] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; texto: string } | null>(null);
 
   useEffect(() => {
-    getSmtpConfig().then((c) => {
-      setHabilitado(c.habilitado); setHost(c.host); setPort(c.port); setUsarSsl(c.usarSsl);
-      setUsuario(c.usuario); setFrom(c.from); setFromNombre(c.fromNombre); setPasswordConfigurada(c.passwordConfigurada);
+    getResendConfig().then((c) => {
+      setHabilitado(c.habilitado); setFrom(c.from); setFromNombre(c.fromNombre); setApiKeyConfigurada(c.apiKeyConfigurada);
     }).catch(() => setError("No se pudo cargar la configuración.")).finally(() => setCargando(false));
   }, []);
 
@@ -35,13 +34,25 @@ export default function Configuracion() {
     if (habilitado && !from.trim()) { setError("Ingresá el correo emisor (From)."); return; }
     setBusy(true);
     try {
-      await actualizarSmtpConfig({ habilitado, host: host.trim(), port, usarSsl, usuario: usuario.trim(), from: from.trim(), fromNombre: fromNombre.trim(), password: password || undefined });
+      await actualizarResendConfig({ habilitado, from: from.trim(), fromNombre: fromNombre.trim(), apiKey: apiKey || undefined });
       setOk("Configuración guardada.");
-      if (password) { setPasswordConfigurada(true); setPassword(""); }
+      if (apiKey) { setApiKeyConfigurada(true); setApiKey(""); }
       setTimeout(() => setOk(""), 3500);
     } catch (e: any) {
       setError(e?.response?.data?.error ?? "No se pudo guardar la configuración.");
     } finally { setBusy(false); }
+  }
+
+  async function probar() {
+    setTestMsg(null);
+    if (!emailTest.trim()) { setTestMsg({ ok: false, texto: "Ingresá un correo para la prueba." }); return; }
+    setProbando(true);
+    try {
+      const r = await probarResend(emailTest.trim());
+      setTestMsg({ ok: r.ok, texto: r.mensaje });
+    } catch (e: any) {
+      setTestMsg({ ok: false, texto: e?.response?.data?.error ?? "No se pudo enviar la prueba." });
+    } finally { setProbando(false); }
   }
 
   return (
@@ -56,8 +67,8 @@ export default function Configuracion() {
         <div style={cardHead}>
           <div style={{ ...iconBox }}><IconMail size={18} /></div>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>Correo emisor (SMTP)</div>
-            <div style={{ fontSize: 13, color: "var(--ink-500)" }}>Servidor y dirección desde la que se envían los comprobantes y avisos.</div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>Correo emisor (Resend)</div>
+            <div style={{ fontSize: 13, color: "var(--ink-500)" }}>Dirección desde la que se envían los comprobantes y avisos, vía Resend.</div>
           </div>
         </div>
 
@@ -71,33 +82,46 @@ export default function Configuracion() {
             </label>
 
             <Campo label="Correo emisor (From)" req>
-              <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="no-responder@amrseguros.com.ar" style={input} />
+              <input value={from} onChange={(e) => setFrom(e.target.value)} placeholder="no-reply@amrprodseg.com" style={input} />
             </Campo>
-            <div style={dos}>
-              <Campo label="Nombre del emisor"><input value={fromNombre} onChange={(e) => setFromNombre(e.target.value)} placeholder="AMR Producción de Seguros" style={input} /></Campo>
-              <Campo label="Usuario SMTP"><input value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="usuario@gmail.com" style={input} /></Campo>
-            </div>
-            <div style={dos}>
-              <Campo label="Servidor (host)"><input value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" style={input} /></Campo>
-              <Campo label="Puerto"><input type="number" value={port} onChange={(e) => setPort(Number(e.target.value) || 587)} style={input} /></Campo>
-            </div>
-            <div style={dos}>
-              <Campo label={`Contraseña ${passwordConfigurada ? "(configurada — dejar vacío para mantener)" : ""}`}>
-                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={passwordConfigurada ? "••••••••" : "Contraseña de aplicación"} style={input} />
-              </Campo>
-              <Campo label="Seguridad">
-                <label style={{ ...toggle, marginTop: 6 }}>
-                  <input type="checkbox" checked={usarSsl} onChange={(e) => setUsarSsl(e.target.checked)} /> <span>Usar SSL/TLS</span>
-                </label>
-              </Campo>
-            </div>
+            <Campo label="Nombre del emisor">
+              <input value={fromNombre} onChange={(e) => setFromNombre(e.target.value)} placeholder="AMR Producción de Seguros" style={input} />
+            </Campo>
+            <Campo label={`API Key de Resend ${apiKeyConfigurada ? "(configurada — dejar vacío para mantener)" : ""}`}>
+              <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={apiKeyConfigurada ? "••••••••" : "re_..."} style={input} />
+            </Campo>
 
             {error && <div style={errBox}>{error}</div>}
             {ok && <div style={okBox}><IconCheck size={14} /> {ok}</div>}
 
             <button onClick={guardar} disabled={busy} style={primaryBtn}>{busy ? "Guardando…" : "Guardar configuración"}</button>
+
+            {/* Prueba de envío a un correo manual */}
+            <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Probar envío</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <input
+                  value={emailTest}
+                  onChange={(e) => setEmailTest(e.target.value)}
+                  placeholder="destino@ejemplo.com"
+                  style={{ ...input, flex: 1, minWidth: 180 }}
+                />
+                <button onClick={probar} disabled={probando} style={{ ...primaryBtn, marginTop: 0, whiteSpace: "nowrap" }}>
+                  {probando ? "Enviando…" : "Enviar prueba"}
+                </button>
+              </div>
+              {testMsg && (
+                <div style={testMsg.ok ? okBox : errBox}>
+                  {testMsg.ok ? <IconCheck size={14} /> : null} {testMsg.texto}
+                </div>
+              )}
+              <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 8 }}>
+                Manda un correo de prueba con la configuración <strong>ya guardada</strong>. Guardá antes de probar.
+              </p>
+            </div>
+
             <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: 12 }}>
-              Tip: con Gmail usá una <strong>contraseña de aplicación</strong> y puerto 587 con SSL/TLS.
+              El <strong>From</strong> debe pertenecer a un dominio <strong>verificado</strong> en tu cuenta de Resend (si no, Resend rechaza el envío). La API Key se crea en el panel de Resend.
             </p>
           </div>
         )}

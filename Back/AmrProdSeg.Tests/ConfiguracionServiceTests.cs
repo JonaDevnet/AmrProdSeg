@@ -9,7 +9,8 @@ public class ConfiguracionServiceTests
     private static ConfiguracionService Crear(FakeConfiguracionRepository repo)
         => new(repo,
             Options.Create(new SmtpOptions { Habilitado = false, Host = "smtp.default" }),
-            Options.Create(new EvolutionOptions { Habilitado = false, BaseUrl = "https://default", Instance = "def" }));
+            Options.Create(new EvolutionOptions { Habilitado = false, BaseUrl = "https://default", Instance = "def" }),
+            Options.Create(new ResendOptions { Habilitado = false, From = "default@default", FromNombre = "Def" }));
 
     private static Dictionary<string, string?> EvoCfg(bool hab, string instancia) => new()
     {
@@ -80,5 +81,53 @@ public class ConfiguracionServiceTests
 
         Assert.False(opt.Habilitado);
         Assert.Equal("https://default", opt.BaseUrl); // default de IOptions
+    }
+
+    private static Dictionary<string, string?> ResendCfg(bool hab, string from) => new()
+    {
+        ["Resend:Habilitado"] = hab.ToString(),
+        ["Resend:From"] = from,
+        ["Resend:ApiKey"] = "re_test",
+        ["Resend:FromNombre"] = "AMR",
+    };
+
+    [Fact]
+    public async Task Resend_UsuarioSinConfig_HaceFallbackAlAdmin()
+    {
+        var repo = new FakeConfiguracionRepository { AdminId = 1 };
+        repo.PorUsuario[1] = ResendCfg(true, "admin@amr.com"); // solo el Admin configuró
+        var svc = Crear(repo);
+
+        var opt = await svc.GetResendEffectiveAsync(5); // usuario 5 sin config
+
+        Assert.True(opt.Habilitado);              // heredó del Admin
+        Assert.Equal("admin@amr.com", opt.From);
+        Assert.Equal("re_test", opt.ApiKey);
+    }
+
+    [Fact]
+    public async Task Resend_SinConfigEnNingunLado_UsaLosDefaults()
+    {
+        var repo = new FakeConfiguracionRepository { AdminId = 1 };
+        var svc = Crear(repo);
+
+        var opt = await svc.GetResendEffectiveAsync(1);
+
+        Assert.False(opt.Habilitado);
+        Assert.Equal("default@default", opt.From); // default de IOptions
+    }
+
+    [Fact]
+    public async Task Resend_GetAsync_NoExponeLaApiKey()
+    {
+        var repo = new FakeConfiguracionRepository { AdminId = 1 };
+        repo.PorUsuario[1] = ResendCfg(true, "admin@amr.com");
+        var svc = Crear(repo);
+
+        var dto = await svc.GetResendAsync(1);
+
+        Assert.True(dto.ApiKeyConfigurada);   // indica que hay clave...
+        Assert.Equal("admin@amr.com", dto.From);
+        // ...pero el DTO no tiene ninguna propiedad con el valor de la clave.
     }
 }

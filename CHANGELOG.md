@@ -43,6 +43,12 @@ rebuild de back + front (`bash actualizar.sh`).
 - Marca y modelo del vehículo en la card de Cobranzas (§56).
 
 ### Cambiado
+- **Correo → Resend**: el envío de email pasa de SMTP a **Resend** (API REST). La pantalla
+  *Configuración → Correo emisor (Resend)* reemplaza la de SMTP: habilitado, remitente (From) y
+  nombre + **API Key** (enmascarada, con fallback a Admin, igual patrón que WhatsApp), más un
+  botón **"Probar envío"** que manda un correo de test. El `From` debe ser de un dominio
+  **verificado** en Resend. Vars de deploy `Resend__*` en `.env.example`/compose. `SmtpEmailSender`
+  queda en el código como legado, sin registrar en la DI.
 - **Campanita**: botón **"Limpiar todo"** en la cabecera que descarta vencimientos + exportaciones
   de una (en vez de limpiar apartado por apartado). Las solicitudes de anulación/eliminación no se
   descartan (son tareas de Aceptar/Rechazar).

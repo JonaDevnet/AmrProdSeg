@@ -39,6 +39,11 @@ public interface IConfiguracionService
     Task ActualizarEvolutionAsync(int usuarioId, ActualizarEvolutionDto dto);
     /// <summary>Config Evolution efectiva del usuario (la suya o la del Admin como fallback), incluye la ApiKey — uso del sender. usuarioId null = Admin/global.</summary>
     Task<AmrProdSeg.API.Infrastructure.Notifications.EvolutionOptions> GetEvolutionEffectiveAsync(int? usuarioId);
+
+    Task<ResendConfigDto> GetResendAsync(int usuarioId);
+    Task ActualizarResendAsync(int usuarioId, ActualizarResendDto dto);
+    /// <summary>Config Resend efectiva del usuario (la suya o la del Admin como fallback), incluye la ApiKey — uso del sender. usuarioId null = Admin/global.</summary>
+    Task<AmrProdSeg.API.Infrastructure.Notifications.ResendOptions> GetResendEffectiveAsync(int? usuarioId);
 }
 
 public interface IMovimientoService

@@ -69,10 +69,12 @@ builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
 builder.Services.AddScoped<IAvisoRepository,      AvisoRepository>();
 
 // Notificaciones (recordatorios de vencimiento)
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));   // legado (SmtpEmailSender, sin registrar)
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection("Resend"));
 builder.Services.Configure<EvolutionOptions>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<NotificacionOptions>(builder.Configuration.GetSection("Notificaciones"));
-builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+builder.Services.AddHttpClient("resend");                            // cliente HTTP para la API de Resend
+builder.Services.AddScoped<IEmailSender, ResendEmailSender>();       // email vía Resend (reemplaza SMTP)
 builder.Services.AddHttpClient<IWhatsAppSender, EvolutionApiWhatsAppSender>();
 
 // Bloqueo geográfico (solo Argentina) — usa ipquery.io, cacheado y fail-open.

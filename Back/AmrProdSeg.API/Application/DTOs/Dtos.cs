@@ -243,6 +243,23 @@ public class ActualizarSmtpDto
     public string? Password { get; set; }            // null/empty = mantener la actual
 }
 
+// ---------- Configuración de correo (Resend) ----------
+public class ResendConfigDto
+{
+    public bool Habilitado { get; set; }
+    public string From { get; set; } = string.Empty;
+    public string FromNombre { get; set; } = string.Empty;
+    public bool ApiKeyConfigurada { get; set; }   // no se devuelve la clave, solo si está cargada
+}
+
+public class ActualizarResendDto
+{
+    public bool Habilitado { get; set; }
+    public string From { get; set; } = string.Empty;
+    public string FromNombre { get; set; } = string.Empty;
+    public string? ApiKey { get; set; }            // null/empty = mantener la actual
+}
+
 // ---------- Configuración WhatsApp / Evolution (editable por Admin) ----------
 public class EvolutionConfigDto
 {
@@ -264,6 +281,12 @@ public class ActualizarEvolutionDto
 public class ProbarWhatsappDto
 {
     public string Telefono { get; set; } = string.Empty;
+}
+
+/// <summary>Prueba de envío: manda un correo de test al destino indicado con la config guardada.</summary>
+public class ProbarEmailDto
+{
+    public string Destino { get; set; } = string.Empty;
 }
 
 public class ProbarWhatsappResultDto
