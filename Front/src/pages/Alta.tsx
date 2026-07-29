@@ -10,7 +10,7 @@ import { useRamos, useCoberturas } from "../hooks/admin";
 import { useCrearAlta } from "../hooks/altas";
 import { listarClientes, getCliente } from "../api/clientes";
 import { getVehiculoPorPatente } from "../api/vehiculos";
-import { getPolizaActivaPorPatente } from "../api/polizas";
+import { getPolizaActivaPorPatente, asignarNumeroPoliza } from "../api/polizas";
 import type { AltaAsegurado } from "../types";
 import {
   Icon, IconCar, IconShield, IconCheck, IconChevL, IconChevR, IconChevD, IconCal, IconMail, IconClose,
@@ -92,6 +92,10 @@ export default function Alta() {
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
   const [polNum, setPolNum] = useState("");
+  const [polId, setPolId] = useState(0);
+  const [nuevoNum, setNuevoNum] = useState("");
+  const [guardandoNum, setGuardandoNum] = useState(false);
+  const [numMsg, setNumMsg] = useState<string>();
   const [avisoPatente, setAvisoPatente] = useState("");
   const [patenteInfo, setPatenteInfo] = useState("");
 
@@ -271,12 +275,29 @@ export default function Alta() {
     try {
       const res = await crear.mutateAsync(dto);
       setPolNum(res.numero || "");
+      setPolId(res.polizaId);
+      setNuevoNum(res.numero || "");
       setSaved(true);
-      setTimeout(() => navigate(`/polizas/${res.polizaId}`), 1600);
+      // Sin auto-navegación: el usuario puede cambiar el número (o dejar el de por defecto).
     } catch (e: any) {
       const data = e?.response?.data;
       const detalles = data?.detalles ? Object.values(data.detalles).flat().join(" ") : "";
       setError([data?.error, detalles].filter(Boolean).join(" — ") || "No se pudo completar el alta.");
+    }
+  }
+
+  // Desde la pantalla de éxito: cambia el número por defecto (o navega si no se cambió).
+  async function guardarNumero() {
+    const n = nuevoNum.trim();
+    if (!n || n === polNum) { navigate(`/polizas/${polId}`); return; }
+    setGuardandoNum(true); setNumMsg(undefined);
+    try {
+      await asignarNumeroPoliza(polId, n);
+      navigate(`/polizas/${polId}`);
+    } catch (e: any) {
+      setNumMsg(e?.response?.data?.error ?? "No se pudo asignar el número (¿ya está en uso?).");
+    } finally {
+      setGuardandoNum(false);
     }
   }
 
@@ -582,10 +603,28 @@ export default function Alta() {
           <div style={S.modal}>
             <div style={S.modalIcon}><IconCheck size={28} sw={2.5} /></div>
             <h3 style={{ margin: "0 0 6px", fontSize: 20, letterSpacing: "-0.02em" }}>Póliza guardada y archivada</h3>
-            <p style={{ margin: 0, color: "var(--ink-500)", fontSize: 14 }}>
-              {polNum && <>Se generó la póliza <span className="mono" style={{ color: "var(--ink-900)", fontWeight: 600 }}>{polNum}</span>.<br /></>}
-              La cartera se está actualizando…
+            <p style={{ margin: "0 0 14px", color: "var(--ink-500)", fontSize: 14 }}>
+              Se generó con el número por defecto (en trámite). Podés <strong>cambiarlo ahora</strong> o dejarlo así.
             </p>
+
+            <div style={{ textAlign: "left" }}>
+              <div style={{ ...S.label, marginBottom: 6 }}>Número de póliza</div>
+              <div style={{ display: "flex", alignItems: "center", border: "1.5px solid var(--line)", borderRadius: 10, padding: "0 14px", height: 46 }}>
+                <input className="mono" style={S.input} value={nuevoNum} onChange={(e) => setNuevoNum(e.target.value)} placeholder={polNum} />
+              </div>
+            </div>
+
+            {numMsg && (
+              <div style={{ marginTop: 10, padding: "9px 12px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 9, fontSize: 13, color: "var(--bad-700)", textAlign: "left" }}>
+                {numMsg}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+              <button style={S.greenBtn} onClick={guardarNumero} disabled={guardandoNum}>
+                {guardandoNum ? "Guardando…" : "Confirmar y ver póliza"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -10,6 +10,13 @@ Gran tanda de features, mejoras y correcciones. Requiere aplicar el schema (§48
 rebuild de back + front (`bash actualizar.sh`).
 
 ### Añadido
+- **Alta — cambiar el número al finalizar**: en la pantalla de éxito del alta se puede editar el
+  número de póliza (por defecto el "en trámite") antes de continuar. Un solo botón "Confirmar y ver
+  póliza": si se dejó sin cambiar, sigue con el número por defecto. Se quitó la auto-navegación.
+- **Cobertura de tests ampliada** (backend): de 14 a 56 tests unitarios (xUnit). Nuevos módulos
+  cubiertos: CuotaCalculator (incl. test de rendimiento), AltaService, AuthService,
+  Baja/Anulación/Eliminación, ConfiguracionService (fallback), ExportacionService. Se corrigieron
+  los fakes/tests rotos por los cambios de §61 y del export PDF.
 - **Recordatorio de cuota VENCIDA** (§62): además del aviso "por vencer", ahora se avisa cuando
   una cuota impaga de una póliza activa **ya venció** (N días después, config `DiasVencida`), para
   que el cliente regularice y **no pierda la cobertura**. Idempotente y sin envío masivo histórico.
@@ -29,8 +36,9 @@ rebuild de back + front (`bash actualizar.sh`).
   X-Frame-Options, Referrer-Policy).
 - **Backend del bot de WhatsApp** (§57): endpoints `/api/bot` (consulta por teléfono, pago
   pendiente, escalación) con auth por `X-Bot-Key`. Workflow de n8n + docs.
-- **Script de backup** (`backup.sh`) independiente: BACKUP + verificación + copia al host +
-  rotación + off-site opcional (rclone/rsync).
+- **Scripts de backup/restore** independientes: `backup.sh` (BACKUP + verificación + copia al host +
+  rotación + off-site opcional) y `restore.sh` (restauración en un paso, con confirmación,
+  para/levanta amr-api solo, maneja base inexistente).
 - Prima OG + diferencia opcional en la exportación de "Hechos del día".
 - Marca y modelo del vehículo en la card de Cobranzas (§56).
 
@@ -52,6 +60,10 @@ rebuild de back + front (`bash actualizar.sh`).
 - `Microsoft.OpenApi` fijado a 2.10.0 (vuln. alta) y `KnownNetworks` → `KnownIPNetworks`.
 
 ### Corregido
+- **Seguridad — login**: se cierra un *timing side-channel* de enumeración de usuarios. Antes,
+  un email inexistente respondía en <1 ms y uno existente con clave incorrecta ~250 ms (BCrypt),
+  permitiendo descubrir emails registrados por tiempo. Ahora se hace un `Verify` contra un hash
+  señuelo cuando el usuario no existe → tiempo constante.
 - **Coberturas/ramos/métodos**: recargar un nombre eliminado ya no rompe (reactiva) (§58).
 - **Vehículo "colgado"**: al reutilizar un vehículo en un alta se reasigna al cliente de la
   nueva póliza; ya no queda "sin vehículo asociado" (§54).

@@ -28,10 +28,17 @@ public class AuthService : IAuthService
         _config      = config;
     }
 
+    // Hash BCrypt "señuelo" (mismo factor de costo que los reales). Se compara contra él
+    // cuando el email NO existe, para que el login tarde lo mismo exista o no el usuario y
+    // no se pueda enumerar emails midiendo el tiempo de respuesta (timing side-channel).
+    private static readonly string HashSenuelo = BCrypt.Net.BCrypt.HashPassword("usuario-inexistente");
+
     public async Task<LoginResultDto> LoginAsync(LoginDto dto)
     {
         var usuario = await _authRepo.GetUsuarioByEmailAsync(dto.Email);
-        if (usuario == null || !BCrypt.Net.BCrypt.Verify(dto.Password, usuario.PasswordHash))
+        // Se ejecuta SIEMPRE un Verify (contra el hash real o el señuelo) → tiempo constante.
+        var passwordOk = BCrypt.Net.BCrypt.Verify(dto.Password, usuario?.PasswordHash ?? HashSenuelo);
+        if (usuario == null || !passwordOk)
             throw new BusinessException("Credenciales inválidas.");
 
         return await EmitirTokensAsync(usuario.Id, usuario.Email, usuario.Rol, usuario.Nombre);

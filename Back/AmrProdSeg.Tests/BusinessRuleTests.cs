@@ -180,7 +180,8 @@ public class ClienteServiceTests
     public async Task CrearAsync_DocumentoDuplicado_LanzaBusinessException()
     {
         var repo = new FakeClienteRepository { PorDocumento = new Cliente { Id = 1, Documento = "30111222" } };
-        var service = new ClienteService(repo, new FakeUsuarioRepository());
+        var service = new ClienteService(repo, new FakeUsuarioRepository(),
+            new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService());
 
         await Assert.ThrowsAsync<BusinessException>(() => service.CrearAsync(new CrearClienteDto
         {
