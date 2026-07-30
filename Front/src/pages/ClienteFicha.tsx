@@ -566,7 +566,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
       <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
         Las cuotas se generan desde el <strong>inicio de póliza</strong> (arriba): la 1ª vence el{" "}
         <strong>{primeraCuota.split("-").reverse().join("/")}</strong> (inicio + 1 mes) y las siguientes +1 mes cada una.
-        Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro).
+        {/* Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro). */}
       </div>
       <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
         Total de la póliza: <strong>{formatMoneda((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0))}</strong> ({cantidadCuotas} cuotas)
