@@ -66,6 +66,12 @@ rebuild de back + front (`bash actualizar.sh`).
 - `Microsoft.OpenApi` fijado a 2.10.0 (vuln. alta) y `KnownNetworks` → `KnownIPNetworks`.
 
 ### Corregido
+- **Resend / arranque en el VPS (500 en `/api/cobros` y más)**: si `Resend__Habilitado`
+  llegaba **vacío** desde las env vars (no estaba en el `.env` del VPS), el bind de `""` a
+  `bool` lanzaba excepción al construir `ConfiguracionService`, rompiendo con 500 todo endpoint
+  que lo resuelve (incluidas las cuotas). Ahora el binding es **tolerante** (`bool.TryParse` →
+  `false`) y `docker-compose` define defaults `${Resend__*:-…}`. Local no se veía porque usa
+  `appsettings.json` (bool válido).
 - **Seguridad — login**: se cierra un *timing side-channel* de enumeración de usuarios. Antes,
   un email inexistente respondía en <1 ms y uno existente con clave incorrecta ~250 ms (BCrypt),
   permitiendo descubrir emails registrados por tiempo. Ahora se hace un `Verify` contra un hash

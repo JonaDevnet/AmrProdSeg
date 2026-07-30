@@ -70,7 +70,18 @@ builder.Services.AddScoped<IAvisoRepository,      AvisoRepository>();
 
 // Notificaciones (recordatorios de vencimiento)
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));   // legado (SmtpEmailSender, sin registrar)
-builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection("Resend"));
+// Binding TOLERANTE: en el VPS las env vars pueden llegar vacías (ej. Resend__Habilitado="")
+// si no están en el .env. El bind automático de un "" a bool tira excepción y rompía TODO
+// endpoint que resuelve ConfiguracionService (incluido /api/cobros). bool.TryParse("") => false.
+builder.Services.Configure<ResendOptions>(opt =>
+{
+    var s = builder.Configuration.GetSection("Resend");
+    opt.Habilitado = bool.TryParse(s["Habilitado"], out var h) && h;
+    opt.ApiKey     = s["ApiKey"] ?? "";
+    opt.From       = s["From"] ?? "";
+    var nombre     = s["FromNombre"];
+    opt.FromNombre = string.IsNullOrWhiteSpace(nombre) ? "AMR Producción de Seguros" : nombre;
+});
 builder.Services.Configure<EvolutionOptions>(builder.Configuration.GetSection("Evolution"));
 builder.Services.Configure<NotificacionOptions>(builder.Configuration.GetSection("Notificaciones"));
 builder.Services.AddHttpClient("resend");                            // cliente HTTP para la API de Resend
