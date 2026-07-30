@@ -117,6 +117,8 @@ export default function Alta() {
         email: c.email ?? f.email,
         telefono: c.telefono ?? f.telefono,
         idType: c.tipoDocumento ?? f.idType,
+        nac: c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : f.nac,
+        calle: c.direccion ?? f.calle,   // domicilio guardado como string único
       }));
     } catch { /* silencioso */ }
   }
@@ -159,6 +161,8 @@ export default function Alta() {
               idType: c.tipoDocumento || f.idType,
               email: f.email || (c.email ?? ""),
               telefono: f.telefono || (c.telefono ?? ""),
+              nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : ""),
+              calle: f.calle || (c.direccion ?? ""),   // domicilio guardado como string único
             }));
           } catch { /* silencioso */ }
         }

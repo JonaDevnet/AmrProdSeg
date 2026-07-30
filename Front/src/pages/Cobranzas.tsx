@@ -326,7 +326,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
       {cuotaPago && (
         <PagoModal
           cuota={cuotaPago}
-          tituloContexto={poliza.numero}
+          tituloContexto={poliza.clienteNombre ? `${poliza.clienteNombre} · Póliza ${poliza.numero}` : `Póliza ${poliza.numero}`}
           onClose={() => setCuotaPago(null)}
           onPagado={() => {
             // Cuponera: sólo se marca el pago, sin comprobante.

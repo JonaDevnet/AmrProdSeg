@@ -121,7 +121,7 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, on
 
   return (
     <form onSubmit={handleSubmit(enviar)}>
-      <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--ink-500)" }}>
+      {/* <p style={{ marginTop: 0, fontSize: 13.5, color: "var(--ink-500)" }}>
         {periodoTerminado ? (
           <>El período de póliza <strong>terminó</strong>: se renueva con una <strong>vigencia nueva</strong> desde la fecha que elijas.</>
         ) : (
@@ -129,7 +129,7 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, on
           Se mantiene la vigencia (<span className="mono">{formatFecha(fechaInicioOriginal)} – {formatFecha(fechaFinOriginal)}</span>)
           y las cuotas continúan desde la última.</>
         )}
-      </p>
+      </p> */}
 
       <Field label="Número de póliza" error={errors.numero?.message}>
         <Input {...register("numero")} placeholder="Número de la póliza renovada" />
