@@ -170,6 +170,8 @@ public interface INotificacionRepository
     Task<List<CuotaVencimiento>> GetCuotasVencidasAsync(int dias);
     Task<bool> YaEnviadaAsync(string tipo, int referenciaId, string canal);
     Task RegistrarAsync(string tipo, int referenciaId, string canal, string? destino);
+    /// <summary>Cantidad de notificaciones de un canal enviadas HOY (día AR) — para el tope diario del goteo.</summary>
+    Task<int> ContarEnviadasHoyAsync(string canal);
 }
 
 public interface IConfiguracionRepository

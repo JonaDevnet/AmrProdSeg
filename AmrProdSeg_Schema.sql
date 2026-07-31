@@ -3820,5 +3820,23 @@ END
 GO
 
 /* =============================================================================
+   §63 — Contador diario de notificaciones por canal (para el "goteo" anti-baneo
+   de WhatsApp: no superar el tope de envíos por día). Cuenta desde la medianoche
+   de Argentina (UTC-3), ya que FechaEnvio se guarda en UTC.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Notif_ContarHoy @Canal VARCHAR(20) AS
+BEGIN
+    SET NOCOUNT ON;
+    -- Medianoche AR de hoy, expresada en UTC (AR = UTC-3): today_AR 00:00 -> +3h UTC.
+    DECLARE @DesdeUtc DATETIME =
+        DATEADD(HOUR, 3, CAST(CAST(DATEADD(HOUR, -3, GETUTCDATE()) AS DATE) AS DATETIME));
+    SELECT COUNT(*)
+    FROM NotificacionesVencimiento
+    WHERE Canal = @Canal
+      AND FechaEnvio >= @DesdeUtc;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

@@ -133,13 +133,22 @@ builder.Services.AddQuartz(q =>
         .WithIdentity("MarcarCobrosVencidosTrigger")
         .WithCronSchedule("0 0 1 * * ?")); // todos los días a la 01:00
 
-    // Recordatorios de vencimiento (Email + WhatsApp) — diario
+    // Recordatorios de vencimiento por EMAIL (lote) — diario
     var notifKey = new JobKey("NotificacionVencimientosJob");
     q.AddJob<NotificacionVencimientosJob>(notifKey);
     q.AddTrigger(t => t
         .ForJob(notifKey)
         .WithIdentity("NotificacionVencimientosTrigger")
         .WithCronSchedule(builder.Configuration["Notificaciones:CronDiario"] ?? "0 0 9 * * ?"));
+
+    // Recordatorios por WHATSAPP en "goteo" anti-baneo — 1 mensaje por disparo (cada 5 min,
+    // horas alternadas). El cron define intervalo + horas activas.
+    var goteoKey = new JobKey("WhatsAppGoteoJob");
+    q.AddJob<WhatsAppGoteoJob>(goteoKey);
+    q.AddTrigger(t => t
+        .ForJob(goteoKey)
+        .WithIdentity("WhatsAppGoteoTrigger")
+        .WithCronSchedule(builder.Configuration["Notificaciones:WhatsAppCronGoteo"] ?? "0 0/5 9,11,13,15,17,19 * * ?"));
 });
 builder.Services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 

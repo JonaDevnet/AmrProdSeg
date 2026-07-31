@@ -10,10 +10,18 @@ Gran tanda de features, mejoras y correcciones. Requiere aplicar el schema (§48
 rebuild de back + front (`bash actualizar.sh`).
 
 ### Añadido
+- **WhatsApp en "goteo" (anti-baneo)** (§63): los recordatorios por WhatsApp dejan de enviarse
+  en ráfaga. Un job nuevo (`WhatsAppGoteoJob`) manda **1 mensaje por disparo**, cada 5 min y en
+  horas alternadas (`9,11,13,15,17,19` por defecto, configurable en `Notificaciones:WhatsAppCronGoteo`),
+  con **jitter** (demora aleatoria 30–60 s), **rotación entre 5 redacciones** equivalentes por tipo
+  de aviso, y **tope diario** (`WhatsAppMaxPorDia`, 60 por defecto). Idempotente y resumible (usa la
+  misma tabla de notificaciones). El **Email** sigue en lote diario (sin riesgo de baneo).
 - **Alta — cambiar el número al finalizar**: en la pantalla de éxito del alta se puede editar el
   número de póliza (por defecto el "en trámite") antes de continuar. Un solo botón "Confirmar y ver
   póliza": si se dejó sin cambiar, sigue con el número por defecto. Se quitó la auto-navegación.
-- **Cobertura de tests ampliada** (backend): de 14 a 56 tests unitarios (xUnit). Nuevos módulos
+- **Cobertura de tests ampliada** (backend): de 14 a 70 tests unitarios (xUnit) — incluye 11 del
+  goteo de WhatsApp (1-por-disparo, tope diario, idempotencia, rotación de textos, prioridad,
+  reintento ante fallo, simulación de un día y validación del cron). Nuevos módulos
   cubiertos: CuotaCalculator (incl. test de rendimiento), AltaService, AuthService,
   Baja/Anulación/Eliminación, ConfiguracionService (fallback), ExportacionService. Se corrigieron
   los fakes/tests rotos por los cambios de §61 y del export PDF.
@@ -43,6 +51,11 @@ rebuild de back + front (`bash actualizar.sh`).
 - Marca y modelo del vehículo en la card de Cobranzas (§56).
 
 ### Cambiado
+- **Configuración de envío → solo Admin**: los recordatorios (Email + WhatsApp) salen de forma
+  **centralizada** por la config del Admin. Se quitó el apartado "Configuración de envío" para los
+  vendedores (Productor): oculto en el navbar/drawer, la ruta `/configuracion` pasa a solo-Admin y
+  el `ConfiguracionController` exige `[Authorize(Roles = "Admin")]` (un Productor recibe 403). Los
+  envíos manuales de los vendedores siguen funcionando, usando la config del Admin como fallback.
 - **Correo → Resend**: el envío de email pasa de SMTP a **Resend** (API REST). La pantalla
   *Configuración → Correo emisor (Resend)* reemplaza la de SMTP: habilitado, remitente (From) y
   nombre + **API Key** (enmascarada, con fallback a Admin, igual patrón que WhatsApp), más un

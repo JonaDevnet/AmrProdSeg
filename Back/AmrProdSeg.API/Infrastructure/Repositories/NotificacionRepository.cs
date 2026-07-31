@@ -105,4 +105,17 @@ public class NotificacionRepository : INotificacionRepository
         cmd.Parameters.AddWithValue("@Destino",      (object?)destino ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
+
+    public async Task<int> ContarEnviadasHoyAsync(string canal)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Notif_ContarHoy", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@Canal", canal);
+        var result = await cmd.ExecuteScalarAsync();
+        return Convert.ToInt32(result);
+    }
 }

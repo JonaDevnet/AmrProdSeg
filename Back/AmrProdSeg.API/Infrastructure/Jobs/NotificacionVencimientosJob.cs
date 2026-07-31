@@ -8,28 +8,26 @@ namespace AmrProdSeg.API.Infrastructure.Jobs;
 
 /// <summary>
 /// Job diario que detecta pólizas y cuotas que vencen en N días (config) y envía
-/// recordatorios por Email y WhatsApp. Cada notificación se registra para no
-/// repetirse (idempotencia por Tipo+Referencia+Canal).
+/// recordatorios por <b>Email</b> (envío masivo, sin riesgo de baneo). El WhatsApp
+/// NO se manda acá: lo hace <see cref="WhatsAppGoteoJob"/> en goteo espaciado (anti-baneo).
+/// Cada notificación se registra para no repetirse (idempotencia por Tipo+Referencia+Canal).
 /// </summary>
 [DisallowConcurrentExecution]
 public class NotificacionVencimientosJob : IJob
 {
     private readonly INotificacionRepository _repo;
     private readonly IEmailSender _email;
-    private readonly IWhatsAppSender _whatsapp;
     private readonly NotificacionOptions _opt;
     private readonly ILogger<NotificacionVencimientosJob> _logger;
 
     public NotificacionVencimientosJob(
         INotificacionRepository repo,
         IEmailSender email,
-        IWhatsAppSender whatsapp,
         IOptions<NotificacionOptions> opt,
         ILogger<NotificacionVencimientosJob> logger)
     {
         _repo     = repo;
         _email    = email;
-        _whatsapp = whatsapp;
         _opt      = opt.Value;
         _logger   = logger;
     }
@@ -81,7 +79,7 @@ public class NotificacionVencimientosJob : IJob
     private async Task NotificarAsync(
         string tipo, int referenciaId, string? email, string? telefono, string asunto, string mensaje)
     {
-        // Email
+        // Solo Email. El WhatsApp lo envía WhatsAppGoteoJob (goteo espaciado anti-baneo).
         if (!string.IsNullOrWhiteSpace(email) && !await _repo.YaEnviadaAsync(tipo, referenciaId, "Email"))
         {
             try
@@ -94,22 +92,6 @@ public class NotificacionVencimientosJob : IJob
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Fallo enviando Email de {Tipo} {Id}", tipo, referenciaId);
-            }
-        }
-
-        // WhatsApp (queda sin correr mientras Evolution:Habilitado=false)
-        if (!string.IsNullOrWhiteSpace(telefono) && !await _repo.YaEnviadaAsync(tipo, referenciaId, "WhatsApp"))
-        {
-            try
-            {
-                await _whatsapp.EnviarAsync(telefono, mensaje);
-                // Solo registramos como enviado si el canal está activo (evita marcar lo no enviado)
-                if (_whatsapp.Habilitado)
-                    await _repo.RegistrarAsync(tipo, referenciaId, "WhatsApp", telefono);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Fallo enviando WhatsApp de {Tipo} {Id}", tipo, referenciaId);
             }
         }
     }

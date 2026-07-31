@@ -52,7 +52,6 @@ export default function App() {
               <Route path="/editar/:modo" element={<Editar />} />
               <Route path="/bajas" element={<Bajas />} />
               <Route path="/finanzas" element={<Finanzas />} />
-              <Route path="/configuracion" element={<Configuracion />} />
               <Route
                 path="/reportes"
                 element={
@@ -70,6 +69,7 @@ export default function App() {
               <Route path="/usuarios" element={<Usuarios />} />
               <Route path="/companias" element={<Companias />} />
               <Route path="/registro" element={<Registro />} />
+              <Route path="/configuracion" element={<Configuracion />} />
             </Route>
           </Route>
 

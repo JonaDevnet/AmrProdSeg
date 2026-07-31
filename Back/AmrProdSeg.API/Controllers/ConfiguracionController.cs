@@ -8,9 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AmrProdSeg.API.Controllers;
 
-/// <summary>Configuración de envío (SMTP/WhatsApp) PROPIA de cada usuario. Si no la carga, se usa la del Admin.</summary>
+/// <summary>Configuración de envío (Resend/WhatsApp) del sistema. Solo Admin: los recordatorios
+/// salen de forma centralizada por la config del Admin; los vendedores no configuran envío.</summary>
 [ApiController]
-[Authorize]
+[Authorize(Roles = "Admin")]
 [Route("api/configuracion")]
 public class ConfiguracionController : ControllerBase
 {

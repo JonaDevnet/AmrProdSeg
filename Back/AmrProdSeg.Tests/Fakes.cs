@@ -100,9 +100,50 @@ public class FakeEmailSender : IEmailSender
 public class FakeWhatsAppSender : IWhatsAppSender
 {
     public bool Habilitado { get; set; }
+    public bool Fallar { get; set; }   // simula Evolution caído en el envío
+    public readonly List<(string Telefono, string Mensaje, int? UsuarioId)> Enviados = new();
+
     public Task<bool> HabilitadoParaAsync(int? usuarioId) => Task.FromResult(Habilitado);
-    public Task EnviarAsync(string telefono, string mensaje, int? usuarioId = null) => Task.CompletedTask;
+    public Task EnviarAsync(string telefono, string mensaje, int? usuarioId = null)
+    {
+        if (Fallar) throw new Exception("Evolution no responde");
+        Enviados.Add((telefono, mensaje, usuarioId));
+        return Task.CompletedTask;
+    }
     public Task EnviarDocumentoAsync(string telefono, byte[] documento, string nombreArchivo, string caption, int? usuarioId = null) => Task.CompletedTask;
+}
+
+public class FakeNotificacionRepository : INotificacionRepository
+{
+    public List<PolizaVencimiento> Polizas = new();
+    public List<CuotaVencimiento> CuotasPorVencer = new();
+    public List<CuotaVencimiento> CuotasVencidas = new();
+    public readonly HashSet<string> Enviadas = new();                                  // "tipo|ref|canal"
+    public readonly List<(string Tipo, int Ref, string Canal, string? Destino)> Registros = new();
+
+    public Task<List<PolizaVencimiento>> GetPolizasPorVencerAsync(int dias) => Task.FromResult(Polizas);
+    public Task<List<CuotaVencimiento>> GetCuotasPorVencerAsync(int dias) => Task.FromResult(CuotasPorVencer);
+    public Task<List<CuotaVencimiento>> GetCuotasVencidasAsync(int dias) => Task.FromResult(CuotasVencidas);
+
+    public Task<bool> YaEnviadaAsync(string tipo, int referenciaId, string canal)
+        => Task.FromResult(Enviadas.Contains($"{tipo}|{referenciaId}|{canal}"));
+
+    public Task RegistrarAsync(string tipo, int referenciaId, string canal, string? destino)
+    {
+        Enviadas.Add($"{tipo}|{referenciaId}|{canal}");
+        Registros.Add((tipo, referenciaId, canal, destino));
+        return Task.CompletedTask;
+    }
+
+    public Task<int> ContarEnviadasHoyAsync(string canal)
+        => Task.FromResult(Registros.Count(r => r.Canal == canal));
+
+    // Helper para pre-marcar como ya enviado (idempotencia / tope).
+    public void MarcarEnviada(string tipo, int referenciaId, string canal = "WhatsApp")
+    {
+        Enviadas.Add($"{tipo}|{referenciaId}|{canal}");
+        Registros.Add((tipo, referenciaId, canal, "pre"));
+    }
 }
 
 public class FakePdfService : IPdfService

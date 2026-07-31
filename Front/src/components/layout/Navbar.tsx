@@ -163,8 +163,10 @@ export default function Navbar() {
                   )}
                   <DropItem icon={<IconFile size={15} />} titulo="Pólizas" sub="Buscar y exportar"
                     onClick={() => { setUserOpen(false); navigate("/polizas"); }} />
-                  <DropItem icon={<IconMail size={15} />} titulo="Configuración de envío" sub="Tu correo y WhatsApp"
-                    onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
+                  {esAdmin && (
+                    <DropItem icon={<IconMail size={15} />} titulo="Configuración de envío" sub="Correo y WhatsApp del sistema"
+                      onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
+                  )}
                   <DropItem icon={<IconFile size={15} />} titulo="Mis finanzas" sub="Ingresos y egresos (privado)"
                     onClick={() => { setUserOpen(false); navigate("/finanzas"); }} />
                   <DropItem icon={<IconLock size={15} />} titulo="Cambiar mi contraseña"
@@ -234,10 +236,10 @@ export default function Navbar() {
                 <button style={drawerLink(false)} onClick={() => irA("/usuarios")}><IconUsers size={16} />Vendedores</button>
                 <button style={drawerLink(false)} onClick={() => irA("/companias")}><IconBuilding size={16} />Compañías y métodos</button>
                 <button style={drawerLink(false)} onClick={() => irA("/registro")}><IconBan size={16} />Registro de movimientos</button>
+                <button style={drawerLink(false)} onClick={() => irA("/configuracion")}><IconMail size={16} />Configuración de envío</button>
               </>)}
 
               <div style={drawerLabel}>Cuenta</div>
-              <button style={drawerLink(false)} onClick={() => irA("/configuracion")}><IconMail size={16} />Configuración de envío</button>
               <button style={drawerLink(false)} onClick={() => irA("/finanzas")}><IconFile size={16} />Mis finanzas</button>
               <button style={drawerLink(false)} onClick={() => { setMenuOpen(false); setCambiarPass(true); }}><IconLock size={16} />Cambiar contraseña</button>
               <button style={{ ...drawerLink(false), color: "oklch(0.80 0.13 28)" }} onClick={() => { setMenuOpen(false); salir(); }}>
