@@ -39,7 +39,7 @@ public static class ComprobanteCobroDocument
     private const string TITULAR = "de ALBERTO MATEO RINALDI";
     private const string RUBRO = "PRODUCTOR ASESOR DE SEGUROS - PATRIMONIALES Y VIDA";
     private const string DIR1 = "Aristóbulo del Valle 980 - 1 El Algarrobal, LH, Mza - Cel: 2617025624";
-    private const string DIR2 = "Avellaneda 2626, Guaymallén, Mza - Cel: 2616110072";
+    private const string DIR2 = "Avellaneda 2626, Guaymallén, Mza - Cel: 261247611";
     private const string EMISOR = "AMRINALDI Producción de Seguros";
     private const string BANCO = "Cta Cte BANCO PATAGONIA S.A.";
     private const string CUENTA_TICKET = "Cc $ 060********9001 de Banco Patagonia";

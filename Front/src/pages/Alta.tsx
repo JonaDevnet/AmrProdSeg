@@ -75,7 +75,7 @@ const FORM0: Form = {
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   patente: "", marca: "", modelo: "", anio: "", chasis: "", motor: "", combustion: [],
   companiaNombre: "", ramoId: "", ramoNombre: "", cobertura: "",
-  inicio: isoHoy(), periodoPoliza: "12 meses (anual)", periodoCuotas: "Mensual", cuota: "", formaPago: "Débito automático", primaOG: "",
+  inicio: isoHoy(), periodoPoliza: "12 meses (anual)", periodoCuotas: "Una", cuota: "", formaPago: "Débito automático", primaOG: "",
 };
 
 export default function Alta() {
@@ -232,7 +232,7 @@ export default function Alta() {
 
     // Cuponera: se define en el selector de forma de pago (no se vuelve a preguntar).
     const usarCuponera = esCuponera;
-    // El plan de cuotas define directamente la cantidad: Mensual=1, Bimestral=2, Trimestral=3.
+    // El plan de cuotas define la cantidad de pagos: Una=1, Dos=2, Tres=3 (cuotas mensuales).
     const cantidadCuotas = PERIODO_CUOTAS[form.periodoCuotas] ?? 1;
     const primaOGNum = Number((form.primaOG || "").replace(/[^\d]/g, ""));
     // Precio real: en cuponera el único valor cargado; si no, valor de cuota × cantidad.
@@ -256,9 +256,10 @@ export default function Alta() {
       companiaId,
       ramoId: Number(form.ramoId),
       fechaInicio: form.inicio,
-      // Modelo "inicio de póliza": 1ª cuota = inicio + 1 mes; la vigencia (fin) = última cuota.
+      // Modelo "inicio de póliza": 1ª cuota = inicio + 1 mes; la vigencia (fin) surge del
+      // período de póliza elegido (ej. "12 meses (anual)" → inicio + 12 meses).
       primerVencimiento: addMesesISO(form.inicio, 1),
-      fechaFin: addMesesISO(form.inicio, cantidadCuotas),
+      fechaFin: addMesesISO(form.inicio, PERIODO_POLIZA[form.periodoPoliza] ?? 12),
       precioTotal,
       cantidadCuotas,
       formaPago: usarCuponera ? "Cuponera" : limpio(form.formaPago),
@@ -557,11 +558,11 @@ export default function Alta() {
                 <Sp h={16} />
                 <div style={grid(esCuponera ? "1fr" : "1fr 1fr")}>
                   {!esCuponera && (
-                    <Field label={"Valor de la cuota " + form.periodoCuotas.toLowerCase()} required hint="En pesos argentinos">
+                    <Field label="Valor de la cuota" required hint="En pesos argentinos">
                       <InputBox focus={focus === "cuota"} onFocus={() => setFocus("cuota")} onBlur={() => setFocus(null)}>
                         <span style={S.inputAdorn}>ARS $</span>
                         <input className="mono" style={S.input} placeholder="38.500" value={form.cuota} onChange={(e) => set("cuota")(e.target.value)} />
-                        <span style={S.inputAdorn}>/ {({ Mensual: "mes", Bimestral: "bimestre", Trimestral: "trimestre" } as Record<string, string>)[form.periodoCuotas] || "mes"}</span>
+                        <span style={S.inputAdorn}>/ mes</span>
                       </InputBox>
                     </Field>
                   )}
@@ -747,7 +748,7 @@ function SummaryPanel({ form }: { form: Form }) {
         <Row k="Año" v={form.anio || null} mono />
         <Row k="Combustión" v={form.combustion.length ? form.combustion.join(" / ") : null} />
         <Row k="Compañía" v={form.companiaNombre || null} />
-        <Row k="Vigencia" v={`${PERIODO_CUOTAS[form.periodoCuotas] ?? 1} mes(es)`} />
+        <Row k="Vigencia" v={form.periodoPoliza || null} />
         <Row k="Cuotas" v={form.periodoCuotas || null} />
         <Row k="Inicio" v={form.inicio || null} mono last />
       </div>
