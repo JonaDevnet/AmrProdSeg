@@ -185,11 +185,11 @@ export default function NotificacionesBell() {
                   {exportacionesNuevas.length > 0 && <span style={badge}>{exportacionesNuevas.length}</span>}
                 </div>
                 <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                  {exportaciones.length === 0 ? (
+                  {exportacionesNuevas.length === 0 ? (
                     <div style={vacio}>Sin exportaciones.</div>
                   ) : (
-                    exportaciones.map((e) => (
-                      <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)", background: expVistas.has(e.id) ? "transparent" : "var(--blue-50)" }}>
+                    exportacionesNuevas.map((e) => (
+                      <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)", background: "var(--blue-50)" }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
                           {e.usuarioNombre ?? "Alguien"} exportó <span className="mono">{e.polizaNumero ?? "—"}</span>
                         </div>
