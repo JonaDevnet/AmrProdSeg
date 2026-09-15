@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import "./index.css";
+import { iniciarReporteErrores } from "./utils/errorReporting";
+
+// Registra los handlers de captura de errores del navegador (reportan a /api/diagnostics/errores).
+iniciarReporteErrores();
 
 const queryClient = new QueryClient({
   defaultOptions: {

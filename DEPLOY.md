@@ -54,3 +54,29 @@ docker compose ps           # estado de los contenedores
 docker compose logs -f api  # logs del backend
 docker compose down         # apagar (los datos de la base persisten en el volumen)
 ```
+
+## Revisar errores (logs de Serilog persistidos en ./logs)
+El API escribe logs en `./logs/` del host (volumen `./logs:/app/logs`). Hay dos streams:
+- `logs/amrprodseg-YYYY-MM-DD.log` — **todo** (Information+).
+- `logs/errors-YYYY-MM-DD.log` — **solo errores y advertencias**: excepciones (500), errores de
+  negocio (400), no encontrados (404), solicitudes con error (4xx/5xx, con IP y usuario), bloqueos
+  de GeoBlock, fallos de Email/WhatsApp y **errores del frontend** (`[FrontendError]`).
+
+```bash
+# Errores + solicitudes fallidas, en vivo
+tail -f logs/errors-*.log
+
+# Todo el tráfico del API (requests con error, jobs, senders)
+tail -f logs/amrprodseg-*.log
+
+# Búsqueda histórica de errores
+grep -iE "error|fail|exception|GeoBlock|FrontendError" logs/*.log
+
+# Errores de una fecha puntual
+grep -iE "error|exception" logs/errors-2026-09-14.log
+
+# En vivo desde Docker (consola)
+docker compose logs -f --since 30m api
+```
+> Las **IPs de acceso** (todo el tráfico HTTP, no solo errores) se ven en los **access logs de Traefik**
+> (proxy del VPS), no en estos logs.

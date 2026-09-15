@@ -34,11 +34,16 @@ if (Directory.Exists(fontsDir))
         using (var fs = File.OpenRead(ttf))
             QuestPDF.Drawing.FontManager.RegisterFont(fs);
 
-// Logging estructurado con Serilog (consola + archivo rotativo diario)
+// Logging estructurado con Serilog (consola + archivo rotativo diario).
+// errors-.log: SOLO Warning+ (excepciones, solicitudes 4xx/5xx, GeoBlock, fallos de jobs/senders)
+// para revisar rápido los errores en el VPS (tail -f logs/errors-*.log).
 builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration)
         .WriteTo.Console()
-        .WriteTo.File("logs/amrprodseg-.log", rollingInterval: RollingInterval.Day));
+        .WriteTo.File("logs/amrprodseg-.log", rollingInterval: RollingInterval.Day)
+        .WriteTo.File("logs/errors-.log",
+            rollingInterval: RollingInterval.Day,
+            restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Warning));
 
 // ---------------- Infraestructura ----------------
 builder.Services.AddSingleton<IDbConnectionFactory, DbConnectionFactory>();
@@ -258,6 +263,7 @@ var app = builder.Build();
 // ---------------- Pipeline (el orden importa) ----------------
 app.UseForwardedHeaders();            // 0. IP/esquema reales detrás de Traefik/nginx
 app.UseExceptionHandlingMiddleware(); // captura excepciones de toda la cadena
+app.UseRequestLogging();              // 0b. Registra solicitudes con error (4xx/5xx) → errors-.log
 app.UseIpRateLimiting();              // 1. Rate limiting (usa la IP real del cliente)
 app.UseGeoBlocking();                 // 1b. Bloqueo geográfico (solo Argentina)
 // El HTTPS lo termina Traefik en el borde; dentro del contenedor el tráfico es HTTP.

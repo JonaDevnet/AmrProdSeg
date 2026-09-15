@@ -21,6 +21,10 @@ services:
     container_name: amr-api
     restart: unless-stopped
     depends_on: [db]
+    # Logs de Serilog persistidos en el host (./logs), para revisarlos con tail
+    # y que sobrevivan a recreaciones del contenedor.
+    volumes:
+      - ./logs:/app/logs
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # HTTPS lo termina Traefik; adentro es HTTP:
@@ -53,8 +57,9 @@ services:
     depends_on: [api]
     labels:
       - traefik.enable=true
-      # Todo lo demás (el SPA) va al frontend (prioridad baja = catch-all)
-      - "traefik.http.routers.amr-web.rule=Host(`amrprodseg.com`)"
+      # Todo lo demás (el SPA) va al frontend (prioridad baja = catch-all).
+      # Excluye dotfiles (/.env, /.git, ...) → no matchean ningún router → Traefik responde 404.
+      - "traefik.http.routers.amr-web.rule=Host(`amrprodseg.com`) && !PathRegexp(`^/\\.`)"
       - traefik.http.routers.amr-web.entrypoints=websecure
       - traefik.http.routers.amr-web.tls.certresolver=letsencrypt
       - traefik.http.routers.amr-web.priority=1
@@ -104,7 +109,7 @@ services:
       - evolution_instances:/evolution/instances
     labels:
       - traefik.enable=true
-      - "traefik.http.routers.amr-evo.rule=Host(`srv1798610.hstgr.cloud`)"
+      - "traefik.http.routers.amr-evo.rule=Host(`srv1798610.hstgr.cloud`) && !PathRegexp(`^/\\.`)"
       - traefik.http.routers.amr-evo.entrypoints=websecure
       - traefik.http.routers.amr-evo.tls.certresolver=letsencrypt
       - traefik.http.services.amr-evo.loadbalancer.server.port=8080

@@ -23,14 +23,17 @@ public class ExceptionHandlingMiddleware
         }
         catch (BusinessException ex)
         {
+            _logger.LogWarning("Error de negocio en {Path}: {Mensaje}", context.Request.Path, ex.Message);
             await EscribirAsync(context, 400, ex.Message);
         }
         catch (NotFoundException ex)
         {
+            _logger.LogWarning("No encontrado en {Path}: {Mensaje}", context.Request.Path, ex.Message);
             await EscribirAsync(context, 404, ex.Message);
         }
         catch (UnauthorizedAccessException)
         {
+            _logger.LogWarning("Acceso denegado en {Path}", context.Request.Path);
             await EscribirAsync(context, 403, "No tenés permisos para realizar esta acción.");
         }
         catch (Exception ex)
