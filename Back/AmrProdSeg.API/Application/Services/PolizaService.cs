@@ -15,19 +15,22 @@ public class PolizaService : IPolizaService
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IVehiculoRepository _vehiculoRepo;
     private readonly IPdfService       _pdfService;
+    private readonly IAuditoriaMovimientoService _auditoria;
 
     public PolizaService(
         IPolizaRepository polizaRepo,
         ICobroRepository  cobroRepo,
         ICompaniaRepository companiaRepo,
         IVehiculoRepository vehiculoRepo,
-        IPdfService       pdfService)
+        IPdfService       pdfService,
+        IAuditoriaMovimientoService auditoria)
     {
         _polizaRepo = polizaRepo;
         _cobroRepo  = cobroRepo;
         _companiaRepo = companiaRepo;
         _vehiculoRepo = vehiculoRepo;
         _pdfService = pdfService;
+        _auditoria = auditoria;
     }
 
     /// <summary>Póliza activa (vigente) del vehículo con esa patente, o null.</summary>
@@ -150,13 +153,15 @@ public class PolizaService : IPolizaService
         };
     }
 
-    public async Task ActualizarAsync(int id, ActualizarPolizaDto dto)
+    public async Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null)
     {
         var poliza = await _polizaRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Póliza no encontrada.");
 
         if (await _companiaRepo.GetByIdAsync(dto.CompaniaId) is null)
             throw new BusinessException($"La compañía {dto.CompaniaId} no existe.");
+
+        var anterior = $"nro {poliza.Numero} · vig {poliza.FechaInicio:dd/MM/yyyy}-{poliza.FechaFin:dd/MM/yyyy} · total ${poliza.PrecioTotal} · cuotas {poliza.CantidadCuotas}";
 
         poliza.CompaniaId     = dto.CompaniaId;
         poliza.RamoId         = dto.RamoId;
@@ -174,9 +179,15 @@ public class PolizaService : IPolizaService
         // conservan su monto y vencimiento (lo realmente cobrado), para que los reportes no cambien.
         await _cobroRepo.RegenerarPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas,
             dto.PrimerVencimiento ?? dto.FechaInicio.AddMonths(1));
+
+        if (usuarioId is int uid)
+        {
+            var nuevo = $"vig {poliza.FechaInicio:dd/MM/yyyy}-{poliza.FechaFin:dd/MM/yyyy} · total ${poliza.PrecioTotal} · cuotas {poliza.CantidadCuotas}";
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "Editar", $"Antes: {anterior} | Después: {nuevo}");
+        }
     }
 
-    public async Task AsignarNumeroAsync(int id, string numero)
+    public async Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null)
     {
         numero = (numero ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(numero))
@@ -184,13 +195,17 @@ public class PolizaService : IPolizaService
         var r = await _polizaRepo.AsignarNumeroAsync(id, numero);
         if (r == -1) throw new BusinessException("Ya existe una póliza con ese número.");
         if (r == 0)  throw new NotFoundException("Póliza no encontrada.");
+        if (usuarioId is int uid)
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "AsignarNumero", $"Asignó el número \"{numero}\".");
     }
 
-    public async Task CancelarAsync(int id)
+    public async Task CancelarAsync(int id, int? usuarioId = null)
     {
         var poliza = await _polizaRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Póliza no encontrada.");
         await _polizaRepo.CambiarEstadoAsync(poliza.Id, EstadoPoliza.Cancelada);
+        if (usuarioId is int uid)
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "Cancelar", $"Canceló la póliza {poliza.Numero}.");
     }
 
     public async Task<byte[]> GenerarPdfAsync(int id)

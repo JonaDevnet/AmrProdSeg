@@ -58,7 +58,7 @@ public class PolizasController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarPolizaDto dto)
     {
-        await _service.ActualizarAsync(id, dto);
+        await _service.ActualizarAsync(id, dto, UsuarioActualId());
         return NoContent();
     }
 
@@ -66,14 +66,14 @@ public class PolizasController : ControllerBase
     [HttpPut("{id:int}/numero")]
     public async Task<IActionResult> AsignarNumero(int id, [FromBody] AsignarNumeroDto dto)
     {
-        await _service.AsignarNumeroAsync(id, dto.Numero);
+        await _service.AsignarNumeroAsync(id, dto.Numero, UsuarioActualId());
         return NoContent();
     }
 
     [HttpPut("{id:int}/cancelar")]
     public async Task<IActionResult> Cancelar(int id)
     {
-        await _service.CancelarAsync(id);
+        await _service.CancelarAsync(id, UsuarioActualId());
         return NoContent();
     }
 

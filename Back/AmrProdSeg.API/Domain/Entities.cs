@@ -222,6 +222,19 @@ public class Movimiento
     public DateTime Fecha { get; set; }
 }
 
+/// <summary>Registro de una operación sensible (auditoría de movimientos).</summary>
+public class AuditoriaMovimiento
+{
+    public int Id { get; set; }
+    public int UsuarioId { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public DateTime Fecha { get; set; }
+    public string Entidad { get; set; } = string.Empty;   // 'Cliente' | 'Poliza'
+    public int RegistroId { get; set; }
+    public string Accion { get; set; } = string.Empty;    // 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero'
+    public string? Detalle { get; set; }
+}
+
 public class Usuario
 {
     public int Id { get; set; }

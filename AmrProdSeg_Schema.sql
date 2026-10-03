@@ -3838,5 +3838,49 @@ END
 GO
 
 /* =============================================================================
+   §64 — Auditoría de movimientos: registra operaciones sensibles que antes no
+   dejaban rastro (editar cliente, editar póliza, cancelar póliza, asignar
+   número). Cada fila guarda quién hizo qué y cuándo (fecha+hora).
+   ============================================================================= */
+IF OBJECT_ID('dbo.AuditoriaMovimientos', 'U') IS NULL
+BEGIN
+    CREATE TABLE AuditoriaMovimientos (
+        Id          INT PRIMARY KEY IDENTITY,
+        UsuarioId   INT          NOT NULL REFERENCES Usuarios(Id),
+        Fecha       DATETIME     NOT NULL,
+        Entidad     VARCHAR(30)  NOT NULL,   -- 'Cliente' | 'Poliza'
+        RegistroId  INT          NOT NULL,
+        Accion      VARCHAR(30)  NOT NULL,   -- 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero'
+        Detalle     NVARCHAR(500) NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditoriaMovimientos_Usuario_Fecha')
+    CREATE INDEX IX_AuditoriaMovimientos_Usuario_Fecha ON AuditoriaMovimientos(UsuarioId, Fecha DESC);
+GO
+
+CREATE OR ALTER PROCEDURE sp_AuditoriaMovimiento_Insertar
+    @UsuarioId  INT, @Fecha DATETIME, @Entidad VARCHAR(30), @RegistroId INT,
+    @Accion VARCHAR(30), @Detalle NVARCHAR(500) = NULL
+AS
+BEGIN SET NOCOUNT ON;
+    INSERT INTO AuditoriaMovimientos (UsuarioId, Fecha, Entidad, RegistroId, Accion, Detalle)
+    VALUES (@UsuarioId, @Fecha, @Entidad, @RegistroId, @Accion, @Detalle);
+END
+GO
+
+-- Lista los movimientos (opcional filtro por usuario), más recientes primero.
+CREATE OR ALTER PROCEDURE sp_AuditoriaMovimiento_Listar @UsuarioId INT = NULL AS
+BEGIN SET NOCOUNT ON;
+    SELECT a.Id, a.UsuarioId, u.Nombre AS UsuarioNombre, a.Fecha, a.Entidad, a.RegistroId, a.Accion, a.Detalle
+    FROM AuditoriaMovimientos a
+    LEFT JOIN Usuarios u ON u.Id = a.UsuarioId
+    WHERE (@UsuarioId IS NULL OR a.UsuarioId = @UsuarioId)
+    ORDER BY a.Fecha DESC, a.Id DESC;
+END
+GO
+
+/* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */

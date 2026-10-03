@@ -14,9 +14,11 @@ public class ClienteService : IClienteService
     private readonly IPolizaRepository _polizaRepo;
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IPdfService _pdf;
+    private readonly IAuditoriaMovimientoService _auditoria;
 
     public ClienteService(IClienteRepository clienteRepo, IUsuarioRepository usuarioRepo,
-        IVehiculoRepository vehiculoRepo, IPolizaRepository polizaRepo, ICompaniaRepository companiaRepo, IPdfService pdf)
+        IVehiculoRepository vehiculoRepo, IPolizaRepository polizaRepo, ICompaniaRepository companiaRepo, IPdfService pdf,
+        IAuditoriaMovimientoService auditoria)
     {
         _clienteRepo = clienteRepo;
         _usuarioRepo = usuarioRepo;
@@ -24,6 +26,7 @@ public class ClienteService : IClienteService
         _polizaRepo = polizaRepo;
         _companiaRepo = companiaRepo;
         _pdf = pdf;
+        _auditoria = auditoria;
     }
 
     /// <summary>Genera la ficha completa del cliente en PDF (datos, vehículos y todas las pólizas).</summary>
@@ -72,10 +75,12 @@ public class ClienteService : IClienteService
         return await _clienteRepo.InsertarAsync(cliente);
     }
 
-    public async Task ActualizarAsync(int id, ActualizarClienteDto dto)
+    public async Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null)
     {
         var cliente = await _clienteRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Cliente no encontrado.");
+
+        var anterior = $"\"{cliente.Nombre}\" · doc {cliente.Documento} · tel {cliente.Telefono ?? "-"} · email {cliente.Email ?? "-"}";
 
         cliente.Nombre    = dto.Nombre;
         cliente.Email     = dto.Email;
@@ -85,6 +90,12 @@ public class ClienteService : IClienteService
         cliente.FechaNacimiento = dto.FechaNacimiento;
 
         await _clienteRepo.ActualizarAsync(cliente);
+
+        if (usuarioId is int uid)
+        {
+            var nuevo = $"\"{cliente.Nombre}\" · doc {cliente.Documento} · tel {cliente.Telefono ?? "-"} · email {cliente.Email ?? "-"}";
+            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Editar", $"Antes: {anterior} | Después: {nuevo}");
+        }
     }
 
     public async Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId)

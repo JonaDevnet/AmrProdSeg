@@ -76,7 +76,7 @@ public class ClientesController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarClienteDto dto)
     {
-        await _service.ActualizarAsync(id, dto);
+        await _service.ActualizarAsync(id, dto, UsuarioActualId());
         return NoContent();
     }
 

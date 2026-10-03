@@ -12,15 +12,15 @@ nota() { echo -e "${C_DIM}$*${C_RESET}"; }
 ok()   { echo -e "${C_GREEN}$*${C_RESET}"; }
 err()  { echo -e "${C_RED}$*${C_RESET}"; }
 
-# ¿Traefik tiene los access logs activos? (--accesslogs=true en el CMD)
+# ¿Traefik tiene los access logs activos? (--accesslog=true en el CMD)
 access_logs_activos() {
-    docker inspect "$TRAEFIK" --format '{{json .Config.Cmd}}' 2>/dev/null | grep -q 'accesslogs'
+    docker inspect "$TRAEFIK" --format '{{json .Config.Cmd}}' 2>/dev/null | grep -q 'accesslog'
 }
 
 aviso_access() {
     err "  ⚠ Los access logs de Traefik no están activos."
     err "  Para activarlos, en el VPS editá /docker/traefik/docker-compose.yml y agregá:"
-    echo "      - --accesslogs=true"
+    echo "      - --accesslog=true"
     echo "    + bloque 'logging' (json-file, max-size 10m / max-file 5), y luego:"
     echo "      cd /docker/traefik && docker compose up -d"
 }

@@ -8,6 +8,20 @@ namespace AmrProdSeg.Tests;
 
 /// <summary>Fakes en memoria configurables para testear los servicios sin BD.</summary>
 
+public class FakeAuditoriaMovimientoService : IAuditoriaMovimientoService
+{
+    public List<(int usuarioId, string entidad, int registroId, string accion, string? detalle)> Registros = new();
+
+    public Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle)
+    {
+        Registros.Add((usuarioId, entidad, registroId, accion, detalle));
+        return Task.CompletedTask;
+    }
+
+    public Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId)
+        => Task.FromResult(new List<AuditoriaMovimiento>());
+}
+
 public class FakePolizaRepository : IPolizaRepository
 {
     public Poliza? PolizaPorId;

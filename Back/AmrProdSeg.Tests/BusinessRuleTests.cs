@@ -83,7 +83,7 @@ public class CobroServiceTests
 public class PolizaServiceTests
 {
     private static PolizaService Crear(FakePolizaRepository polizaRepo)
-        => new(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(), new FakeVehiculoRepository(), new FakePdfService());
+        => new(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
 
     [Theory]
     [InlineData(EstadoPoliza.Cancelada)]
@@ -181,7 +181,8 @@ public class ClienteServiceTests
     {
         var repo = new FakeClienteRepository { PorDocumento = new Cliente { Id = 1, Documento = "30111222" } };
         var service = new ClienteService(repo, new FakeUsuarioRepository(),
-            new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService());
+            new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService(),
+            new FakeAuditoriaMovimientoService());
 
         await Assert.ThrowsAsync<BusinessException>(() => service.CrearAsync(new CrearClienteDto
         {

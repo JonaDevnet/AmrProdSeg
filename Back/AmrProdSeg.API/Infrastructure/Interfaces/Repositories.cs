@@ -127,6 +127,12 @@ public interface IAuditoriaRepository
     Task<List<AuditoriaCambio>> GetPorRegistroAsync(string tabla, int registroId);
 }
 
+public interface IAuditoriaMovimientoRepository
+{
+    Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha);
+    Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
+}
+
 public interface IResetRepository
 {
     Task SolicitarAsync(int usuarioId, string email);
