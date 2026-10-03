@@ -3,7 +3,9 @@
 import { useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEliminacionesHistorial, getAnulacionesHistorial, getPapelera, restaurarPoliza, borrarDefinitivo } from "../api/eliminaciones";
-import { formatFecha, formatMoneda } from "../utils/format";
+import { getAuditoriaMovimientos } from "../api/auditoria";
+import { useUsuarios } from "../hooks/admin";
+import { formatFecha, formatFechaHora, formatMoneda } from "../utils/format";
 
 const ESTADOS: Record<number, { l: string; bg: string; fg: string }> = {
   0: { l: "Pendiente", bg: "var(--warn-100)", fg: "var(--warn-700)" },
@@ -25,12 +27,20 @@ function Pill({ e, mapa }: { e: number; mapa: Record<number, { l: string; bg: st
 
 export default function Registro() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"pap" | "elim" | "anul">("pap");
+  const [tab, setTab] = useState<"pap" | "elim" | "anul" | "auditoria">("pap");
+  const [auditoriaUsuarioId, setAuditoriaUsuarioId] = useState<number | undefined>(undefined);
   const [borrar, setBorrar] = useState<number | null>(null);
   const [accion, setAccion] = useState(false);
   const elim = useQuery({ queryKey: ["registro", "eliminaciones"], queryFn: getEliminacionesHistorial });
   const anul = useQuery({ queryKey: ["registro", "anulaciones"], queryFn: getAnulacionesHistorial });
   const pap = useQuery({ queryKey: ["registro", "papelera"], queryFn: getPapelera });
+  const { data: usuarios = [] } = useUsuarios();
+  const auditoria = useQuery({
+    queryKey: ["registro", "auditoria", auditoriaUsuarioId ?? 0],
+    queryFn: () => getAuditoriaMovimientos(auditoriaUsuarioId),
+    enabled: tab === "auditoria",
+  });
+  const movimientos = auditoria.data ?? [];
 
   const eliminaciones = elim.data ?? [];
   const anulaciones = anul.data ?? [];
@@ -68,11 +78,51 @@ export default function Registro() {
         <button style={tabBtn(tab === "pap")} onClick={() => setTab("pap")}>🗑️ Papelera ({papelera.length})</button>
         <button style={tabBtn(tab === "elim")} onClick={() => setTab("elim")}>Historial de eliminaciones ({eliminaciones.length})</button>
         <button style={tabBtn(tab === "anul")} onClick={() => setTab("anul")}>Cuotas anuladas ({anulaciones.length})</button>
+        <button style={tabBtn(tab === "auditoria")} onClick={() => setTab("auditoria")}>Auditoría</button>
       </div>
 
       <section style={card}>
         <div style={{ overflowX: "auto" }}>
-          {tab === "pap" ? (
+          {tab === "auditoria" ? (
+            <div style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-700)" }}>Usuario</label>
+                <select
+                  value={auditoriaUsuarioId ?? ""}
+                  onChange={(e) => setAuditoriaUsuarioId(e.target.value === "" ? undefined : Number(e.target.value))}
+                  style={{ height: 36, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 13.5 }}
+                >
+                  <option value="">Todos los usuarios</option>
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+                  ))}
+                </select>
+              </div>
+              {auditoria.isLoading ? (
+                <div style={vacio}>Cargando auditoría…</div>
+              ) : movimientos.length === 0 ? (
+                <div style={vacio}>Sin movimientos registrados.</div>
+              ) : (
+                <table style={table}>
+                  <thead><tr>
+                    <th style={th}>Fecha y hora</th><th style={th}>Usuario</th><th style={th}>Entidad</th>
+                    <th style={th}>Acción</th><th style={th}>Detalle</th>
+                  </tr></thead>
+                  <tbody>
+                    {movimientos.map((m) => (
+                      <tr key={m.id} style={{ borderTop: "1px solid var(--line-2)" }}>
+                        <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink-500)" }}>{formatFechaHora(m.fecha)}</td>
+                        <td style={td}>{m.usuarioNombre ?? "—"}</td>
+                        <td style={td}>{m.entidad} <span style={{ color: "var(--ink-400)" }}>#{m.registroId}</span></td>
+                        <td style={td}>{m.accion}</td>
+                        <td style={{ ...td, color: "var(--ink-600)", whiteSpace: "normal", maxWidth: 420 }}>{m.detalle ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : tab === "pap" ? (
             <div style={{ padding: 16, display: "grid", gap: 12 }}>
               {papelera.length === 0 ? (
                 <div style={vacio}>La papelera está vacía.</div>
