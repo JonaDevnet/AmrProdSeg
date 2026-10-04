@@ -331,6 +331,38 @@ public class EliminarPolizaResultDto
     public string Mensaje { get; set; } = string.Empty;
 }
 
+// ---------- Solicitud de cambio (editar/eliminar cliente o póliza) ----------
+/// <summary>Resultado de editar/eliminar: aplicada en el acto (Admin) o pendiente (Productor).</summary>
+public class CambioResultDto
+{
+    public bool Aplicada { get; set; }    // aplicada en el acto (Admin)
+    public bool Solicitada { get; set; }  // queda pendiente de autorización (Productor)
+    public string Mensaje { get; set; } = string.Empty;
+}
+
+/// <summary>Solicitud de cambio pendiente/histórica, para listar y aprobar.</summary>
+public class SolicitudCambioDto
+{
+    public int Id { get; set; }
+    public string Tipo { get; set; } = string.Empty;
+    public int EntidadId { get; set; }
+    public string Accion { get; set; } = string.Empty;
+    public string? Motivo { get; set; }
+    public string? Solicitante { get; set; }
+    public string? FechaSolicitud { get; set; }
+    public int Estado { get; set; }
+    public string? Resolvio { get; set; }
+    public string? FechaResolucion { get; set; }
+    public string? EntidadDesc { get; set; }
+    public string? ClienteNombre { get; set; }
+    public string? PayloadJson { get; set; }
+}
+
+public class EliminarClienteDto
+{
+    public string? Motivo { get; set; }
+}
+
 // ---------- Envío de comprobante ----------
 public class EnviarComprobanteDto
 {

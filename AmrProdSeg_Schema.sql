@@ -2037,7 +2037,8 @@ BEGIN
     SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento, OficinaId,
            COUNT(*) OVER() AS Total
     FROM Clientes c
-    WHERE (@Termino = '' OR Nombre LIKE '%' + @Termino + '%' OR Documento LIKE '%' + @Termino + '%')
+    WHERE c.Activo = 1
+      AND (@Termino = '' OR Nombre LIKE '%' + @Termino + '%' OR Documento LIKE '%' + @Termino + '%')
       AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
            OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))
     ORDER BY Nombre ASC
@@ -3878,6 +3879,102 @@ BEGIN SET NOCOUNT ON;
     LEFT JOIN Usuarios u ON u.Id = a.UsuarioId
     WHERE (@UsuarioId IS NULL OR a.UsuarioId = @UsuarioId)
     ORDER BY a.Fecha DESC, a.Id DESC;
+END
+GO
+
+/* =============================================================================
+   §65 — Solicitudes de cambio con autorización del Admin: editar/eliminar
+   cliente y editar póliza. El Productor deja una solicitud pendiente; el Admin
+   la aprueba (y se aplica el cambio) o la rechaza. PayloadJson guarda los
+   valores propuestos (JSON del DTO de edición).
+   ============================================================================= */
+IF OBJECT_ID('dbo.SolicitudesCambio', 'U') IS NULL
+BEGIN
+    CREATE TABLE SolicitudesCambio (
+        Id              INT PRIMARY KEY IDENTITY,
+        Tipo            VARCHAR(20)   NOT NULL,   -- 'Cliente' | 'Poliza'
+        EntidadId       INT           NOT NULL,
+        Accion          VARCHAR(20)   NOT NULL,   -- 'Editar' | 'Eliminar'
+        PayloadJson     NVARCHAR(MAX) NULL,
+        Motivo          NVARCHAR(200) NULL,
+        SolicitanteId   INT           NOT NULL REFERENCES Usuarios(Id),
+        FechaSolicitud  DATETIME      NOT NULL DEFAULT GETUTCDATE(),
+        Estado          INT           NOT NULL DEFAULT 0,  -- 0=Pendiente 1=Aprobada 2=Rechazada
+        ResolutorId     INT           NULL REFERENCES Usuarios(Id),
+        FechaResolucion DATETIME      NULL
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SolicitudesCambio_Estado')
+    CREATE INDEX IX_SolicitudesCambio_Estado ON SolicitudesCambio(Estado);
+GO
+
+-- Crea una solicitud; devuelve 0 si ya había una pendiente para esa entidad+acción.
+CREATE OR ALTER PROCEDURE sp_SolicitudCambio_Solicitar
+    @Tipo VARCHAR(20), @EntidadId INT, @Accion VARCHAR(20),
+    @PayloadJson NVARCHAR(MAX) = NULL, @Motivo NVARCHAR(200) = NULL, @SolicitanteId INT
+AS
+BEGIN SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM SolicitudesCambio
+               WHERE Tipo = @Tipo AND EntidadId = @EntidadId AND Accion = @Accion AND Estado = 0)
+    BEGIN SELECT CAST(0 AS INT) AS Id; RETURN; END
+    INSERT INTO SolicitudesCambio (Tipo, EntidadId, Accion, PayloadJson, Motivo, SolicitanteId)
+    VALUES (@Tipo, @EntidadId, @Accion, @PayloadJson, @Motivo, @SolicitanteId);
+    SELECT CAST(SCOPE_IDENTITY() AS INT) AS Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_SolicitudCambio_GetById @Id INT AS
+BEGIN SET NOCOUNT ON;
+    SELECT Id, Tipo, EntidadId, Accion, PayloadJson, Motivo, SolicitanteId, FechaSolicitud, Estado, ResolutorId, FechaResolucion
+    FROM SolicitudesCambio WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_SolicitudCambio_Aprobar @Id INT, @ResolutorId INT AS
+BEGIN SET NOCOUNT ON;
+    UPDATE SolicitudesCambio
+    SET Estado = 1, ResolutorId = @ResolutorId, FechaResolucion = GETUTCDATE()
+    WHERE Id = @Id AND Estado = 0;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_SolicitudCambio_Rechazar @Id INT, @ResolutorId INT AS
+BEGIN SET NOCOUNT ON;
+    UPDATE SolicitudesCambio
+    SET Estado = 2, ResolutorId = @ResolutorId, FechaResolucion = GETUTCDATE()
+    WHERE Id = @Id AND Estado = 0;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+-- Lista con datos de lectura (nombre del cliente / nro de póliza + su cliente).
+-- @Estado: 0 pendientes, 1 aprobadas, 2 rechazadas, NULL todas (historial).
+CREATE OR ALTER PROCEDURE sp_SolicitudCambio_Listar @Estado INT = NULL AS
+BEGIN SET NOCOUNT ON;
+    SELECT s.Id, s.Tipo, s.EntidadId, s.Accion, s.Motivo,
+           s.SolicitanteId, sol.Nombre AS Solicitante, s.FechaSolicitud,
+           s.Estado, res.Nombre AS Resolvio, s.FechaResolucion,
+           CASE s.Tipo WHEN 'Cliente' THEN c.Nombre WHEN 'Poliza' THEN p.Numero ELSE NULL END AS EntidadDesc,
+           CASE WHEN s.Tipo = 'Poliza' THEN cp.Nombre ELSE NULL END AS ClienteNombre
+    FROM SolicitudesCambio s
+    LEFT JOIN Usuarios sol ON sol.Id = s.SolicitanteId
+    LEFT JOIN Usuarios res ON res.Id = s.ResolutorId
+    LEFT JOIN Clientes c  ON s.Tipo = 'Cliente' AND c.Id = s.EntidadId
+    LEFT JOIN Polizas  p  ON s.Tipo = 'Poliza'  AND p.Id = s.EntidadId
+    LEFT JOIN Clientes cp ON s.Tipo = 'Poliza'  AND cp.Id = p.ClienteId
+    WHERE (@Estado IS NULL OR s.Estado = @Estado)
+    ORDER BY s.FechaSolicitud DESC, s.Id DESC;
+END
+GO
+
+-- Borrado lógico del cliente (conserva historial; solo Admin o por solicitud).
+CREATE OR ALTER PROCEDURE sp_Cliente_Eliminar @Id INT AS
+BEGIN SET NOCOUNT ON;
+    UPDATE Clientes SET Activo = 0 WHERE Id = @Id;
+    SELECT @@ROWCOUNT AS Afectadas;
 END
 GO
 

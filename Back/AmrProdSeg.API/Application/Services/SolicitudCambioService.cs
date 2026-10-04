@@ -1,0 +1,100 @@
+using System.Text.Json;
+using AmrProdSeg.API.Application.DTOs;
+using AmrProdSeg.API.Application.Exceptions;
+using AmrProdSeg.API.Application.Interfaces;
+using AmrProdSeg.API.Domain;
+using AmrProdSeg.API.Infrastructure.Interfaces;
+
+namespace AmrProdSeg.API.Application.Services;
+
+/// <summary>
+/// Flujo de autorización de cambios (editar/eliminar cliente, editar póliza).
+/// El Productor deja una solicitud pendiente; al aprobarla, el Admin aplica el cambio
+/// (el payload JSON se deserializa al DTO correspondiente) y queda registrado en la
+/// auditoría de movimientos con el Admin como actor.
+/// </summary>
+public class SolicitudCambioService : ISolicitudCambioService
+{
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+
+    private readonly ISolicitudCambioRepository _repo;
+    private readonly IClienteService _clientes;
+    private readonly IPolizaService _polizas;
+
+    public SolicitudCambioService(
+        ISolicitudCambioRepository repo, IClienteService clientes, IPolizaService polizas)
+    {
+        _repo = repo;
+        _clientes = clientes;
+        _polizas = polizas;
+    }
+
+    public async Task<int> SolicitarAsync(string tipo, int entidadId, string accion, string? payloadJson, string? motivo, int solicitanteId)
+        => await _repo.SolicitarAsync(tipo, entidadId, accion, payloadJson, motivo, solicitanteId);
+
+    public Task<List<SolicitudCambioDto>> GetPendientesAsync() => ListarDtoAsync(0);
+    public Task<List<SolicitudCambioDto>> GetHistorialAsync()  => ListarDtoAsync(null);
+
+    public async Task AprobarAsync(int id, int adminId)
+    {
+        var s = await _repo.GetByIdAsync(id)
+            ?? throw new NotFoundException("La solicitud no existe.");
+        if (s.Estado != 0)
+            throw new BusinessException("La solicitud ya fue resuelta.");
+
+        // Aplica el cambio; si falla (validación), la solicitud queda pendiente para reintentar.
+        await AplicarAsync(s, adminId);
+
+        if (await _repo.AprobarAsync(id, adminId) == 0)
+            throw new BusinessException("La solicitud ya fue resuelta.");
+    }
+
+    public async Task RechazarAsync(int id, int adminId)
+    {
+        if (await _repo.RechazarAsync(id, adminId) == 0)
+            throw new BusinessException("La solicitud no existe o ya fue resuelta.");
+    }
+
+    private async Task AplicarAsync(SolicitudCambio s, int adminId)
+    {
+        switch ((s.Tipo, s.Accion))
+        {
+            case ("Cliente", "Editar"):
+                var dc = JsonSerializer.Deserialize<ActualizarClienteDto>(s.PayloadJson ?? "{}", JsonOpts)
+                         ?? throw new BusinessException("Datos de edición inválidos.");
+                await _clientes.ActualizarAsync(s.EntidadId, dc, adminId);
+                break;
+            case ("Cliente", "Eliminar"):
+                await _clientes.EliminarAsync(s.EntidadId, adminId);
+                break;
+            case ("Poliza", "Editar"):
+                var dp = JsonSerializer.Deserialize<ActualizarPolizaDto>(s.PayloadJson ?? "{}", JsonOpts)
+                         ?? throw new BusinessException("Datos de edición inválidos.");
+                await _polizas.ActualizarAsync(s.EntidadId, dp, adminId);
+                break;
+            default:
+                throw new BusinessException($"Tipo de cambio no soportado: {s.Tipo}/{s.Accion}.");
+        }
+    }
+
+    private async Task<List<SolicitudCambioDto>> ListarDtoAsync(int? estado)
+    {
+        var lista = await _repo.ListarAsync(estado);
+        return lista.Select(s => new SolicitudCambioDto
+        {
+            Id = s.Id,
+            Tipo = s.Tipo,
+            EntidadId = s.EntidadId,
+            Accion = s.Accion,
+            Motivo = s.Motivo,
+            Solicitante = s.Solicitante,
+            FechaSolicitud = s.FechaSolicitud.ToString("o"),
+            Estado = s.Estado,
+            Resolvio = s.Resolvio,
+            FechaResolucion = s.FechaResolucion?.ToString("o"),
+            EntidadDesc = s.EntidadDesc,
+            ClienteNombre = s.ClienteNombre,
+            PayloadJson = s.PayloadJson
+        }).ToList();
+    }
+}

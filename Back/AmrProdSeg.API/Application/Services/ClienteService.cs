@@ -110,6 +110,17 @@ public class ClienteService : IClienteService
         await _clienteRepo.ActualizarDocumentoAsync(id, nuevoDocumento, usuarioId);
     }
 
+    /// <summary>Borrado lógico del cliente (conserva historial). Solo Admin directo o vía solicitud.</summary>
+    public async Task<int> EliminarAsync(int id, int? usuarioId = null)
+    {
+        var cliente = await _clienteRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException("Cliente no encontrado.");
+        var afectadas = await _clienteRepo.EliminarAsync(id);
+        if (afectadas > 0 && usuarioId is int uid)
+            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Eliminar", $"Eliminó al cliente \"{cliente.Nombre}\" (doc {cliente.Documento}).");
+        return afectadas;
+    }
+
     public Task<Cliente?> GetByIdAsync(int id) => _clienteRepo.GetByIdAsync(id);
 
     public async Task<PagedResult<Cliente>> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false)

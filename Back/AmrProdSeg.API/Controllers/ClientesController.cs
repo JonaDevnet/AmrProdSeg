@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
 using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -14,11 +15,13 @@ public class ClientesController : ControllerBase
 {
     private readonly IClienteService _service;
     private readonly IOficinaService _oficinaService;
+    private readonly ISolicitudCambioService _solicitudes;
 
-    public ClientesController(IClienteService service, IOficinaService oficinaService)
+    public ClientesController(IClienteService service, IOficinaService oficinaService, ISolicitudCambioService solicitudes)
     {
         _service = service;
         _oficinaService = oficinaService;
+        _solicitudes = solicitudes;
     }
 
     [HttpGet]
@@ -73,11 +76,40 @@ public class ClientesController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Edita un cliente. El Admin aplica el cambio en el acto; el Productor deja una
+    /// solicitud pendiente de autorización (la ve en la campanita del Admin).
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarClienteDto dto)
     {
-        await _service.ActualizarAsync(id, dto, UsuarioActualId());
-        return NoContent();
+        var uid = UsuarioActualId();
+        if (EsAdmin())
+        {
+            await _service.ActualizarAsync(id, dto, uid);
+            return Ok(new CambioResultDto { Aplicada = true, Mensaje = "Cliente actualizado." });
+        }
+        var sid = await _solicitudes.SolicitarAsync("Cliente", id, "Editar", JsonSerializer.Serialize(dto), null, uid);
+        return Ok(new CambioResultDto { Solicitada = true, Mensaje = sid == 0 ? "Ya hay una solicitud de edición pendiente para este cliente." : "Solicitud de edición enviada. Queda pendiente de autorización del administrador." });
+    }
+
+    /// <summary>
+    /// Elimina (borrado lógico) un cliente. El Admin lo ejecuta en el acto; el Productor
+    /// deja una solicitud pendiente de autorización.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Eliminar(int id, [FromBody] EliminarClienteDto? dto)
+    {
+        var uid = UsuarioActualId();
+        if (EsAdmin())
+        {
+            var afectadas = await _service.EliminarAsync(id, uid);
+            return afectadas == 0
+                ? NotFound(new CambioResultDto { Mensaje = "Cliente no encontrado." })
+                : Ok(new CambioResultDto { Aplicada = true, Mensaje = "Cliente eliminado." });
+        }
+        var sid = await _solicitudes.SolicitarAsync("Cliente", id, "Eliminar", null, dto?.Motivo, uid);
+        return Ok(new CambioResultDto { Solicitada = true, Mensaje = sid == 0 ? "Ya hay una solicitud de eliminación pendiente para este cliente." : "Solicitud de eliminación enviada. Queda pendiente de autorización del administrador." });
     }
 
     /// <summary>Corrección del documento — solo Admin, queda registrada en AuditoriaCambios.</summary>

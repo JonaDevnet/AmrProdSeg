@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json;
 using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -15,12 +16,14 @@ public class PolizasController : ControllerBase
     private readonly IPolizaService _service;
     private readonly IEliminacionService _eliminacion;
     private readonly IEndosoService _endoso;
+    private readonly ISolicitudCambioService _solicitudes;
 
-    public PolizasController(IPolizaService service, IEliminacionService eliminacion, IEndosoService endoso)
+    public PolizasController(IPolizaService service, IEliminacionService eliminacion, IEndosoService endoso, ISolicitudCambioService solicitudes)
     {
         _service = service;
         _eliminacion = eliminacion;
         _endoso = endoso;
+        _solicitudes = solicitudes;
     }
 
     [HttpGet]
@@ -55,11 +58,21 @@ public class PolizasController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = resultado.Id }, resultado);
     }
 
+    /// <summary>
+    /// Edita una póliza. El Admin aplica el cambio en el acto; el Productor deja una
+    /// solicitud pendiente de autorización (la ve en la campanita del Admin).
+    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Actualizar(int id, [FromBody] ActualizarPolizaDto dto)
     {
-        await _service.ActualizarAsync(id, dto, UsuarioActualId());
-        return NoContent();
+        var uid = UsuarioActualId();
+        if (EsAdmin())
+        {
+            await _service.ActualizarAsync(id, dto, uid);
+            return Ok(new CambioResultDto { Aplicada = true, Mensaje = "Póliza actualizada." });
+        }
+        var sid = await _solicitudes.SolicitarAsync("Poliza", id, "Editar", JsonSerializer.Serialize(dto), null, uid);
+        return Ok(new CambioResultDto { Solicitada = true, Mensaje = sid == 0 ? "Ya hay una solicitud de edición pendiente para esta póliza." : "Solicitud de edición enviada. Queda pendiente de autorización del administrador." });
     }
 
     /// <summary>Asigna el número definitivo a una póliza en trámite (E/T).</summary>

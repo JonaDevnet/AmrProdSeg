@@ -235,6 +235,25 @@ public class AuditoriaMovimiento
     public string? Detalle { get; set; }
 }
 
+/// <summary>Solicitud de cambio pendiente de autorización del Admin (editar/eliminar).</summary>
+public class SolicitudCambio
+{
+    public int Id { get; set; }
+    public string Tipo { get; set; } = string.Empty;      // 'Cliente' | 'Poliza'
+    public int EntidadId { get; set; }
+    public string Accion { get; set; } = string.Empty;    // 'Editar' | 'Eliminar'
+    public string? PayloadJson { get; set; }
+    public string? Motivo { get; set; }
+    public int SolicitanteId { get; set; }
+    public string? Solicitante { get; set; }
+    public DateTime FechaSolicitud { get; set; }
+    public int Estado { get; set; }                       // 0=Pendiente 1=Aprobada 2=Rechazada
+    public string? Resolvio { get; set; }
+    public DateTime? FechaResolucion { get; set; }
+    public string? EntidadDesc { get; set; }              // nombre del cliente / nro de póliza
+    public string? ClienteNombre { get; set; }            // titular de la póliza (si aplica)
+}
+
 public class Usuario
 {
     public int Id { get; set; }

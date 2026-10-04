@@ -46,6 +46,7 @@ public interface IClienteRepository
     Task<Cliente?> GetByIdAsync(int id);
     Task<(List<Cliente> Items, int Total)> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
     Task<Cliente?> VerificarDocumentoAsync(string documento);
+    Task<int> EliminarAsync(int id);
 }
 
 public interface IVehiculoRepository
@@ -131,6 +132,16 @@ public interface IAuditoriaMovimientoRepository
 {
     Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha);
     Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
+}
+
+/// <summary>Solicitudes de cambio pendientes de autorización del Admin (editar/eliminar cliente o póliza).</summary>
+public interface ISolicitudCambioRepository
+{
+    Task<int> SolicitarAsync(string tipo, int entidadId, string accion, string? payloadJson, string? motivo, int solicitanteId);
+    Task<SolicitudCambio?> GetByIdAsync(int id);
+    Task<int> AprobarAsync(int id, int resolutorId);
+    Task<int> RechazarAsync(int id, int resolutorId);
+    Task<List<SolicitudCambio>> ListarAsync(int? estado);
 }
 
 public interface IResetRepository

@@ -80,6 +80,7 @@ public interface IClienteService
     Task<int> CrearAsync(CrearClienteDto dto, int? usuarioId = null);
     Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null);
     Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId);
+    Task<int> EliminarAsync(int id, int? usuarioId = null);
     Task<Cliente?> GetByIdAsync(int id);
     Task<PagedResult<Cliente>> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
     Task<byte[]> GenerarDossierPdfAsync(int clienteId, int? usuarioId, bool esAdmin);
@@ -169,6 +170,18 @@ public interface IAuditoriaMovimientoService
 {
     Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle);
     Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
+}
+
+/// <summary>Solicitudes de cambio pendientes de autorización del Admin (editar/eliminar cliente o póliza).</summary>
+public interface ISolicitudCambioService
+{
+    /// <summary>Crea una solicitud de cambio (Productor). Devuelve 0 si ya había una pendiente.</summary>
+    Task<int> SolicitarAsync(string tipo, int entidadId, string accion, string? payloadJson, string? motivo, int solicitanteId);
+    Task<List<SolicitudCambioDto>> GetPendientesAsync();
+    Task<List<SolicitudCambioDto>> GetHistorialAsync();
+    /// <summary>Aprueba y APLICA el cambio. Solo Admin.</summary>
+    Task AprobarAsync(int id, int adminId);
+    Task RechazarAsync(int id, int adminId);
 }
 
 public interface IVerificacionService

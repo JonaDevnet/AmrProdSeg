@@ -78,6 +78,7 @@ public class FakeClienteRepository : IClienteRepository
     public Task<(List<Cliente> Items, int Total)> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false)
         => Task.FromResult((new List<Cliente>(), 0));
     public Task<Cliente?> VerificarDocumentoAsync(string documento) => Task.FromResult(PorDocumento);
+    public Task<int> EliminarAsync(int id) => Task.FromResult(1);
 }
 
 public class FakeUsuarioRepository : IUsuarioRepository

@@ -110,6 +110,20 @@ public class ClienteRepository : IClienteRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>Borrado lógico (Activo = 0): conserva historial. Devuelve filas afectadas.</summary>
+    public async Task<int> EliminarAsync(int id)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Cliente_Eliminar", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@Id", id);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    }
+
     public async Task<Cliente?> VerificarDocumentoAsync(string documento)
     {
         using var conn = _factory.Create();
