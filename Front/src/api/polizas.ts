@@ -57,8 +57,11 @@ export interface ActualizarPolizaDto {
   primerVencimiento?: string;
 }
 
-export async function actualizarPoliza(id: number, dto: ActualizarPolizaDto): Promise<void> {
-  await api.put(`/polizas/${id}`, dto);
+import type { CambioResultDto } from "./solicitudesCambio";
+
+export async function actualizarPoliza(id: number, dto: ActualizarPolizaDto): Promise<CambioResultDto> {
+  const { data } = await api.put<CambioResultDto>(`/polizas/${id}`, dto);
+  return data ?? {};
 }
 
 export async function asignarNumeroPoliza(id: number, numero: string): Promise<void> {

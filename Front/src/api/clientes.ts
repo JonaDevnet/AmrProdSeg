@@ -45,11 +45,21 @@ export async function crearCliente(dto: CrearClienteDto): Promise<{ id: number }
   return data;
 }
 
+import type { CambioResultDto } from "./solicitudesCambio";
+
 export async function actualizarCliente(
   id: number,
   dto: ActualizarClienteDto
-): Promise<void> {
-  await api.put(`/clientes/${id}`, dto);
+): Promise<CambioResultDto> {
+  const { data } = await api.put<CambioResultDto>(`/clientes/${id}`, dto);
+  return data ?? {};
+}
+
+export async function eliminarCliente(id: number, motivo?: string): Promise<CambioResultDto> {
+  const { data } = await api.delete<CambioResultDto>(`/clientes/${id}`, {
+    data: motivo ? { motivo } : {},
+  });
+  return data ?? {};
 }
 
 export async function actualizarDocumento(

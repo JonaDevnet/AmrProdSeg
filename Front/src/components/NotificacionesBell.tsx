@@ -7,7 +7,9 @@ import { getEliminacionesPendientes, aprobarEliminacion, rechazarEliminacion } f
 import { exportacionesRecientes } from "../api/polizas";
 import { useAuth } from "../auth/AuthContext";
 import { IconBell } from "./Icons";
-import { formatFecha, formatMoneda } from "../utils/format";
+import { formatFecha, formatMoneda, formatFechaHora } from "../utils/format";
+import { getPendientes, aprobar, rechazar } from "../api/solicitudesCambio";
+import type { SolicitudCambioDto } from "../api/solicitudesCambio";
 
 export default function NotificacionesBell() {
   const navigate = useNavigate();
@@ -36,7 +38,14 @@ export default function NotificacionesBell() {
     queryKey: ["notif", "eliminaciones-pend"],
     queryFn: getEliminacionesPendientes,
     enabled: esAdmin,
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const solicitudes = useQuery<SolicitudCambioDto[]>({
+    queryKey: ["solicitudes-cambio", "pendientes"],
+    queryFn: getPendientes,
+    enabled: esAdmin,
+    staleTime: 5 * 60 * 1000,
   });
   const exp = useQuery({
     queryKey: ["notif", "exportaciones"],
@@ -55,9 +64,10 @@ export default function NotificacionesBell() {
   const items = (data ?? []).filter((p) => !vistas.has(clave(p)));
   const anulaciones = anul.data ?? [];
   const eliminaciones = elim.data ?? [];
+  const solicitudesPendientes = solicitudes.data ?? [];
   const exportaciones = exp.data ?? [];
   const exportacionesNuevas = exportaciones.filter((e) => !expVistas.has(e.id));
-  const total = items.length + anulaciones.length + eliminaciones.length + exportacionesNuevas.length;
+  const total = items.length + anulaciones.length + eliminaciones.length + solicitudesPendientes.length + exportacionesNuevas.length;
 
   function limpiarExportaciones() {
     const nuevas = new Set(expVistas);
@@ -91,6 +101,16 @@ export default function NotificacionesBell() {
   async function resolverElim(id: number, aprobar: boolean) {
     if (aprobar) await aprobarEliminacion(id); else await rechazarEliminacion(id);
     qc.invalidateQueries({ queryKey: ["notif", "eliminaciones-pend"] });
+    qc.invalidateQueries({ queryKey: ["registro"] });
+    qc.invalidateQueries({ queryKey: ["polizas"] });
+  }
+
+  async function resolverSolicitud(id: number, ok: boolean) {
+    if (ok) await aprobar(id); else await rechazar(id);
+    qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "pendientes"] });
+    qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "historial"] });
+    qc.invalidateQueries({ queryKey: ["registro"] });
+    qc.invalidateQueries({ queryKey: ["clientes"] });
     qc.invalidateQueries({ queryKey: ["polizas"] });
   }
 
@@ -147,6 +167,33 @@ export default function NotificacionesBell() {
                     </div>
                   ))
                 )}
+              </>
+            )}
+
+            {/* Solicitudes de edición/eliminación (Admin) */}
+            {esAdmin && solicitudesPendientes.length > 0 && (
+              <>
+                <div style={head}>
+                  Solicitudes de edición
+                  <span style={badge}>{solicitudesPendientes.length}</span>
+                </div>
+                {solicitudesPendientes.map((s) => (
+                  <div key={s.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {s.tipo} · <span style={{ color: s.accion === "Eliminar" ? "var(--bad-700)" : "var(--navy-900)" }}>{s.accion}</span>
+                      {s.entidadDesc ? <span style={{ fontWeight: 500 }}> · {s.entidadDesc}</span> : <span className="mono"> · #{s.entidadId}</span>}
+                    </div>
+                    {s.clienteNombre && <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>{s.clienteNombre}</div>}
+                    <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                      {s.solicitante ?? "—"} solicita {s.accion.toLowerCase()} {s.tipo.toLowerCase()} · {formatFechaHora(s.fechaSolicitud)}
+                    </div>
+                    {s.motivo && <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 3 }}>Motivo: {s.motivo}</div>}
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => resolverSolicitud(s.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Aceptar</button>
+                      <button onClick={() => resolverSolicitud(s.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                    </div>
+                  </div>
+                ))}
               </>
             )}
 

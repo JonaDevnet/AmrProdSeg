@@ -62,6 +62,19 @@ export function useActualizarCliente(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cliente", id] });
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "pendientes"] });
+    },
+  });
+}
+
+export function useEliminarCliente(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (motivo?: string) => clientesApi.eliminarCliente(id, motivo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cliente", id] });
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "pendientes"] });
     },
   });
 }
