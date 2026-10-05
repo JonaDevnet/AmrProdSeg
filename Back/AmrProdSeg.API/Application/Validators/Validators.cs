@@ -94,9 +94,7 @@ public class CrearPolizaValidator : AbstractValidator<CrearPolizaDto>
         RuleFor(x => x.PrecioTotal).GreaterThan(0).WithMessage("El precio total debe ser mayor a 0.");
         RuleFor(x => x.CantidadCuotas)
             .InclusiveBetween(1, 24).WithMessage("La cantidad de cuotas debe estar entre 1 y 24.");
-        RuleFor(x => x.FechaInicio)
-            .GreaterThanOrEqualTo(_ => DateTime.Today)
-            .WithMessage("La fecha de inicio no puede ser anterior a hoy.");
+        // TEMPORAL: inicio de póliza libre (sin mínimo "today"). Revertir en REVERTIR-InicioPolizaLibre.md.
         RuleFor(x => x.FechaFin)
             .GreaterThan(x => x.FechaInicio)
             .WithMessage("La fecha de fin debe ser posterior a la de inicio.");
@@ -129,9 +127,7 @@ public class AltaAseguradoValidator : AbstractValidator<AltaAseguradoDto>
         RuleFor(x => x.CompaniaId).GreaterThan(0);
         RuleFor(x => x.PrecioTotal).GreaterThan(0);
         RuleFor(x => x.CantidadCuotas).InclusiveBetween(1, 24);
-        RuleFor(x => x.FechaInicio)
-            .GreaterThanOrEqualTo(_ => DateTime.Today)
-            .WithMessage("La fecha de inicio no puede ser anterior a hoy.");
+        // TEMPORAL: inicio de póliza libre (sin mínimo "today"). Revertir en REVERTIR-InicioPolizaLibre.md.
         RuleFor(x => x.FechaFin)
             .GreaterThan(x => x.FechaInicio)
             .WithMessage("La fecha de fin debe ser posterior a la de inicio.");
