@@ -147,8 +147,8 @@ export default function Editar() {
             </div>
             <div style={{ padding: "22px 26px 26px" }}>
               {saved && (
-                <div style={{ marginBottom: 16, padding: "10px 14px", background: "var(--ok-100)", border: "1px solid var(--ok-500)", borderRadius: 9, fontSize: 13, color: "var(--ok-700)", display: "flex", gap: 8, alignItems: "center" }}>
-                  <IconCheck size={15} /> Cambios guardados.
+                <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 9, fontSize: 13, display: "flex", gap: 8, alignItems: "center", background: solicitada ? "var(--warn-100)" : "var(--ok-100)", border: `1px solid ${solicitada ? "var(--warn-500)" : "var(--ok-500)"}`, color: solicitada ? "var(--warn-700)" : "var(--ok-700)" }}>
+                  <IconCheck size={15} /> {solicitada ? "Solicitud de cambio enviada. El Admin debe aprobarla para aplicar el cambio." : "Cambios guardados."}
                 </div>
               )}
               {error && <div style={{ marginBottom: 16, padding: "10px 14px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 9, fontSize: 13, color: "var(--bad-700)" }}>{error}</div>}
@@ -227,7 +227,7 @@ export default function Editar() {
   );
 }
 
-function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved: () => void; setError: (s?: string) => void }) {
+function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved: (solicitada: boolean) => void; setError: (s?: string) => void }) {
   const companias = useCompanias();
   const ramos = useRamos();
   const coberturas = useCoberturas();
@@ -251,7 +251,7 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   async function guardar() {
     setError(undefined); setGuardando(true);
     try {
-      await actualizarPoliza(poliza.id, {
+      const res = await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
         fechaInicio, fechaFin,
         precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100,
@@ -262,7 +262,7 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
       });
       // Al cambiar vigencia/cantidad de cuotas se regeneran los cobros: refrescar Cobranzas.
       qc.invalidateQueries({ queryKey: ["cobros"] });
-      onSaved();
+      onSaved(res?.solicitada === true);
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }
 

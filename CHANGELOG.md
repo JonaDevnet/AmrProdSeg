@@ -49,6 +49,13 @@ rebuild de back + front (`bash actualizar.sh`).
   para/levanta amr-api solo, maneja base inexistente).
 - Prima OG + diferencia opcional en la exportación de "Hechos del día".
 - Marca y modelo del vehículo en la card de Cobranzas (§56).
+- **Edición del rol de usuarios** (/usuarios): el rol deja de ser un chip de solo lectura y pasa a
+  un **selector desplegable** (Vendedor / Productor / Admin) que actualiza al instante
+  (`PUT /usuarios/{id}/rol`, solo Admin). Nuevo rol **Vendedor** disponible también al crear usuario.
+- **Notificación de póliza creada** en la campanita (Admin): al dar de alta una póliza se registra
+  un aviso con **número de póliza y patente** (tabla `AvisosAltas` + SPs §62). Sección "Pólizas
+  creadas" con el usuario que cargó, el cliente, número, patente y fecha; descartable con
+  "Limpiar todo".
 
 ### Cambiado
 - **Configuración de envío → solo Admin**: los recordatorios (Email + WhatsApp) salen de forma
@@ -98,6 +105,23 @@ rebuild de back + front (`bash actualizar.sh`).
   al editar.
 - **Card de clientes/id**: muestra la cuota **actual** (última pagada) en vez de la próxima.
 - **Login**: franja blanca en resoluciones con `zoom` (compensación de `100vh`).
+- **Cambio de rol de usuario daba 404 siempre**: `sp_Usuario_ActualizarRol` devolvía `RETURN 1/0`
+  (sin result set), pero el repositorio lo leía con `ExecuteScalar` → siempre "Usuario no
+  encontrado". Ahora devuelve `SELECT @@ROWCOUNT` como el resto de los SP de usuarios.
+- **Caracteres "invisibles" / mojibake** en `/usuarios` y `/bajas`: los archivos quedaron
+  doble-encodificados (CP1252→UTF-8, con guiones blandos invisibles). Reescritos como UTF-8 sin BOM.
+- **Solicitudes de cambio trabadas**: si al aprobar el cambio fallaba (entidad ya eliminada,
+  payload inválido, efecto aplicado a medias), la solicitud quedaba **pendiente para siempre** y un
+  reintento podía re-aplicar. Ahora el Admin la rechaza automáticamente y ve el motivo.
+- **Auditoría**: `Detalle` (NVARCHAR(500)) se recorta para evitar el SqlException de truncación que
+  devolvía 500 **después** de aplicar el cambio; y el registro de auditoría ya no es fatal (si
+  falla, se loguea y la operación de negocio sigue).
+- **Reporte de errores del frontend muerto**: enviaba un *array* pero el backend esperaba un
+  *objeto* (400). Ahora acepta el lote y sane los saltos de línea (log injection).
+- **Fecha de las solicitudes de cambio desfasada (+3 h)**: se guardan en UTC y se serializaban sin
+  offset; ahora se marcan como UTC para que el navegador las muestre en hora local.
+- **/editar**: al editar cliente/póliza un Productor ahora ve "Solicitud de cambio enviada. El Admin
+  debe aprobarla" (antes decía "Cambios guardados" aunque quedaba pendiente de aprobación).
 
 ## [1.0.0]
 

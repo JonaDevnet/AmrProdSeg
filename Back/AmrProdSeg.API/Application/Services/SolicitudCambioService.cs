@@ -104,10 +104,11 @@ public class SolicitudCambioService : ISolicitudCambioService
             Accion = s.Accion,
             Motivo = s.Motivo,
             Solicitante = s.Solicitante,
-            FechaSolicitud = s.FechaSolicitud.ToString("o"),
+            // La BD guarda GETUTCDATE(): se marca como UTC para que el navegador la muestre en hora local.
+            FechaSolicitud = s.FechaSolicitud.ToString("o") + "Z",
             Estado = s.Estado,
             Resolvio = s.Resolvio,
-            FechaResolucion = s.FechaResolucion?.ToString("o"),
+            FechaResolucion = s.FechaResolucion?.ToString("o") + "Z",
             EntidadDesc = s.EntidadDesc,
             ClienteNombre = s.ClienteNombre,
             PayloadJson = s.PayloadJson
