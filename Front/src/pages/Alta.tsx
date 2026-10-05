@@ -802,9 +802,12 @@ function SummaryPanel({ form }: { form: Form }) {
         <Row k="Teléfono" v={form.telefono || null} mono />
         <Row k="Email" v={form.email || null} />
         <Row k="Domicilio" v={dom || null} />
+        <Row k="Nacimiento" v={form.nac || null} mono />
         <Row k="Patente" v={form.patente || null} mono />
         <Row k="Vehículo" v={vehicle || null} />
         <Row k="Año" v={form.anio || null} mono />
+        <Row k="Motor" v={form.motor || null} mono />
+        <Row k="Chasis" v={form.chasis || null} mono />
         <Row k="Combustión" v={form.combustion.length ? form.combustion.join(" / ") : null} />
         <Row k="Compañía" v={form.companiaNombre || null} />
         <Row k="Vigencia" v={form.periodoPoliza || null} />

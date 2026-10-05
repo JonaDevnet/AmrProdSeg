@@ -39,6 +39,38 @@ public class EliminacionRepository : IEliminacionRepository
     public Task<int> BorrarDefinitivoAsync(int polizaId, int adminId)
         => EscalarAsync("sp_EliminacionPoliza_BorrarDefinitivo", ("@PolizaId", polizaId), ("@AdminId", adminId));
 
+    public async Task<EliminacionPoliza?> GetByIdAsync(int id)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_EliminacionPoliza_GetById", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@Id", id);
+        using var r = await cmd.ExecuteReaderAsync();
+        return await LeerInfoAsync(r);
+    }
+
+    public async Task<EliminacionPoliza?> GetPorPolizaAsync(int polizaId)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_EliminacionPoliza_GetByPoliza", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@PolizaId", polizaId);
+        using var r = await cmd.ExecuteReaderAsync();
+        return await LeerInfoAsync(r);
+    }
+
+    private static async Task<EliminacionPoliza?> LeerInfoAsync(SqlDataReader r)
+    {
+        if (!await r.ReadAsync()) return null;
+        return new EliminacionPoliza
+        {
+            PolizaId     = r.GetInt32(r.GetOrdinal("PolizaId")),
+            PolizaNumero = r.IsDBNull(r.GetOrdinal("PolizaNumero")) ? null : r.GetString(r.GetOrdinal("PolizaNumero")),
+            ClienteNombre = r.IsDBNull(r.GetOrdinal("ClienteNombre")) ? null : r.GetString(r.GetOrdinal("ClienteNombre")),
+            Patente      = r.IsDBNull(r.GetOrdinal("Patente")) ? null : r.GetString(r.GetOrdinal("Patente")),
+        };
+    }
+
     private async Task<List<EliminacionPoliza>> LeerAsync(string sp)
     {
         using var conn = _factory.Create();

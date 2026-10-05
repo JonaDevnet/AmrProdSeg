@@ -228,6 +228,10 @@ public interface IEliminacionRepository
     Task<List<EliminacionPoliza>> GetPapeleraAsync();
     Task<int> RestaurarAsync(int polizaId, int adminId);
     Task<int> BorrarDefinitivoAsync(int polizaId, int adminId);
+    /// <summary>Solicitud de eliminación por su Id (para registrar la auditoría de movimientos).</summary>
+    Task<EliminacionPoliza?> GetByIdAsync(int id);
+    /// <summary>Solicitud de eliminación más reciente de una póliza (para la auditoría).</summary>
+    Task<EliminacionPoliza?> GetPorPolizaAsync(int polizaId);
 }
 
 /// <summary>Envío de correo (SMTP propio).</summary>

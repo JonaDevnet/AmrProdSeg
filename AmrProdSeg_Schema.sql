@@ -1459,7 +1459,7 @@ CREATE OR ALTER PROCEDURE sp_Cliente_Buscar
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento,
+    SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento, FechaNacimiento,
            COUNT(*) OVER() AS Total
     FROM Clientes
     WHERE @Termino = '' OR Nombre LIKE '%' + @Termino + '%' OR Documento LIKE '%' + @Termino + '%'
@@ -2034,7 +2034,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
-    SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento, OficinaId,
+    SELECT Id, Nombre, Documento, Email, Telefono, Direccion, FechaAlta, Activo, TipoDocumento, OficinaId, FechaNacimiento,
            COUNT(*) OVER() AS Total
     FROM Clientes c
     WHERE c.Activo = 1
@@ -2725,6 +2725,27 @@ BEGIN
     LEFT  JOIN Usuarios ur ON ur.Id = e.ResueltoPor
     WHERE p.Eliminada = 1
     ORDER BY p.FechaEliminacion DESC;
+END
+GO
+
+-- Datos de una solicitud de eliminación por su Id (para registrar la auditoría de movimientos).
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT PolizaId, PolizaNumero, ClienteNombre, Patente
+    FROM EliminacionesPoliza
+    WHERE Id = @Id;
+END
+GO
+
+-- Datos de la solicitud de eliminación más reciente de una póliza (para la auditoría).
+CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetByPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP 1 PolizaId, PolizaNumero, ClienteNombre, Patente
+    FROM EliminacionesPoliza
+    WHERE PolizaId = @PolizaId
+    ORDER BY Id DESC;
 END
 GO
 

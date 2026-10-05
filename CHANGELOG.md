@@ -56,6 +56,11 @@ rebuild de back + front (`bash actualizar.sh`).
   un aviso con **número de póliza y patente** (tabla `AvisosAltas` + SPs §62). Sección "Pólizas
   creadas" con el usuario que cargó, el cliente, número, patente y fecha; descartable con
   "Limpiar todo".
+- **Edición de rol de usuarios** (/usuarios): selector desplegable (Vendedor / Productor / Admin)
+  que actualiza al instante. **El rol de un Administrador es inmutable** (bloqueado en la UI y
+  validado en el backend: `PUT /usuarios/{id}/rol` devuelve 400 si el usuario objetivo es Admin).
+- **Resumen del alta** (/alta): ahora muestra también **Fecha de nacimiento**, **N° de motor** y
+  **N° de chasis** del cliente/vehículo.
 
 ### Cambiado
 - **Configuración de envío → solo Admin**: los recordatorios (Email + WhatsApp) salen de forma
@@ -84,6 +89,8 @@ rebuild de back + front (`bash actualizar.sh`).
   SQL dinámico parametrizado (prefijo con index seek en número/patente) (§61).
 - Navbar: logo pegado a la orilla; espacio sobre los botones "Volver".
 - `Microsoft.OpenApi` fijado a 2.10.0 (vuln. alta) y `KnownNetworks` → `KnownIPNetworks`.
+- **Campanita**: los textos pasan a un tono más oscuro (`--ink-900`) para que los encabezados y
+  detalles sean legibles.
 
 ### Corregido
 - **Resend / arranque en el VPS (500 en `/api/cobros` y más)**: si `Resend__Habilitado`
@@ -122,6 +129,12 @@ rebuild de back + front (`bash actualizar.sh`).
   offset; ahora se marcan como UTC para que el navegador las muestre en hora local.
 - **/editar**: al editar cliente/póliza un Productor ahora ve "Solicitud de cambio enviada. El Admin
   debe aprobarla" (antes decía "Cambios guardados" aunque quedaba pendiente de aprobación).
+- **Auditoría no mostraba las bajas de póliza**: eliminar una póliza (papelera), restaurarla o
+  borrarla definitivamente no quedaba en la pestaña Auditoría de /registro. Ahora `EliminacionService`
+  registra los movimientos **Eliminar / Restaurar / BorrarDefinitivo** (entidad Poliza) con número
+  de póliza, cliente y patente (SPs `sp_EliminacionPoliza_GetById` / `GetByPoliza`).
+- **Fecha de nacimiento no autocompletaba en /alta**: `sp_Cliente_Buscar` no devolvía la columna
+  `FechaNacimiento`, así que el wizard no la cargaba al buscar un cliente existente. Ahora la incluye.
 
 ## [1.0.0]
 

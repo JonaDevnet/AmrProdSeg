@@ -279,6 +279,8 @@ public class FakeEliminacionRepository : IEliminacionRepository
     public int RechazarResultado = 1;
     public int RestaurarResultado = 1;
     public int BorrarResultado = 1;
+    public EliminacionPoliza? PorId;
+    public EliminacionPoliza? PorPoliza;
     public Task<(int Id, bool YaExistia)> SolicitarAsync(int polizaId, int usuarioId, string? motivo) => Task.FromResult(SolicitarResultado);
     public Task<int> AprobarAsync(int id, int adminId) => Task.FromResult(AprobarResultado);
     public Task<int> RechazarAsync(int id, int adminId) => Task.FromResult(RechazarResultado);
@@ -287,6 +289,8 @@ public class FakeEliminacionRepository : IEliminacionRepository
     public Task<List<EliminacionPoliza>> GetPapeleraAsync() => Task.FromResult(new List<EliminacionPoliza>());
     public Task<int> RestaurarAsync(int polizaId, int adminId) => Task.FromResult(RestaurarResultado);
     public Task<int> BorrarDefinitivoAsync(int polizaId, int adminId) => Task.FromResult(BorrarResultado);
+    public Task<EliminacionPoliza?> GetByIdAsync(int id) => Task.FromResult(PorId);
+    public Task<EliminacionPoliza?> GetPorPolizaAsync(int polizaId) => Task.FromResult(PorPoliza);
 }
 
 public class FakeAltaRepository : IAltaRepository

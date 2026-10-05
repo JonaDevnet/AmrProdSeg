@@ -190,7 +190,7 @@ export default function NotificacionesBell() {
             <div style={{ ...head, background: "var(--canvas)" }}>
               <span>Notificaciones</span>
               <button onClick={limpiarTodo} disabled={!hayDescartables} title="Descartar todas las notificaciones"
-                style={{ border: 0, background: "transparent", color: hayDescartables ? "var(--blue-600)" : "var(--ink-400)", fontSize: 12.5, fontWeight: 600, cursor: hayDescartables ? "pointer" : "default", padding: "2px 4px" }}>
+                style={{ border: 0, background: "transparent", color: hayDescartables ? "var(--blue-600)" : "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: hayDescartables ? "pointer" : "default", padding: "2px 4px" }}>
                 Limpiar todo
               </button>
             </div>
@@ -209,13 +209,13 @@ export default function NotificacionesBell() {
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
                         Anular cuota {a.numeroCuota} · {formatMoneda(a.monto)}
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
                         {a.solicitante ?? "—"} solicita anular a {a.clienteNombre ?? "—"}
                       </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 3 }}>{a.nroPoliza}</div>
+                      <div className="mono" style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 3 }}>{a.nroPoliza}</div>
                       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                         <button onClick={() => resolver(a.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Aceptar</button>
-                        <button onClick={() => resolver(a.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                        <button onClick={() => resolver(a.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
                       </div>
                     </div>
                   ))
@@ -236,14 +236,14 @@ export default function NotificacionesBell() {
                       {s.tipo} · <span style={{ color: s.accion === "Eliminar" ? "var(--bad-700)" : "var(--navy-900)" }}>{s.accion}</span>
                       {s.entidadDesc ? <span style={{ fontWeight: 500 }}> · {s.entidadDesc}</span> : <span className="mono"> · #{s.entidadId}</span>}
                     </div>
-                    {s.clienteNombre && <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>{s.clienteNombre}</div>}
-                    <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                    {s.clienteNombre && <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>{s.clienteNombre}</div>}
+                    <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
                       {s.solicitante ?? "—"} solicita {s.accion.toLowerCase()} {s.tipo.toLowerCase()} · {formatFechaHora(s.fechaSolicitud)}
                     </div>
-                    {s.motivo && <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 3 }}>Motivo: {s.motivo}</div>}
+                    {s.motivo && <div style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 3 }}>Motivo: {s.motivo}</div>}
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                       <button onClick={() => resolverSolicitud(s.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Aceptar</button>
-                      <button onClick={() => resolverSolicitud(s.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                      <button onClick={() => resolverSolicitud(s.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
                     </div>
                   </div>
                 ))}
@@ -262,15 +262,15 @@ export default function NotificacionesBell() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad-700)" }}>
                       Eliminar póliza <span className="mono">{e.polizaNumero}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
                       {e.solicitante ?? "—"} solicita eliminar la de {e.clienteNombre ?? "—"} ({e.patente ?? "—"})
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 3 }}>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 3 }}>
                       {e.cuotasPagadas}/{e.cantidadCuotas} cuotas pagadas{e.motivo ? ` · ${e.motivo}` : ""}
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                       <button onClick={() => resolverElim(e.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--bad-600)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Autorizar</button>
-                      <button onClick={() => resolverElim(e.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                      <button onClick={() => resolverElim(e.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
                     </div>
                   </div>
                 ))}
@@ -293,7 +293,7 @@ export default function NotificacionesBell() {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
                           {e.usuarioNombre ?? "Alguien"} exportó <span className="mono">{e.polizaNumero ?? "—"}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
                           {e.clienteNombre ?? "—"} · {formatFecha(e.fecha)}
                         </div>
                       </div>
@@ -319,11 +319,11 @@ export default function NotificacionesBell() {
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
                           {a.usuarioNombre ?? "Alguien"} dio de alta a {a.clienteNombre ?? "un cliente"}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
                           Póliza <span className="mono">{a.polizaNumero ?? "—"}</span>
                           {a.patente ? <> · Patente <span className="mono">{a.patente}</span></> : null}
                         </div>
-                        <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 2 }}>{formatFecha(a.fecha)}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 2 }}>{formatFecha(a.fecha)}</div>
                       </div>
                     ))
                   )}
@@ -345,7 +345,7 @@ export default function NotificacionesBell() {
                 items.map((p, i) => (
                   <div key={i} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
                     <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.nombre}</div>
-                    <div style={{ fontSize: 12.5, color: "var(--ink-500)" }}>
+                    <div style={{ fontSize: 12.5, color: "var(--ink-900)" }}>
                       <span className="mono">{p.nroPoliza}</span> · vence {formatFecha(p.fechaFin)}
                       <span style={{ color: p.diasRestantes <= 7 ? "var(--bad-600)" : "var(--warn-700)", fontWeight: 600 }}>
                         {" "}· {p.diasRestantes}d
@@ -380,8 +380,9 @@ const panel: CSSProperties = {
 const head: CSSProperties = {
   padding: "12px 16px", borderBottom: "1px solid var(--line)", fontWeight: 600, fontSize: 14,
   display: "flex", alignItems: "center", justifyContent: "space-between",
+  color: "var(--ink-900)",
 };
 const badge: CSSProperties = {
   fontSize: 11, fontWeight: 600, color: "var(--bad-700)", background: "var(--bad-100)", padding: "2px 8px", borderRadius: 999,
 };
-const vacio: CSSProperties = { padding: "16px", color: "var(--ink-400)", fontSize: 13.5, textAlign: "center" };
+const vacio: CSSProperties = { padding: "16px", color: "var(--ink-900)", fontSize: 13.5, textAlign: "center" };

@@ -149,6 +149,7 @@ export default function Usuarios() {
                   <td style={td}>
                     <Select
                       value={u.rol}
+                      disabled={u.rol === "Admin"}
                       onChange={(e) => actualizarRolMut.mutate({ usuarioId: u.id, rol: e.target.value as any })}
                       style={{ minWidth: 130, height: 34, fontSize: 13 }}
                     >
