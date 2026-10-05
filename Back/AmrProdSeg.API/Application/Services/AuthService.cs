@@ -41,6 +41,12 @@ public class AuthService : IAuthService
         if (usuario == null || !passwordOk)
             throw new BusinessException("Credenciales inválidas.");
 
+        if (!usuario.Activo)
+            throw new BusinessException("La cuenta está desactivada.");
+
+        // Login = primera actividad de la sesión.
+        await _usuarioRepo.MarcarActividadAsync(usuario.Id);
+
         return await EmitirTokensAsync(usuario.Id, usuario.Email, usuario.Rol, usuario.Nombre);
     }
 
@@ -56,8 +62,17 @@ public class AuthService : IAuthService
         var usuario = await _authRepo.GetUsuarioByIdAsync(refresh.UsuarioId)
             ?? throw new NotFoundException("Usuario no encontrado.");
 
+        // Cierre por inactividad: si la cuenta está desactivada o pasaron >30 min sin actividad,
+        // el refresh se rechaza (el token ya quedó revocado por la rotación).
+        if (await _usuarioRepo.EstaInactivoAsync(usuario.Id))
+            throw new BusinessException("Sesión cerrada por inactividad.");
+
+        await _usuarioRepo.MarcarActividadAsync(usuario.Id);
+
         return await EmitirTokensAsync(usuario.Id, usuario.Email, usuario.Rol, usuario.Nombre);
     }
+
+    public Task RegistrarActividadAsync(int usuarioId) => _usuarioRepo.MarcarActividadAsync(usuarioId);
 
     public Task LogoutAsync(string refreshToken)
         => _authRepo.RevocarRefreshTokenAsync(refreshToken);

@@ -10,6 +10,7 @@ import {
 import CambiarPasswordModal from "../usuarios/CambiarPasswordModal";
 import NotificacionesBell from "../NotificacionesBell";
 import SearchModal from "../SearchModal";
+import { useRealtimeNotificaciones } from "../../hooks/useRealtimeNotificaciones";
 
 interface Item { to: string; label: string; icon?: ReactNode; end?: boolean }
 
@@ -41,6 +42,7 @@ function emailDelToken(): string {
 export default function Navbar() {
   const { usuario, esAdmin, cerrarSesion } = useAuth();
   const navigate = useNavigate();
+  useRealtimeNotificaciones();
   const [buscar, setBuscar] = useState(false);
   const [cambiarPass, setCambiarPass] = useState(false);
   const [userOpen, setUserOpen] = useState(false);

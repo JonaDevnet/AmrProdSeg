@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +33,15 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Heartbeat de actividad del frontend (mantiene viva la sesión por inactividad).</summary>
+    [HttpPost("actividad")]
+    [Authorize]
+    public async Task<IActionResult> Actividad()
+    {
+        await _service.RegistrarActividadAsync(UsuarioActualId());
+        return NoContent();
+    }
+
     /// <summary>El vendedor solicita restablecer su contraseña (queda pendiente de autorización).</summary>
     [HttpPost("reset/solicitar")]
     [AllowAnonymous]
@@ -47,5 +58,13 @@ public class AuthController : ControllerBase
     {
         await _service.ConfirmarResetAsync(dto.Email, dto.NuevaPassword);
         return NoContent();
+    }
+
+    private int UsuarioActualId()
+    {
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier)
+               ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+               ?? User.FindFirstValue("sub");
+        return int.TryParse(raw, out var id) ? id : 0;
     }
 }

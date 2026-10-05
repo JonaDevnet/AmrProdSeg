@@ -17,9 +17,11 @@ public class ExportacionService : IExportacionService
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IPdfService _pdf;
     private readonly IAvisoRepository _avisoRepo;
+    private readonly INotificacionPusher _pusher;
 
     public ExportacionService(IPolizaRepository polizaRepo, IClienteRepository clienteRepo,
-        IVehiculoRepository vehiculoRepo, ICompaniaRepository companiaRepo, IPdfService pdf, IAvisoRepository avisoRepo)
+        IVehiculoRepository vehiculoRepo, ICompaniaRepository companiaRepo, IPdfService pdf, IAvisoRepository avisoRepo,
+        INotificacionPusher pusher)
     {
         _polizaRepo = polizaRepo;
         _clienteRepo = clienteRepo;
@@ -27,6 +29,7 @@ public class ExportacionService : IExportacionService
         _companiaRepo = companiaRepo;
         _pdf = pdf;
         _avisoRepo = avisoRepo;
+        _pusher = pusher;
     }
 
     public async Task<byte[]> ExportarPolizaAsync(int polizaId, int? usuarioId)
@@ -52,6 +55,7 @@ public class ExportacionService : IExportacionService
         var pdf = _pdf.GenerarDossierCliente(data);
         // Aviso para los administradores (campanita).
         await _avisoRepo.InsertarExportacionAsync(usuarioId, poliza.Id, poliza.Numero, cliente.Nombre);
+        await _pusher.NotificarAsync("exportacion");
         return pdf;
     }
 

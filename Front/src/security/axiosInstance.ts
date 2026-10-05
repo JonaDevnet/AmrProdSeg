@@ -30,6 +30,8 @@ export function clearSession() {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_KEY);
   sessionStorage.removeItem(SESSION_KEY);
+  // Marca de actividad (global, compartida entre pestañas): se limpia al cerrar sesión.
+  localStorage.removeItem("amr_ultima_actividad");
 }
 
 const api = axios.create({

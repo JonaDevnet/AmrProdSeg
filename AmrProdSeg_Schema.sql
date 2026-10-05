@@ -128,8 +128,35 @@ BEGIN
         PasswordHash VARCHAR(255)  NOT NULL,
         Rol          VARCHAR(20)   NOT NULL DEFAULT 'Productor',  -- SuperAdmin | Admin | Productor | Vendedor
         Activo       BIT           NOT NULL DEFAULT 1,
-        FechaAlta    DATETIME      NOT NULL DEFAULT GETUTCDATE()
+        FechaAlta    DATETIME      NOT NULL DEFAULT GETUTCDATE(),
+        UltimaActividad DATETIME   NULL   -- última actividad del usuario (heartbeat); NULL = sin dato
     );
+END
+GO
+
+-- Migración idempotente: columna de última actividad (cierre de sesión por inactividad).
+IF COL_LENGTH('dbo.Usuarios', 'UltimaActividad') IS NULL
+    ALTER TABLE Usuarios ADD UltimaActividad DATETIME NULL;
+GO
+
+-- Marca la actividad del usuario (login / heartbeat del frontend).
+CREATE OR ALTER PROCEDURE sp_Usuario_MarcarActividad @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Usuarios SET UltimaActividad = GETUTCDATE() WHERE Id = @Id;
+END
+GO
+
+-- Devuelve 1 si la sesión debe cerrarse: cuenta desactivada o >30 min sin actividad.
+CREATE OR ALTER PROCEDURE sp_Usuario_EstaInactivo @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT CAST(CASE
+        WHEN Activo = 0 THEN 1
+        WHEN UltimaActividad IS NULL THEN 0
+        WHEN DATEDIFF(SECOND, UltimaActividad, GETUTCDATE()) > 1800 THEN 1
+        ELSE 0 END AS BIT) AS Inactivo
+    FROM Usuarios WHERE Id = @Id;
 END
 GO
 

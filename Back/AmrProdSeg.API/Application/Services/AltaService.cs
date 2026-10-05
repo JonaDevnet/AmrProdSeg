@@ -16,6 +16,7 @@ public class AltaService : IAltaService
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IPdfService _pdfService;
     private readonly IAvisoRepository _avisoRepo;
+    private readonly INotificacionPusher _pusher;
 
     public AltaService(
         IAltaRepository altaRepo,
@@ -24,7 +25,8 @@ public class AltaService : IAltaService
         IPolizaRepository polizaRepo,
         ICompaniaRepository companiaRepo,
         IPdfService pdfService,
-        IAvisoRepository avisoRepo)
+        IAvisoRepository avisoRepo,
+        INotificacionPusher pusher)
     {
         _altaRepo     = altaRepo;
         _clienteRepo  = clienteRepo;
@@ -33,6 +35,7 @@ public class AltaService : IAltaService
         _companiaRepo = companiaRepo;
         _pdfService   = pdfService;
         _avisoRepo    = avisoRepo;
+        _pusher       = pusher;
     }
 
     public async Task<AltaResultDto> RegistrarAsync(AltaAseguradoDto dto, int? usuarioId = null)
@@ -126,6 +129,8 @@ public class AltaService : IAltaService
             polizaCreada?.Numero,
             tienePatente ? Up(dto.Patente) : null,
             Up(dto.ClienteNombre) ?? dto.ClienteNombre);
+
+        await _pusher.NotificarAsync("alta");
 
         return new AltaResultDto
         {

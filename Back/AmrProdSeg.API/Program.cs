@@ -1,4 +1,6 @@
 using System.Text;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using AmrProdSeg.API.Application.Interfaces;
 using AmrProdSeg.API.Application.Services;
 using AmrProdSeg.API.Infrastructure.Data;
@@ -12,6 +14,7 @@ using AmrProdSeg.API.Security;
 using AmrProdSeg.API.Security.Filters;
 using AmrProdSeg.API.Security.Helpers;
 using AmrProdSeg.API.Security.Middlewares;
+using AmrProdSeg.API.Security.RealTime;
 using AspNetCoreRateLimit;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -125,6 +128,10 @@ builder.Services.AddScoped<IMovimientoService, MovimientoService>();
 builder.Services.AddScoped<IConfiguracionService, ConfiguracionService>();
 builder.Services.AddScoped<IExportacionService, ExportacionService>();
 
+// Tiempo real (SignalR): hub de notificaciones + pusher no-fatal.
+builder.Services.AddSignalR();
+builder.Services.AddScoped<INotificacionPusher, SignalRNotificacionPusher>();
+
 // PDF / Excel
 builder.Services.AddSingleton<IPdfService, PdfService>();
 builder.Services.AddSingleton<IExcelExportService, ExcelExportService>();
@@ -201,12 +208,45 @@ builder.Services
 
         options.Events = new JwtBearerEvents
         {
+            // SignalR (WebSocket/SSE) no puede mandar el header Authorization:
+            // el cliente pasa el JWT por query string ("access_token").
+            OnMessageReceived = ctx =>
+            {
+                var accessToken = ctx.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    ctx.HttpContext.Request.Path.StartsWithSegments("/api/notificaciones/hub"))
+                {
+                    ctx.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            },
             OnChallenge = ctx =>
             {
                 ctx.HandleResponse();
                 ctx.Response.StatusCode  = 401;
                 ctx.Response.ContentType = "application/json";
                 return ctx.Response.WriteAsync("{\"error\":\"Token inválido o expirado.\"}");
+            },
+            // Cierre de sesión por inactividad (30 min) o cuenta desactivada. Fail-open ante
+            // un error de BD para no bloquear a todos por un fallo transitorio.
+            OnTokenValidated = async ctx =>
+            {
+                var raw = ctx.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                       ?? ctx.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                       ?? ctx.Principal?.FindFirst("sub")?.Value;
+                if (!int.TryParse(raw, out var uid) || uid <= 0) return;
+                try
+                {
+                    var repo = ctx.HttpContext.RequestServices.GetRequiredService<IUsuarioRepository>();
+                    if (await repo.EstaInactivoAsync(uid))
+                        ctx.Fail("Sesión cerrada por inactividad.");
+                }
+                catch (Exception ex)
+                {
+                    ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("Auth")
+                        .LogWarning(ex, "No se pudo verificar la inactividad del usuario {UsuarioId}.", uid);
+                }
             }
         };
     });
@@ -285,5 +325,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
+app.MapHub<NotificacionesHub>("/api/notificaciones/hub");
 
 app.Run();

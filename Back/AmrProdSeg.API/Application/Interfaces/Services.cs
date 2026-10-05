@@ -147,6 +147,8 @@ public interface IAuthService
     Task LogoutAsync(string refreshToken);
     Task SolicitarResetAsync(string email);
     Task ConfirmarResetAsync(string email, string nuevaPassword);
+    /// <summary>Marca actividad del usuario (heartbeat del frontend) para el cierre por inactividad.</summary>
+    Task RegistrarActividadAsync(int usuarioId);
 }
 
 public interface IUsuarioService
@@ -171,6 +173,12 @@ public interface IAuditoriaMovimientoService
 {
     Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle);
     Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
+}
+
+/// <summary>Empuja una señal liviana a los clientes conectados para que refresquen sus notificaciones.</summary>
+public interface INotificacionPusher
+{
+    Task NotificarAsync(string tipo);
 }
 
 /// <summary>Solicitudes de cambio pendientes de autorización del Admin (editar/eliminar cliente o póliza).</summary>

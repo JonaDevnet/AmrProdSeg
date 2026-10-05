@@ -112,6 +112,26 @@ public class UsuarioRepository : IUsuarioRepository
         return result is null or DBNull ? 0 : Convert.ToInt32(result);
     }
 
+    public async Task MarcarActividadAsync(int id)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Usuario_MarcarActividad", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@Id", id);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<bool> EstaInactivoAsync(int id)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Usuario_EstaInactivo", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@Id", id);
+        var r = await cmd.ExecuteScalarAsync();
+        if (r is null or DBNull) return true;   // usuario inexistente → cerrar sesión
+        return Convert.ToBoolean(r);
+    }
+
     private static bool Tiene(SqlDataReader r, string col)
     {
         for (int i = 0; i < r.FieldCount; i++)

@@ -18,7 +18,8 @@ public class AltaServiceTests
             new FakePolizaRepository { PolizaActivaPorVehiculo = activaPorVehiculo, PolizaPorId = new Poliza { Id = 30, Numero = "E/T-001" } },
             new FakeCompaniaRepository { PorId = compania },
             new FakePdfService(),
-            new FakeAvisoRepository());
+            new FakeAvisoRepository(),
+            new FakeNotificacionPusher());
         return (svc, alta);
     }
 
@@ -100,7 +101,8 @@ public class AltaServiceTests
             new FakePolizaRepository { PolizaPorId = new Poliza { Id = 30, Numero = "E/T-001" } },
             new FakeCompaniaRepository { PorId = new Compania { Id = 1 } },
             new FakePdfService(),
-            aviso);
+            aviso,
+            new FakeNotificacionPusher());
 
         await svc.RegistrarAsync(Dto(), usuarioId: 7);
 

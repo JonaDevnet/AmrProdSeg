@@ -22,6 +22,12 @@ public class FakeAuditoriaMovimientoService : IAuditoriaMovimientoService
         => Task.FromResult(new List<AuditoriaMovimiento>());
 }
 
+public class FakeNotificacionPusher : INotificacionPusher
+{
+    public List<string> Tipos = new();
+    public Task NotificarAsync(string tipo) { Tipos.Add(tipo); return Task.CompletedTask; }
+}
+
 public class FakePolizaRepository : IPolizaRepository
 {
     public Poliza? PolizaPorId;
@@ -86,6 +92,8 @@ public class FakeUsuarioRepository : IUsuarioRepository
     public int? OficinaId;
     public string? PasswordCambiada;
     public string? RolActualizado;
+    public bool Inactivo;
+    public int ActividadLlamadas;
     public Task<int> InsertarAsync(string nombre, string email, string passwordHash, string rol) => Task.FromResult(1);
     public Task CambiarPasswordAsync(int id, string passwordHash) { PasswordCambiada = passwordHash; return Task.CompletedTask; }
     public Task<List<Usuario>> GetAllAsync() => Task.FromResult(new List<Usuario>());
@@ -93,6 +101,8 @@ public class FakeUsuarioRepository : IUsuarioRepository
     public Task<int?> GetOficinaIdAsync(int usuarioId) => Task.FromResult<int?>(OficinaId);
     public Task<int> EliminarAsync(int id) => Task.FromResult(1);
     public Task<int> ActualizarRolAsync(int id, string rol) { RolActualizado = rol; return Task.FromResult(1); }
+    public Task MarcarActividadAsync(int id) { ActividadLlamadas++; return Task.CompletedTask; }
+    public Task<bool> EstaInactivoAsync(int id) => Task.FromResult(Inactivo);
 }
 
 public class FakeCompaniaRepository : ICompaniaRepository

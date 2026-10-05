@@ -122,6 +122,10 @@ public interface IUsuarioRepository
     Task<int?> GetOficinaIdAsync(int usuarioId);
     Task<int> EliminarAsync(int id);
     Task<int> ActualizarRolAsync(int id, string rol);
+    /// <summary>Marca la actividad del usuario (login/heartbeat) contra el cierre por inactividad.</summary>
+    Task MarcarActividadAsync(int id);
+    /// <summary>True si la cuenta está desactivada o lleva &gt;30 min sin actividad (sesión a cerrar).</summary>
+    Task<bool> EstaInactivoAsync(int id);
 }
 
 public interface IAuditoriaRepository

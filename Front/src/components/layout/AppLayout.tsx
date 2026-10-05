@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
+import AvisoInactividad from "../AvisoInactividad";
 
 export default function AppLayout() {
   return (
@@ -8,6 +9,7 @@ export default function AppLayout() {
       <main style={{ maxWidth: 1440, margin: "0 auto", padding: "0 clamp(14px, 4vw, 28px) 28px" }}>
         <Outlet />
       </main>
+      <AvisoInactividad />
     </div>
   );
 }

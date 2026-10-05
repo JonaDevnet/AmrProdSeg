@@ -1,4 +1,5 @@
 using System.Globalization;
+using AmrProdSeg.API.Application.Interfaces;
 using AmrProdSeg.API.Infrastructure.Interfaces;
 using AmrProdSeg.API.Infrastructure.Notifications;
 using Microsoft.Extensions.Options;
@@ -19,17 +20,20 @@ public class NotificacionVencimientosJob : IJob
     private readonly IEmailSender _email;
     private readonly NotificacionOptions _opt;
     private readonly ILogger<NotificacionVencimientosJob> _logger;
+    private readonly INotificacionPusher _pusher;
 
     public NotificacionVencimientosJob(
         INotificacionRepository repo,
         IEmailSender email,
         IOptions<NotificacionOptions> opt,
-        ILogger<NotificacionVencimientosJob> logger)
+        ILogger<NotificacionVencimientosJob> logger,
+        INotificacionPusher pusher)
     {
         _repo     = repo;
         _email    = email;
         _opt      = opt.Value;
         _logger   = logger;
+        _pusher   = pusher;
     }
 
     public async Task Execute(IJobExecutionContext context)
@@ -74,6 +78,9 @@ public class NotificacionVencimientosJob : IJob
         _logger.LogInformation(
             "NotificacionVencimientosJob: {Polizas} pólizas, {Cuotas} cuotas por vencer, {Vencidas} cuotas vencidas procesadas.",
             polizas.Count, cuotas.Count, vencidas.Count);
+
+        // Avisa a los clientes conectados para que refresquen la campanita (vencimientos).
+        await _pusher.NotificarAsync("vencimientos");
     }
 
     private async Task NotificarAsync(

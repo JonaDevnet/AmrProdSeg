@@ -9,7 +9,12 @@ namespace AmrProdSeg.API.Application.Services;
 public class AnulacionService : IAnulacionService
 {
     private readonly IAnulacionRepository _repo;
-    public AnulacionService(IAnulacionRepository repo) => _repo = repo;
+    private readonly INotificacionPusher _pusher;
+    public AnulacionService(IAnulacionRepository repo, INotificacionPusher pusher)
+    {
+        _repo = repo;
+        _pusher = pusher;
+    }
 
     public async Task<AnularPagoResultDto> AnularOSolicitarAsync(int cobroId, int usuarioId, bool esAdmin, string? motivo)
     {
@@ -24,6 +29,7 @@ public class AnulacionService : IAnulacionService
         var id = await _repo.SolicitarAsync(cobroId, usuarioId, motivo);
         if (id == 0)
             throw new BusinessException("Ya existe una solicitud de anulación pendiente para esta cuota.");
+        await _pusher.NotificarAsync("anulacion");
         return new AnularPagoResultDto { Solicitada = true, Mensaje = "Solicitud de anulación enviada. Queda pendiente de aprobación del administrador." };
     }
 

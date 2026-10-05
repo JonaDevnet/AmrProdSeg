@@ -16,7 +16,8 @@ public class ExportacionServiceTests
             new FakeVehiculoRepository(),
             new FakeCompaniaRepository(),
             new FakePdfService(),
-            aviso);
+            aviso,
+            new FakeNotificacionPusher());
         return (svc, aviso);
     }
 
