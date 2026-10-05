@@ -101,6 +101,17 @@ public class UsuarioRepository : IUsuarioRepository
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 
+    public async Task<int> ActualizarRolAsync(int id, string rol)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Usuario_ActualizarRol", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@Id", id);
+        cmd.Parameters.AddWithValue("@Rol", rol);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    }
+
     private static bool Tiene(SqlDataReader r, string col)
     {
         for (int i = 0; i < r.FieldCount; i++)

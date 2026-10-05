@@ -17,7 +17,8 @@ public class AltaServiceTests
             new FakeVehiculoRepository { PorPatente = porPatente },
             new FakePolizaRepository { PolizaActivaPorVehiculo = activaPorVehiculo, PolizaPorId = new Poliza { Id = 30, Numero = "E/T-001" } },
             new FakeCompaniaRepository { PorId = compania },
-            new FakePdfService());
+            new FakePdfService(),
+            new FakeAvisoRepository());
         return (svc, alta);
     }
 
@@ -85,5 +86,27 @@ public class AltaServiceTests
         await svc.RegistrarAsync(Dto());
 
         Assert.Equal(55, alta.VehiculoRecibido!.Id); // reutiliza el vehículo existente (Id > 0)
+    }
+
+    [Fact]
+    public async Task Registrar_Ok_RegistraAvisoDeAlta()
+    {
+        var alta = new FakeAltaRepository();
+        var aviso = new FakeAvisoRepository();
+        var svc = new AltaService(
+            alta,
+            new FakeClienteRepository(),
+            new FakeVehiculoRepository(),
+            new FakePolizaRepository { PolizaPorId = new Poliza { Id = 30, Numero = "E/T-001" } },
+            new FakeCompaniaRepository { PorId = new Compania { Id = 1 } },
+            new FakePdfService(),
+            aviso);
+
+        await svc.RegistrarAsync(Dto(), usuarioId: 7);
+
+        Assert.Equal(1, aviso.InsertarAltaLlamado);
+        Assert.Equal(7, aviso.UltimoUsuarioId);
+        Assert.Equal("E/T-001", aviso.UltimoPolizaNumero);
+        Assert.Equal("AB123CD", aviso.UltimaPatente);   // patente normalizada a mayúsculas
     }
 }

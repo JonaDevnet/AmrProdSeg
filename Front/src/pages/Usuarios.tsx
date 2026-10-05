@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from "react";
 import {
   useUsuarios, useCrearUsuario, useSolicitudesReset, useAutorizarReset,
   useOficinas, useCrearOficina, useEliminarOficina,
-  useAsignarOficinaUsuario, useDarDeBajaUsuario,
+  useAsignarOficinaUsuario, useActualizarRol, useDarDeBajaUsuario,
 } from "../hooks/admin";
 import type { CrearUsuarioDto } from "../api/usuarios";
 import type { Rol } from "../types";
@@ -23,6 +23,7 @@ export default function Usuarios() {
   const crearOficina = useCrearOficina();
   const eliminarOficina = useEliminarOficina();
   const asignarOficina = useAsignarOficinaUsuario();
+  const actualizarRolMut = useActualizarRol();
   const darDeBaja = useDarDeBajaUsuario();
 
   const [modal, setModal] = useState(false);
@@ -146,7 +147,15 @@ export default function Usuarios() {
                   <td style={{ ...td, fontWeight: 600 }}>{u.nombre}</td>
                   <td style={{ ...td, color: "var(--ink-700)" }}>{u.email}</td>
                   <td style={td}>
-                    <span style={chip(u.rol === "Admin" ? "var(--blue-600)" : "var(--ink-700)", u.rol === "Admin" ? "var(--blue-100)" : "var(--line-2)")}>{u.rol}</span>
+                    <Select
+                      value={u.rol}
+                      onChange={(e) => actualizarRolMut.mutate({ usuarioId: u.id, rol: e.target.value as any })}
+                      style={{ minWidth: 130, height: 34, fontSize: 13 }}
+                    >
+                      <option value="Vendedor">Vendedor</option>
+                      <option value="Productor">Productor</option>
+                      <option value="Admin">Admin</option>
+                    </Select>
                   </td>
                   <td style={td}>
                     <Select
@@ -185,7 +194,8 @@ export default function Usuarios() {
           <Field label="Contraseña"><Input type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Mínimo 8 caracteres" /></Field>
           <Field label="Rol">
             <Select value={form.rol} onChange={(e) => set("rol", e.target.value as Rol)}>
-              <option value="Productor">Productor (vendedor)</option>
+              <option value="Vendedor">Vendedor</option>
+              <option value="Productor">Productor</option>
               <option value="Admin">Admin</option>
             </Select>
           </Field>

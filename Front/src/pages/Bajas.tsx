@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useBajas, useSolicitarBaja, useAprobarBaja, useRechazarBaja } from "../hooks/bajas";
 import { useAuth } from "../auth/AuthContext";
 import { buscarGlobal } from "../api/search";
@@ -53,6 +53,42 @@ export default function Bajas() {
     }
     return true;
   });
+
+  const [cola, setCola] = useState<any[]>([]);
+
+  useEffect(() => {
+    try {
+      const key = "amr:bajas:solicitadas";
+      const data = JSON.parse(localStorage.getItem(key) || "[]");
+      setCola(Array.isArray(data) ? data : []);
+    } catch {
+      setCola([]);
+    }
+  }, []);
+
+  function textoCola() {
+    return cola
+      .map((x: any) => {
+        const f = x.fecha ? new Date(x.fecha).toLocaleString() : "";
+        return `[${f}] Poliza: ${x.poliza || ""} | Compañía: ${x.compania || ""} | Patente: ${x.patente || ""} | Cliente: ${x.cliente || ""}`;
+      })
+      .join("\n");
+  }
+
+  async function copiarTodo() {
+    try {
+      await navigator.clipboard.writeText(textoCola());
+      alert("Copiado al portapapeles");
+    } catch {
+      /* silencioso */
+    }
+  }
+
+  function borrarTodo() {
+    if (!confirm("¿Borrar todas las bajas solicitadas guardadas?")) return;
+    localStorage.removeItem("amr:bajas:solicitadas");
+    setCola([]);
+  }
 
   return (
     <div>
@@ -128,6 +164,75 @@ export default function Bajas() {
       </div>
 
       {modal && <SolicitarBajaModal onClose={() => setModal(false)} />}
+
+      {/* Bajas solicitadas (guardadas al aprobar desde la campana) */}
+      <section style={card} className="mt-3">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--ink-900)" }}>Bajas solicitadas</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={copiarTodo}
+              style={{
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 9,
+                border: "1px solid var(--line)",
+                background: "var(--paper)",
+                color: "var(--ink-700)",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Copiar todo completo
+            </button>
+            <button
+              onClick={borrarTodo}
+              style={{
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 9,
+                border: 0,
+                background: "var(--bad-600)",
+                color: "white",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Borrar
+            </button>
+          </div>
+        </div>
+        <pre
+          style={{
+            background: "var(--canvas)",
+            padding: 12,
+            border: "1px solid var(--line)",
+            borderRadius: 8,
+            maxHeight: 400,
+            overflow: "auto",
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: "pre-wrap",
+            margin: 0,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: "var(--ink-700)",
+          }}
+        >
+          {cola.length === 0
+            ? "Sin solicitudes guardadas."
+            : cola
+                .map((x: any) => {
+                  const f = x.fecha ? new Date(x.fecha).toLocaleString() : "";
+                  return `[${f}] Poliza: ${x.poliza || ""} | Compañía: ${x.compania || ""} | Patente: ${x.patente || ""} | Cliente: ${x.cliente || ""}`;
+                })
+                .join("\n")}
+        </pre>
+        <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
+          {cola.length} ítems en cola
+        </div>
+      </section>
     </div>
   );
 }
@@ -187,3 +292,5 @@ function tab(active: boolean): CSSProperties {
 }
 const th: CSSProperties = { textAlign: "left", padding: "12px 18px", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-500)", background: "oklch(0.985 0.008 245)", borderBottom: "1px solid var(--line-2)", whiteSpace: "nowrap" };
 const td: CSSProperties = { padding: "14px 18px", fontSize: 14, verticalAlign: "middle" };
+
+

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { polizasPorVencer } from "../api/reportes";
 import { getAnulacionesPendientes, aprobarAnulacion, rechazarAnulacion } from "../api/anulaciones";
 import { getEliminacionesPendientes, aprobarEliminacion, rechazarEliminacion } from "../api/eliminaciones";
-import { exportacionesRecientes } from "../api/polizas";
+import { exportacionesRecientes, altasRecientes } from "../api/polizas";
 import { useAuth } from "../auth/AuthContext";
 import { IconBell } from "./Icons";
 import { formatFecha, formatMoneda, formatFechaHora } from "../utils/format";
@@ -53,11 +53,23 @@ export default function NotificacionesBell() {
     enabled: esAdmin,
     staleTime: 60 * 1000,
   });
+  const altas = useQuery({
+    queryKey: ["notif", "altas"],
+    queryFn: () => altasRecientes(20),
+    enabled: esAdmin,
+    staleTime: 60 * 1000,
+  });
 
   // Exportaciones vistas (dismiss por usuario en este equipo).
   const expKey = `amr_notif_exp_${usuario?.nombre ?? "x"}`;
   const [expVistas, setExpVistas] = useState<Set<number>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem(expKey) || "[]")); } catch { return new Set(); }
+  });
+
+  // Altas vistas (dismiss por usuario en este equipo).
+  const altaKey = `amr_notif_altas_${usuario?.nombre ?? "x"}`;
+  const [altasVistas, setAltasVistas] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(altaKey) || "[]")); } catch { return new Set(); }
   });
 
   const clave = (p: { nroPoliza: string; fechaFin: string }) => `${p.nroPoliza}|${p.fechaFin}`;
@@ -67,13 +79,22 @@ export default function NotificacionesBell() {
   const solicitudesPendientes = solicitudes.data ?? [];
   const exportaciones = exp.data ?? [];
   const exportacionesNuevas = exportaciones.filter((e) => !expVistas.has(e.id));
-  const total = items.length + anulaciones.length + eliminaciones.length + solicitudesPendientes.length + exportacionesNuevas.length;
+  const altasRecientesData = altas.data ?? [];
+  const altasNuevas = altasRecientesData.filter((a) => !altasVistas.has(a.id));
+  const total = items.length + anulaciones.length + eliminaciones.length + solicitudesPendientes.length + exportacionesNuevas.length + altasNuevas.length;
 
   function limpiarExportaciones() {
     const nuevas = new Set(expVistas);
     exportaciones.forEach((e) => nuevas.add(e.id));
     setExpVistas(nuevas);
     try { localStorage.setItem(expKey, JSON.stringify([...nuevas].slice(-500))); } catch { /* ignore */ }
+  }
+
+  function limpiarAltas() {
+    const nuevas = new Set(altasVistas);
+    altasRecientesData.forEach((a) => nuevas.add(a.id));
+    setAltasVistas(nuevas);
+    try { localStorage.setItem(altaKey, JSON.stringify([...nuevas].slice(-500))); } catch { /* ignore */ }
   }
 
   function limpiarVencimientos() {
@@ -89,8 +110,9 @@ export default function NotificacionesBell() {
   function limpiarTodo() {
     limpiarVencimientos();
     limpiarExportaciones();
+    limpiarAltas();
   }
-  const hayDescartables = items.length + exportacionesNuevas.length > 0;
+  const hayDescartables = items.length + exportacionesNuevas.length + altasNuevas.length > 0;
 
   async function resolver(id: number, aprobar: boolean) {
     if (aprobar) await aprobarAnulacion(id); else await rechazarAnulacion(id);
@@ -98,15 +120,46 @@ export default function NotificacionesBell() {
     qc.invalidateQueries({ queryKey: ["cobros"] });
   }
 
+  function guardarBajaSolicitada(e: any) {
+    try {
+      const key = "amr:bajas:solicitadas";
+      const existentes = JSON.parse(localStorage.getItem(key) || "[]");
+      if (!Array.isArray(existentes)) return;
+      const nuevo = {
+        id: e.id,
+        fecha: new Date().toISOString(),
+        poliza: e.polizaNumero ?? "",
+        compania: e.companiaNombre ?? e.compania ?? "",
+        patente: e.patente ?? "",
+        cliente: e.clienteNombre ?? "",
+      };
+      const actualizados = [...existentes, nuevo];
+      localStorage.setItem(key, JSON.stringify(actualizados));
+    } catch {
+      /* silencioso */
+    }
+  }
+
   async function resolverElim(id: number, aprobar: boolean) {
-    if (aprobar) await aprobarEliminacion(id); else await rechazarEliminacion(id);
+    if (aprobar) {
+      const e = eliminaciones.find((x) => x.id === id);
+      if (e) guardarBajaSolicitada(e);
+      await aprobarEliminacion(id);
+    } else {
+      await rechazarEliminacion(id);
+    }
     qc.invalidateQueries({ queryKey: ["notif", "eliminaciones-pend"] });
     qc.invalidateQueries({ queryKey: ["registro"] });
     qc.invalidateQueries({ queryKey: ["polizas"] });
   }
 
   async function resolverSolicitud(id: number, ok: boolean) {
-    if (ok) await aprobar(id); else await rechazar(id);
+    try {
+      if (ok) await aprobar(id); else await rechazar(id);
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "No se pudo resolver la solicitud.");
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "pendientes"] });
     qc.invalidateQueries({ queryKey: ["solicitudes-cambio", "historial"] });
     qc.invalidateQueries({ queryKey: ["registro"] });
@@ -243,6 +296,34 @@ export default function NotificacionesBell() {
                         <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
                           {e.clienteNombre ?? "—"} · {formatFecha(e.fecha)}
                         </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Pólizas creadas (Admin) */}
+            {esAdmin && (
+              <>
+                <div style={head}>
+                  Pólizas creadas
+                  {altasNuevas.length > 0 && <span style={badge}>{altasNuevas.length}</span>}
+                </div>
+                <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                  {altasNuevas.length === 0 ? (
+                    <div style={vacio}>Sin altas recientes.</div>
+                  ) : (
+                    altasNuevas.map((a) => (
+                      <div key={a.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)", background: "var(--ok-100)" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
+                          {a.usuarioNombre ?? "Alguien"} dio de alta a {a.clienteNombre ?? "un cliente"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--ink-600)", marginTop: 2 }}>
+                          Póliza <span className="mono">{a.polizaNumero ?? "—"}</span>
+                          {a.patente ? <> · Patente <span className="mono">{a.patente}</span></> : null}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-500)", marginTop: 2 }}>{formatFecha(a.fecha)}</div>
                       </div>
                     ))
                   )}

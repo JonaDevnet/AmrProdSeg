@@ -42,13 +42,14 @@ export default function Editar() {
   const [poliza, setPoliza] = useState<Poliza | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [solicitada, setSolicitada] = useState(false);
   const [error, setError] = useState<string>();
 
   // Vehículos del cliente encontrado (por DNI, patente o póliza) — se listan en el panel.
   const clienteIdCtx = cliente?.id ?? vehiculo?.clienteId ?? poliza?.clienteId ?? 0;
   const vehiculosCliente = useVehiculosPorCliente(clienteIdCtx);
 
-  function reset() { setCliente(null); setVehiculo(null); setPoliza(null); setNoEncontrado(false); setSaved(false); setError(undefined); }
+  function reset() { setCliente(null); setVehiculo(null); setPoliza(null); setNoEncontrado(false); setSaved(false); setSolicitada(false); setError(undefined); }
 
   async function buscar() {
     if (!q.trim()) return;
@@ -80,8 +81,9 @@ export default function Editar() {
     setError(undefined); setGuardando(true);
     const limpio = (s?: string) => (s && s.trim() !== "" ? s.trim() : undefined);
     try {
-      await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion), fechaNacimiento: limpio(v.fechaNacimiento) });
+      const res = await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion), fechaNacimiento: limpio(v.fechaNacimiento) });
       setSaved(true);
+      setSolicitada(res?.solicitada === true);   // Productor → quedó pendiente de aprobación del Admin
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }
   async function guardarVehiculo(v: VehiculoFormValues) {
@@ -91,6 +93,7 @@ export default function Editar() {
     try {
       await actualizarVehiculo(vehiculo.id, { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpio(v.chasis), motor: limpio(v.motor), combustion: limpio(v.combustion) });
       setSaved(true);
+      setSolicitada(false);   // la edición de vehículo aplica en el acto
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
   }
 
@@ -152,7 +155,7 @@ export default function Editar() {
 
               {cliente && <ClienteForm cliente={cliente} onSubmit={guardarCliente} enviando={guardando} />}
               {vehiculo && <VehiculoForm vehiculo={vehiculo} onSubmit={guardarVehiculo} enviando={guardando} />}
-              {poliza && <CoberturaForm poliza={poliza} onSaved={() => setSaved(true)} setError={setError} />}
+              {poliza && <CoberturaForm poliza={poliza} onSaved={(solicitada) => { setSaved(true); setSolicitada(solicitada); }} setError={setError} />}
 
               <div style={{ marginTop: 16 }}>
                 <button style={linkBtn} onClick={() => { setQ(""); reset(); }}>← Buscar otro</button>

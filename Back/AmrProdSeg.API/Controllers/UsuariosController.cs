@@ -62,6 +62,15 @@ public class UsuariosController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Actualiza el rol de un usuario — solo Admin.</summary>
+    [HttpPut("{id:int}/rol")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ActualizarRol(int id, [FromBody] ActualizarRolDto dto)
+    {
+        await _service.ActualizarRolAsync(id, dto.Rol);
+        return NoContent();
+    }
+
     /// <summary>Da de baja (baja lógica) un usuario — solo Admin.</summary>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]

@@ -26,16 +26,23 @@ public class DiagnosticsController : ControllerBase
     }
 
     [HttpPost("errores")]
-    public IActionResult Errores([FromBody] ErrorFrontendDto dto)
+    public IActionResult Errores([FromBody] List<ErrorFrontendDto> errores)
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "-";
-        _logger.LogWarning(
-            "[FrontendError] {Mensaje} | URL {Url} | IP {Ip} | UA {UserAgent} | Stack {Stack}",
-            string.IsNullOrWhiteSpace(dto?.Mensaje) ? "(sin mensaje)" : dto!.Mensaje,
-            dto?.Url ?? "-",
-            ip,
-            dto?.UserAgent ?? "-",
-            dto?.Stack ?? "-");
+        foreach (var dto in errores ?? new List<ErrorFrontendDto>())
+        {
+            _logger.LogWarning(
+                "[FrontendError] {Mensaje} | URL {Url} | IP {Ip} | UA {UserAgent} | Stack {Stack}",
+                Sanitizar(dto?.Mensaje) ?? "(sin mensaje)",
+                Sanitizar(dto?.Url) ?? "-",
+                ip,
+                Sanitizar(dto?.UserAgent) ?? "-",
+                Sanitizar(dto?.Stack) ?? "-");
+        }
         return Ok();
     }
+
+    /// <summary>Evita log injection: reemplaza saltos de línea por espacios.</summary>
+    private static string? Sanitizar(string? s)
+        => string.IsNullOrEmpty(s) ? s : s.Replace("\r", " ").Replace("\n", " ");
 }

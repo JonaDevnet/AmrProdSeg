@@ -21,6 +21,19 @@ public class AvisoExportacionDto
     public DateTime Fecha { get; set; }
 }
 
+// ---------- Aviso de alta de póliza (para la campanita de los admins) ----------
+public class AvisoAltaDto
+{
+    public int Id { get; set; }
+    public int? UsuarioId { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public int? PolizaId { get; set; }
+    public string? PolizaNumero { get; set; }
+    public string? Patente { get; set; }
+    public string? ClienteNombre { get; set; }
+    public DateTime Fecha { get; set; }
+}
+
 // ---------- Resultado paginado genérico ----------
 public class PagedResult<T>
 {
@@ -37,6 +50,11 @@ public class ActualizarDocumentoDto
 }
 
 // ---------- Usuarios ----------
+public class ActualizarRolDto
+{
+    public string Rol { get; set; } = "Productor";
+}
+
 public class CrearUsuarioDto
 {
     public string Nombre { get; set; } = string.Empty;

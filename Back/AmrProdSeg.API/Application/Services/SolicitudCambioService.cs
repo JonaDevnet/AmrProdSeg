@@ -30,7 +30,13 @@ public class SolicitudCambioService : ISolicitudCambioService
     }
 
     public async Task<int> SolicitarAsync(string tipo, int entidadId, string accion, string? payloadJson, string? motivo, int solicitanteId)
-        => await _repo.SolicitarAsync(tipo, entidadId, accion, payloadJson, motivo, solicitanteId);
+    {
+        // Columna Motivo NVARCHAR(200): recortar evita SqlException de truncación.
+        const int maxMotivo = 200;
+        var m = string.IsNullOrEmpty(motivo) ? motivo
+            : motivo.Length <= maxMotivo ? motivo : motivo[..maxMotivo];
+        return await _repo.SolicitarAsync(tipo, entidadId, accion, payloadJson, m, solicitanteId);
+    }
 
     public Task<List<SolicitudCambioDto>> GetPendientesAsync() => ListarDtoAsync(0);
     public Task<List<SolicitudCambioDto>> GetHistorialAsync()  => ListarDtoAsync(null);
@@ -42,8 +48,18 @@ public class SolicitudCambioService : ISolicitudCambioService
         if (s.Estado != 0)
             throw new BusinessException("La solicitud ya fue resuelta.");
 
-        // Aplica el cambio; si falla (validación), la solicitud queda pendiente para reintentar.
-        await AplicarAsync(s, adminId);
+        try
+        {
+            // Aplica el cambio; si falla, la solicitud NO debe quedar trabada en pendiente
+            // (ni permitir un reintento que re-aplique un efecto ya aplicado parcialmente):
+            // se la marca como rechazada y se propaga el motivo al Admin.
+            await AplicarAsync(s, adminId);
+        }
+        catch
+        {
+            try { await _repo.RechazarAsync(id, adminId); } catch { /* best effort: no enmascarar el error original */ }
+            throw;
+        }
 
         if (await _repo.AprobarAsync(id, adminId) == 0)
             throw new BusinessException("La solicitud ya fue resuelta.");

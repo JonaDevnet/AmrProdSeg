@@ -93,6 +93,22 @@ export async function exportacionesRecientes(top = 20): Promise<AvisoExportacion
   return data;
 }
 
+export interface AvisoAlta {
+  id: number;
+  usuarioNombre?: string | null;
+  polizaId?: number | null;
+  polizaNumero?: string | null;
+  patente?: string | null;
+  clienteNombre?: string | null;
+  fecha: string;
+}
+
+/** Altas de pólizas recientes (solo admins) para la campanita. */
+export async function altasRecientes(top = 20): Promise<AvisoAlta[]> {
+  const { data } = await api.get<AvisoAlta[]>("/exportaciones/altas/recientes", { params: { top } });
+  return data;
+}
+
 export async function renovarPoliza(
   id: number,
   dto: RenovarPolizaDto

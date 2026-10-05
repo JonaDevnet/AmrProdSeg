@@ -35,6 +35,10 @@ export async function asignarOficinaUsuario(usuarioId: number, oficinaId: number
   await api.put(`/usuarios/${usuarioId}/oficina`, { oficinaId });
 }
 
+export async function actualizarRol(usuarioId: number, rol: Rol): Promise<void> {
+  await api.put(`/usuarios/${usuarioId}/rol`, { rol });
+}
+
 export async function darDeBajaUsuario(usuarioId: number): Promise<void> {
   await api.delete(`/usuarios/${usuarioId}`);
 }

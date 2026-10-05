@@ -29,6 +29,12 @@ public class ExportacionesController : ControllerBase
     public async Task<IActionResult> Recientes([FromQuery] int top = 20)
         => Ok(await _service.RecientesAsync(top));
 
+    /// <summary>Altas de pólizas recientes (para la campanita de los administradores).</summary>
+    [HttpGet("altas/recientes")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AltasRecientes([FromQuery] int top = 20)
+        => Ok(await _service.AltasRecientesAsync(top));
+
     private int UsuarioActualId()
     {
         var raw = User.FindFirstValue(ClaimTypes.NameIdentifier)

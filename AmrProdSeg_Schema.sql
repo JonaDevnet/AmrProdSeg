@@ -3981,3 +3981,60 @@ GO
 /* =============================================================================
    FIN DEL SCRIPT — AmrProdSeg_Schema.sql
    ============================================================================= */
+
+
+CREATE OR ALTER PROCEDURE sp_Usuario_ActualizarRol
+    @Id INT,
+    @Rol VARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Usuarios SET Rol = @Rol WHERE Id = @Id;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+/* =============================================================================
+   §62 — Avisos de alta: cuando se emite/archiva una nueva póliza (alta de cliente
+   + póliza + vehículo) se registra un aviso que los administradores ven en la
+   campanita, con número de póliza y patente.
+   ============================================================================= */
+IF OBJECT_ID('dbo.AvisosAltas', 'U') IS NULL
+BEGIN
+    CREATE TABLE AvisosAltas (
+        Id            INT PRIMARY KEY IDENTITY,
+        UsuarioId     INT           NULL,
+        UsuarioNombre NVARCHAR(150) NULL,
+        PolizaId      INT           NULL,
+        PolizaNumero  VARCHAR(20)   NULL,
+        Patente       VARCHAR(20)   NULL,
+        ClienteNombre NVARCHAR(150) NULL,
+        Fecha         DATETIME      NOT NULL DEFAULT GETUTCDATE()
+    );
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_AvisoAlta_Insertar
+    @UsuarioId INT = NULL, @UsuarioNombre NVARCHAR(150) = NULL,
+    @PolizaId INT = NULL, @PolizaNumero VARCHAR(20) = NULL,
+    @Patente VARCHAR(20) = NULL, @ClienteNombre NVARCHAR(150) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @UsuarioNombre IS NULL AND @UsuarioId IS NOT NULL
+        SET @UsuarioNombre = (SELECT Nombre FROM Usuarios WHERE Id = @UsuarioId);
+    INSERT INTO AvisosAltas (UsuarioId, UsuarioNombre, PolizaId, PolizaNumero, Patente, ClienteNombre)
+    VALUES (@UsuarioId, @UsuarioNombre, @PolizaId, @PolizaNumero, @Patente, @ClienteNombre);
+    SELECT SCOPE_IDENTITY() AS Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_AvisoAlta_Listar @Top INT = 20 AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT TOP (@Top) Id, UsuarioId, UsuarioNombre, PolizaId, PolizaNumero, Patente, ClienteNombre, Fecha
+    FROM AvisosAltas
+    ORDER BY Fecha DESC;
+END
+GO
+

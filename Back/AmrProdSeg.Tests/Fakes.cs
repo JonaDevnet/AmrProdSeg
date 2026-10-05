@@ -88,9 +88,10 @@ public class FakeUsuarioRepository : IUsuarioRepository
     public Task<int> InsertarAsync(string nombre, string email, string passwordHash, string rol) => Task.FromResult(1);
     public Task CambiarPasswordAsync(int id, string passwordHash) { PasswordCambiada = passwordHash; return Task.CompletedTask; }
     public Task<List<Usuario>> GetAllAsync() => Task.FromResult(new List<Usuario>());
-    public Task AsignarOficinaAsync(int usuarioId, int? oficinaId) { OficinaId = oficinaId; return Task.CompletedTask; }
-    public Task<int?> GetOficinaIdAsync(int usuarioId) => Task.FromResult(OficinaId);
+    public Task AsignarOficinaAsync(int usuarioId, int? oficinaId) => Task.CompletedTask;
+    public Task<int?> GetOficinaIdAsync(int usuarioId) => Task.FromResult<int?>(OficinaId);
     public Task<int> EliminarAsync(int id) => Task.FromResult(1);
+    public Task<int> ActualizarRolAsync(int id, string rol) => Task.FromResult(1);
 }
 
 public class FakeCompaniaRepository : ICompaniaRepository
@@ -213,6 +214,9 @@ public class FakeAvisoRepository : IAvisoRepository
     public int? UltimoPolizaId;
     public string? UltimoPolizaNumero;
     public List<AvisoExportacionDto> Recientes = new();
+    public List<AvisoAltaDto> AltasRecientes = new();
+    public int InsertarAltaLlamado;
+    public string? UltimaPatente;
 
     public Task InsertarExportacionAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? clienteNombre)
     {
@@ -221,6 +225,15 @@ public class FakeAvisoRepository : IAvisoRepository
         return Task.CompletedTask;
     }
     public Task<List<AvisoExportacionDto>> ListarExportacionesAsync(int top) => Task.FromResult(Recientes);
+
+    public Task InsertarAltaAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? patente, string? clienteNombre)
+    {
+        InsertarAltaLlamado++;
+        UltimoUsuarioId = usuarioId; UltimoPolizaId = polizaId; UltimoPolizaNumero = polizaNumero;
+        UltimaPatente = patente;
+        return Task.CompletedTask;
+    }
+    public Task<List<AvisoAltaDto>> ListarAltasAsync(int top) => Task.FromResult(AltasRecientes);
 }
 
 public class FakeConfiguracionRepository : IConfiguracionRepository

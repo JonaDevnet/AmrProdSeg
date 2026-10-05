@@ -15,6 +15,7 @@ public class AltaService : IAltaService
     private readonly IPolizaRepository _polizaRepo;
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IPdfService _pdfService;
+    private readonly IAvisoRepository _avisoRepo;
 
     public AltaService(
         IAltaRepository altaRepo,
@@ -22,7 +23,8 @@ public class AltaService : IAltaService
         IVehiculoRepository vehiculoRepo,
         IPolizaRepository polizaRepo,
         ICompaniaRepository companiaRepo,
-        IPdfService pdfService)
+        IPdfService pdfService,
+        IAvisoRepository avisoRepo)
     {
         _altaRepo     = altaRepo;
         _clienteRepo  = clienteRepo;
@@ -30,6 +32,7 @@ public class AltaService : IAltaService
         _polizaRepo   = polizaRepo;
         _companiaRepo = companiaRepo;
         _pdfService   = pdfService;
+        _avisoRepo    = avisoRepo;
     }
 
     public async Task<AltaResultDto> RegistrarAsync(AltaAseguradoDto dto, int? usuarioId = null)
@@ -115,6 +118,14 @@ public class AltaService : IAltaService
         var pdfUrl = polizaCreada != null
             ? await _pdfService.GenerarComprobantePdfAsync(polizaCreada)
             : string.Empty;
+
+        // Aviso para los administradores (campanita): alta de póliza con número y patente.
+        await _avisoRepo.InsertarAltaAsync(
+            usuarioId,
+            polizaId,
+            polizaCreada?.Numero,
+            tienePatente ? Up(dto.Patente) : null,
+            Up(dto.ClienteNombre) ?? dto.ClienteNombre);
 
         return new AltaResultDto
         {

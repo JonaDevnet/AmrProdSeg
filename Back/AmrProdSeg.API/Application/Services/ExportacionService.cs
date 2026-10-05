@@ -56,4 +56,6 @@ public class ExportacionService : IExportacionService
     }
 
     public Task<List<AvisoExportacionDto>> RecientesAsync(int top) => _avisoRepo.ListarExportacionesAsync(top);
+
+    public Task<List<AvisoAltaDto>> AltasRecientesAsync(int top) => _avisoRepo.ListarAltasAsync(top);
 }

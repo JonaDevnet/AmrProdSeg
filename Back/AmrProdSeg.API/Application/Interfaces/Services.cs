@@ -158,6 +158,7 @@ public interface IUsuarioService
     Task AutorizarResetAsync(int id, int adminId);
     Task AsignarOficinaAsync(int usuarioId, int? oficinaId);
     Task EliminarAsync(int id);
+    Task ActualizarRolAsync(int id, string rol);
 }
 
 public interface IAuditoriaService
@@ -220,6 +221,7 @@ public interface IExportacionService
 {
     Task<byte[]> ExportarPolizaAsync(int polizaId, int? usuarioId);
     Task<List<AvisoExportacionDto>> RecientesAsync(int top);
+    Task<List<AvisoAltaDto>> AltasRecientesAsync(int top);
 }
 
 public interface IPdfService

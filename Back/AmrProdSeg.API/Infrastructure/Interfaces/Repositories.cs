@@ -121,6 +121,7 @@ public interface IUsuarioRepository
     Task AsignarOficinaAsync(int usuarioId, int? oficinaId);
     Task<int?> GetOficinaIdAsync(int usuarioId);
     Task<int> EliminarAsync(int id);
+    Task<int> ActualizarRolAsync(int id, string rol);
 }
 
 public interface IAuditoriaRepository
@@ -264,4 +265,6 @@ public interface IAvisoRepository
 {
     Task InsertarExportacionAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? clienteNombre);
     Task<List<AvisoExportacionDto>> ListarExportacionesAsync(int top);
+    Task InsertarAltaAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? patente, string? clienteNombre);
+    Task<List<AvisoAltaDto>> ListarAltasAsync(int top);
 }

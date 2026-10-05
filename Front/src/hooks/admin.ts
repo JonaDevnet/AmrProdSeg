@@ -1,10 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+﻿import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as usuariosApi from "../api/usuarios";
 import { getCompanias, crearCompania, eliminarCompania, type CrearCompaniaDto } from "../api/companias";
 import { getMetodosPago, crearMetodoPago, eliminarMetodoPago } from "../api/metodosPago";
 import { getRamos, crearRamo, eliminarRamo } from "../api/ramos";
 import { getCoberturas, crearCobertura, eliminarCobertura } from "../api/coberturas";
 import { getOficinas, crearOficina, eliminarOficina } from "../api/oficinas";
+import type { Rol } from "../types";
 
 /* -------- Usuarios -------- */
 export function useUsuarios(opts?: { enabled?: boolean }) {
@@ -28,10 +29,18 @@ export function useAsignarOficinaUsuario() {
   });
 }
 
+export function useActualizarRol() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ usuarioId, rol }: { usuarioId: number; rol: Rol }) => usuariosApi.actualizarRol(usuarioId, rol),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["usuarios"] }),
+  });
+}
+
 export function useDarDeBajaUsuario() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (usuarioId: number) => usuariosApi.darDeBajaUsuario(usuarioId),
+    mutationFn: (id: number) => usuariosApi.darDeBajaUsuario(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["usuarios"] }),
   });
 }

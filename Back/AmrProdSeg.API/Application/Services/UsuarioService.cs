@@ -78,4 +78,13 @@ public class UsuarioService : IUsuarioService
         var r = await _usuarioRepo.EliminarAsync(id);
         if (r == 0) throw new NotFoundException("Usuario no encontrado.");
     }
+
+    public async Task ActualizarRolAsync(int id, string rol)
+    {
+        var permitido = new[] { "Vendedor", "Productor", "Admin" };
+        if (!permitido.Contains(rol))
+            throw new BusinessException("Rol no válido.");
+        var r = await _usuarioRepo.ActualizarRolAsync(id, rol);
+        if (r == 0) throw new NotFoundException("Usuario no encontrado.");
+    }
 }

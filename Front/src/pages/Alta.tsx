@@ -60,6 +60,43 @@ function addMesesISO(iso: string, meses: number) {
   return base.toISOString().slice(0, 10);
 }
 
+function parseDireccion(dir?: string | null) {
+  if (!dir) return {} as Record<string, string>;
+  const s = dir.trim();
+  if (!s) return {} as Record<string, string>;
+  const partes = s.split(",").map((p) => p.trim()).filter(Boolean);
+  if (partes.length === 0) return {} as Record<string, string>;
+  const out: Record<string, string> = {};
+  if (partes.length >= 1) {
+    const first = partes[0];
+    const m = first.match(/^(.*)\b(\d{1,5})\b\s*$/);
+    if (m) {
+      const calle = (m[1] || "").trim();
+      out.calle = calle || first;
+      out.numero = m[2];
+    } else {
+      out.calle = first;
+    }
+  }
+  if (partes.length >= 2) {
+    const p2 = partes[1].toLowerCase();
+    const esPiso =
+      p2.includes("piso") ||
+      p2.includes("dto") ||
+      p2.includes("departamento") ||
+      !!p2.match(/^\d{1,2}[°º]?\s*[a-z]?$/i);
+    if (esPiso) {
+      out.piso = partes[1];
+      if (partes.length >= 3) out.localidad = partes[2];
+      if (partes.length >= 4) out.provincia = partes.slice(3).join(", ");
+    } else {
+      out.localidad = partes[1];
+      if (partes.length >= 3) out.provincia = partes.slice(2).join(", ");
+    }
+  }
+  return out;
+}
+
 interface Form {
   idType: string; idNumber: string; nombre: string; apellido: string; nac: string;
   telefono: string; email: string;
@@ -98,6 +135,7 @@ export default function Alta() {
   const [numMsg, setNumMsg] = useState<string>();
   const [avisoPatente, setAvisoPatente] = useState("");
   const [patenteInfo, setPatenteInfo] = useState("");
+  const [clienteInfo, setClienteInfo] = useState("");
 
   const set = (k: keyof Form) => (v: string | string[]) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -107,27 +145,37 @@ export default function Alta() {
     if (!/^\d{7,11}$/.test(doc)) return;
     try {
       const res = await listarClientes(doc, 1, 5);
-      const c = res.items.find((x) => x.documento === doc);
-      if (!c) return;
-      const [nom, ...resto] = c.nombre.trim().split(/\s+/);
+      const c = res.items.find(
+        (x) => x.documento.replace(/\D/g, "") === doc || x.documento === form.idNumber.trim()
+      );
+      if (!c) { setClienteInfo(""); return; }
+      const [nom, ...resto] = (c.nombre || "").trim().split(/\s+/);
+      const dirp = parseDireccion(c.direccion);
       setForm((f) => ({
         ...f,
-        nombre: nom ?? f.nombre,
-        apellido: resto.join(" ") || f.apellido,
-        email: c.email ?? f.email,
-        telefono: c.telefono ?? f.telefono,
-        idType: c.tipoDocumento ?? f.idType,
-        nac: c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : f.nac,
-        calle: c.direccion ?? f.calle,   // domicilio guardado como string único
+        nombre: f.nombre.trim() || (nom ?? f.nombre),
+        apellido: f.apellido.trim() || resto.join(" ") || f.apellido,
+        email: f.email.trim() || (c.email ?? f.email),
+        telefono: f.telefono.trim() || (c.telefono ?? f.telefono),
+        idType: f.idType || (c.tipoDocumento ?? f.idType),
+        nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : f.nac),
+        calle: f.calle.trim() || (dirp.calle ?? f.calle),
+        numero: f.numero.trim() || (dirp.numero ?? f.numero),
+        piso: f.piso.trim() || (dirp.piso ?? f.piso),
+        localidad: f.localidad.trim() || (dirp.localidad ?? f.localidad),
+        provincia: f.provincia.trim() || (dirp.provincia ?? f.provincia),
       }));
-    } catch { /* silencioso */ }
+      setClienteInfo("Se cargaron datos del cliente existente.");
+    } catch {
+      /* silencioso */
+    }
   }
 
   // Al cargar la patente: si el vehículo ya existe, autocompleta sus datos (y los del
   // titular). Además avisa si ya tiene una póliza vigente (mostrando su número).
   async function chequearPatente() {
     const pat = form.patente.trim().toUpperCase();
-    setAvisoPatente(""); setPatenteInfo("");
+    setAvisoPatente(""); setPatenteInfo(""); setClienteInfo("");
     if (!pat) return;
 
     // Autocompletar datos del vehículo ya registrado
@@ -152,20 +200,26 @@ export default function Alta() {
         if (veh.clienteId) {
           try {
             const c = await getCliente(veh.clienteId);
-            const [nom, ...resto] = (c.nombre || "").trim().split(/\s+/);
-            setForm((f) => ({
-              ...f,
-              nombre: f.nombre || (nom ?? ""),
-              apellido: f.apellido || resto.join(" "),
-              idNumber: f.idNumber || (c.documento ?? ""),
-              idType: c.tipoDocumento || f.idType,
-              email: f.email || (c.email ?? ""),
-              telefono: f.telefono || (c.telefono ?? ""),
-              nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : ""),
-              calle: f.calle || (c.direccion ?? ""),   // domicilio guardado como string único
-            }));
-          } catch { /* silencioso */ }
-        }
+             const [nom, ...resto] = (c.nombre || "").trim().split(/\s+/);
+             const dirp = parseDireccion(c.direccion);
+             setForm((f) => ({
+               ...f,
+               nombre: f.nombre.trim() || (nom ?? ""),
+               apellido: f.apellido.trim() || resto.join(" "),
+               idNumber: f.idNumber.trim() || (c.documento ?? ""),
+               idType: f.idType || (c.tipoDocumento || f.idType),
+               email: f.email.trim() || (c.email ?? ""),
+               telefono: f.telefono.trim() || (c.telefono ?? ""),
+               nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : ""),
+               calle: f.calle.trim() || (dirp.calle ?? f.calle),
+               numero: f.numero.trim() || (dirp.numero ?? f.numero),
+               piso: f.piso.trim() || (dirp.piso ?? f.piso),
+               localidad: f.localidad.trim() || (dirp.localidad ?? f.localidad),
+               provincia: f.provincia.trim() || (dirp.provincia ?? f.provincia),
+             }));
+             setClienteInfo("Se cargaron datos del cliente existente.");
+           } catch { /* silencioso */ }
+         }
         setPatenteInfo(`Se cargaron los datos del vehículo ${[veh.marca, veh.modelo].filter(Boolean).join(" ")} ya registrado.`);
       }
     } catch { /* silencioso */ }
@@ -358,7 +412,12 @@ export default function Alta() {
                   </div>
                 </div>
 
-                <Field label={form.idType} required hint="Sin puntos ni guiones · si ya existe, se autocompleta">
+                 {clienteInfo && (
+                   <div style={{ marginBottom: 14, padding: "10px 14px", background: "var(--ok-100)", border: "1px solid var(--ok-500)", borderRadius: 9, fontSize: 13, color: "var(--ok-700)", fontWeight: 500 }}>
+                     ✓ {clienteInfo}
+                   </div>
+                 )}
+                 <Field label={form.idType} required hint="Sin puntos ni guiones · si ya existe, se autocompleta">
                   <InputBox focus={focus === "id"} onFocus={() => setFocus("id")} onBlur={() => setFocus(null)}>
                     <input className="mono" style={S.input} placeholder={form.idType === "CUIL" ? "20-12345678-9" : "27.345.123"} value={form.idNumber} onChange={(e) => set("idNumber")(e.target.value)} onBlur={autocompletarPorDni} />
                   </InputBox>

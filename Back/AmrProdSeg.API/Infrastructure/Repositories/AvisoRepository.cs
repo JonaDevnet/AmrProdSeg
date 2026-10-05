@@ -46,4 +46,43 @@ public class AvisoRepository : IAvisoRepository
         }
         return lista;
     }
+
+    public async Task InsertarAltaAsync(int? usuarioId, int? polizaId, string? polizaNumero, string? patente, string? clienteNombre)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_AvisoAlta_Insertar", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@UsuarioId", (object?)usuarioId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@UsuarioNombre", DBNull.Value);
+        cmd.Parameters.AddWithValue("@PolizaId", (object?)polizaId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@PolizaNumero", (object?)polizaNumero ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Patente", (object?)patente ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@ClienteNombre", (object?)clienteNombre ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<List<AvisoAltaDto>> ListarAltasAsync(int top)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_AvisoAlta_Listar", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@Top", top);
+        var lista = new List<AvisoAltaDto>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            lista.Add(new AvisoAltaDto
+            {
+                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                UsuarioId = reader.IsDBNull(reader.GetOrdinal("UsuarioId")) ? null : reader.GetInt32(reader.GetOrdinal("UsuarioId")),
+                UsuarioNombre = reader.IsDBNull(reader.GetOrdinal("UsuarioNombre")) ? null : reader.GetString(reader.GetOrdinal("UsuarioNombre")),
+                PolizaId = reader.IsDBNull(reader.GetOrdinal("PolizaId")) ? null : reader.GetInt32(reader.GetOrdinal("PolizaId")),
+                PolizaNumero = reader.IsDBNull(reader.GetOrdinal("PolizaNumero")) ? null : reader.GetString(reader.GetOrdinal("PolizaNumero")),
+                Patente = reader.IsDBNull(reader.GetOrdinal("Patente")) ? null : reader.GetString(reader.GetOrdinal("Patente")),
+                ClienteNombre = reader.IsDBNull(reader.GetOrdinal("ClienteNombre")) ? null : reader.GetString(reader.GetOrdinal("ClienteNombre")),
+                Fecha = reader.GetDateTime(reader.GetOrdinal("Fecha")),
+            });
+        }
+        return lista;
+    }
 }
