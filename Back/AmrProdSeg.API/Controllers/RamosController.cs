@@ -20,7 +20,7 @@ public class RamosController : ControllerBase
 
     /// <summary>Alta de ramo — sólo Admin.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Crear([FromBody] CrearRamoDto dto)
     {
         var id = await _service.CrearAsync(dto);
@@ -29,7 +29,7 @@ public class RamosController : ControllerBase
 
     /// <summary>Eliminar (baja lógica) — sólo Admin.</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Eliminar(int id)
     {
         await _service.EliminarAsync(id);

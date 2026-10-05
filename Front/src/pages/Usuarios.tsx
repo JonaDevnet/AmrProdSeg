@@ -149,13 +149,15 @@ export default function Usuarios() {
                   <td style={td}>
                     <Select
                       value={u.rol}
-                      disabled={u.rol === "Admin"}
+                      disabled={u.rol === "SuperAdmin"}
+                      title={u.rol === "SuperAdmin" ? "El rol de un SuperAdministrador no se puede modificar" : undefined}
                       onChange={(e) => actualizarRolMut.mutate({ usuarioId: u.id, rol: e.target.value as any })}
                       style={{ minWidth: 130, height: 34, fontSize: 13 }}
                     >
                       <option value="Vendedor">Vendedor</option>
                       <option value="Productor">Productor</option>
                       <option value="Admin">Admin</option>
+                      <option value="SuperAdmin">SuperAdmin</option>
                     </Select>
                   </td>
                   <td style={td}>
@@ -198,6 +200,7 @@ export default function Usuarios() {
               <option value="Vendedor">Vendedor</option>
               <option value="Productor">Productor</option>
               <option value="Admin">Admin</option>
+              <option value="SuperAdmin">SuperAdmin</option>
             </Select>
           </Field>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>

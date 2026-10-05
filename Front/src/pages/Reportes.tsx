@@ -52,7 +52,7 @@ export default function Reportes() {
   const { data: companias = [] } = useCompanias();
   // El selector de vendedor es exclusivo del Admin (el endpoint /usuarios también lo es).
   const { data: usuarios = [] } = useUsuarios({ enabled: esAdmin });
-  // Selección del filtro: "" (todos) | "me" (yo) | "rol:Admin" (todos los admins) | "u:<id>" (un productor)
+  // Selección del filtro: "" (todos) | "me" (yo) | "rol:<Rol>" (todos los de un rol) | "u:<id>" (un usuario)
   const [sel, setSel] = useState("");
   const colorDe = useMemo(() => {
     const m = new Map<number, string>();
@@ -60,14 +60,15 @@ export default function Reportes() {
     return m;
   }, [companias]);
 
+  const admins = usuarios.filter((u: Usuario) => u.rol === "Admin" || u.rol === "SuperAdmin");
   const productores = usuarios.filter((u: Usuario) => u.rol === "Productor");
-  const hayAdmins = usuarios.some((u: Usuario) => u.rol === "Admin");
+  const vendedores = usuarios.filter((u: Usuario) => u.rol === "Vendedor");
   // "Yo": se ubica al usuario logueado en la lista por nombre (la sesión no guarda el Id).
   const miId = usuarios.find((u: Usuario) => u.nombre === usuario?.nombre)?.id;
 
   const vendedor: VendedorFiltro | undefined = useMemo(() => {
     if (sel === "me" && miId !== undefined) return { vendedorId: miId };
-    if (sel === "rol:Admin") return { vendedorRol: "Admin" };
+    if (sel.startsWith("rol:")) return { vendedorRol: sel.slice(4) };
     if (sel.startsWith("u:")) return { vendedorId: Number(sel.slice(2)) };
     return undefined;
   }, [sel, miId]);
@@ -90,9 +91,20 @@ export default function Reportes() {
             >
               <option value="">Todos los vendedores</option>
               {miId !== undefined && <option value="me">Solo yo (mis ventas)</option>}
-              {hayAdmins && <option value="rol:Admin">Administrador (todos)</option>}
+              {admins.length > 0 && <option value="rol:Admin">Administradores (todos)</option>}
+              {productores.length > 0 && <option value="rol:Productor">Productores (todos)</option>}
+              {admins.length > 0 && <optgroup label="Administradores">
+                {admins.map((u: Usuario) => (
+                  <option key={u.id} value={`u:${u.id}`}>{u.nombre}{u.id === miId ? " — yo" : ""}</option>
+                ))}
+              </optgroup>}
               {productores.length > 0 && <optgroup label="Productores">
                 {productores.map((u: Usuario) => (
+                  <option key={u.id} value={`u:${u.id}`}>{u.nombre}{u.id === miId ? " — yo" : ""}</option>
+                ))}
+              </optgroup>}
+              {vendedores.length > 0 && <optgroup label="Vendedores">
+                {vendedores.map((u: Usuario) => (
                   <option key={u.id} value={`u:${u.id}`}>{u.nombre}{u.id === miId ? " — yo" : ""}</option>
                 ))}
               </optgroup>}

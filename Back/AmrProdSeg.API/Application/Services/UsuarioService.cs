@@ -84,11 +84,11 @@ public class UsuarioService : IUsuarioService
         var usuario = await _authRepo.GetUsuarioByIdAsync(id)
             ?? throw new NotFoundException("Usuario no encontrado.");
 
-        // El rol de un Administrador es inmutable (solo otro flujo controlado debería poder cambiarlo).
-        if (string.Equals(usuario.Rol, "Admin", StringComparison.OrdinalIgnoreCase))
-            throw new BusinessException("El rol de un Administrador no se puede modificar.");
+        // El rol de un SuperAdministrador es inmutable: es el nivel máximo y no se baja de categoría.
+        if (string.Equals(usuario.Rol, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
+            throw new BusinessException("El rol de un SuperAdministrador no se puede modificar.");
 
-        var permitido = new[] { "Vendedor", "Productor", "Admin" };
+        var permitido = new[] { "Vendedor", "Productor", "Admin", "SuperAdmin" };
         if (!permitido.Contains(rol))
             throw new BusinessException("Rol no válido.");
         var r = await _usuarioRepo.ActualizarRolAsync(id, rol);

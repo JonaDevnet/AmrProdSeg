@@ -8,7 +8,7 @@ namespace AmrProdSeg.API.Controllers;
 
 /// <summary>Solicitudes de cambio (editar/eliminar cliente, editar póliza) pendientes del Admin.</summary>
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 [Route("api/solicitudes-cambio")]
 public class SolicitudCambioController : ControllerBase
 {

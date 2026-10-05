@@ -125,5 +125,5 @@ public class PolizasController : ControllerBase
         return int.TryParse(raw, out var id) ? id : 0;
     }
 
-    private bool EsAdmin() => User.IsInRole("Admin");
+    private bool EsAdmin() => User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
 }

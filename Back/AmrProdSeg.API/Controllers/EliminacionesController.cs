@@ -8,7 +8,7 @@ namespace AmrProdSeg.API.Controllers;
 
 /// <summary>Autorización y registro de eliminaciones de póliza. Sólo Administradores.</summary>
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 [Route("api/[controller]")]
 public class EliminacionesController : ControllerBase
 {

@@ -31,7 +31,7 @@ public class BajasController : ControllerBase
 
     /// <summary>Aprobar una baja — solo Admin (cancela la póliza).</summary>
     [HttpPost("{id:int}/aprobar")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Aprobar(int id)
     {
         await _service.AprobarAsync(id, UsuarioActualId());
@@ -40,7 +40,7 @@ public class BajasController : ControllerBase
 
     /// <summary>Rechazar una baja — solo Admin.</summary>
     [HttpPost("{id:int}/rechazar")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Rechazar(int id)
     {
         await _service.RechazarAsync(id, UsuarioActualId());

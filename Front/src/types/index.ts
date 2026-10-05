@@ -1,6 +1,6 @@
 // Interfaces TypeScript — espejo de los DTOs del backend (AmrProdSeg.API)
 
-export type Rol = "Vendedor" | "Productor" | "Admin";
+export type Rol = "Vendedor" | "Productor" | "Admin" | "SuperAdmin";
 
 export interface LoginResult {
   accessToken: string;

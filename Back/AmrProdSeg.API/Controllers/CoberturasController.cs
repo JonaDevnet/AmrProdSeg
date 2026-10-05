@@ -18,7 +18,7 @@ public class CoberturasController : ControllerBase
     public async Task<IActionResult> Listar() => Ok(await _service.GetAllAsync());
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Crear([FromBody] CrearCoberturaDto dto)
     {
         var id = await _service.CrearAsync(dto);
@@ -26,7 +26,7 @@ public class CoberturasController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Eliminar(int id)
     {
         await _service.EliminarAsync(id);

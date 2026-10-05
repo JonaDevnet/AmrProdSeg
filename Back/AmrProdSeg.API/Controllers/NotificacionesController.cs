@@ -5,7 +5,7 @@ using Quartz;
 namespace AmrProdSeg.API.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 [Route("api/[controller]")]
 public class NotificacionesController : ControllerBase
 {

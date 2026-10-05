@@ -17,11 +17,31 @@ public class UsuarioServiceTests
     }
 
     [Fact]
-    public async Task ActualizarRol_Admin_LanzaBusinessException()
+    public async Task ActualizarRol_SuperAdmin_LanzaBusinessException()
     {
-        var (svc, _) = Crear(new Usuario { Id = 1, Rol = "Admin" });
+        var (svc, _) = Crear(new Usuario { Id = 1, Rol = "SuperAdmin" });
 
-        await Assert.ThrowsAsync<BusinessException>(() => svc.ActualizarRolAsync(1, "Productor"));
+        await Assert.ThrowsAsync<BusinessException>(() => svc.ActualizarRolAsync(1, "Admin"));
+    }
+
+    [Fact]
+    public async Task ActualizarRol_Admin_Ok()
+    {
+        var (svc, repo) = Crear(new Usuario { Id = 1, Rol = "Admin" });
+
+        await svc.ActualizarRolAsync(1, "Productor");
+
+        Assert.Equal("Productor", repo.RolActualizado);
+    }
+
+    [Fact]
+    public async Task ActualizarRol_PromoverASuperAdmin_Ok()
+    {
+        var (svc, repo) = Crear(new Usuario { Id = 2, Rol = "Admin" });
+
+        await svc.ActualizarRolAsync(2, "SuperAdmin");
+
+        Assert.Equal("SuperAdmin", repo.RolActualizado);
     }
 
     [Fact]
@@ -30,6 +50,8 @@ public class UsuarioServiceTests
         var (svc, repo) = Crear(new Usuario { Id = 2, Rol = "Productor" });
 
         await svc.ActualizarRolAsync(2, "Vendedor");
+
+        Assert.Equal("Vendedor", repo.RolActualizado);
     }
 
     [Fact]

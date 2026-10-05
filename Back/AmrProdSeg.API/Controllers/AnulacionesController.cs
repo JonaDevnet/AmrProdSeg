@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AmrProdSeg.API.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 [Route("api/[controller]")]
 public class AnulacionesController : ControllerBase
 {

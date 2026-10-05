@@ -60,7 +60,7 @@ public class ClientesController : ControllerBase
 
     /// <summary>Comparte el cliente con otra oficina — solo Admin.</summary>
     [HttpPost("{id:int}/compartir")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Compartir(int id, [FromBody] CompartirClienteDto dto)
     {
         await _oficinaService.CompartirClienteAsync(id, dto.OficinaId);
@@ -69,7 +69,7 @@ public class ClientesController : ControllerBase
 
     /// <summary>Deja de compartir el cliente con una oficina — solo Admin.</summary>
     [HttpDelete("{id:int}/compartir/{oficinaId:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Descompartir(int id, int oficinaId)
     {
         await _oficinaService.DescompartirClienteAsync(id, oficinaId);
@@ -114,7 +114,7 @@ public class ClientesController : ControllerBase
 
     /// <summary>Corrección del documento — solo Admin, queda registrada en AuditoriaCambios.</summary>
     [HttpPut("{id:int}/documento")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> ActualizarDocumento(int id, [FromBody] ActualizarDocumentoDto dto)
     {
         await _service.ActualizarDocumentoAsync(id, dto.Documento, UsuarioActualId());
@@ -130,5 +130,5 @@ public class ClientesController : ControllerBase
         return int.TryParse(raw, out var id) ? id : 0;
     }
 
-    private bool EsAdmin() => User.IsInRole("Admin");
+    private bool EsAdmin() => User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
 }

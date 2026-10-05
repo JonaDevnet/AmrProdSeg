@@ -25,13 +25,13 @@ public class ExportacionesController : ControllerBase
 
     /// <summary>Exportaciones recientes (para la campanita de los administradores).</summary>
     [HttpGet("recientes")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Recientes([FromQuery] int top = 20)
         => Ok(await _service.RecientesAsync(top));
 
     /// <summary>Altas de pólizas recientes (para la campanita de los administradores).</summary>
     [HttpGet("altas/recientes")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> AltasRecientes([FromQuery] int top = 20)
         => Ok(await _service.AltasRecientesAsync(top));
 

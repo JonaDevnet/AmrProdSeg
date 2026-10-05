@@ -18,12 +18,12 @@ public class UsuariosController : ControllerBase
 
     /// <summary>Listado de usuarios — solo Admin.</summary>
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Listar() => Ok(await _service.GetAllAsync());
 
     /// <summary>Alta de usuario (hashea con BCrypt) — solo Admin.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Crear([FromBody] CrearUsuarioDto dto)
     {
         var id = await _service.CrearAsync(dto);
@@ -40,13 +40,13 @@ public class UsuariosController : ControllerBase
 
     /// <summary>Solicitudes de reset pendientes de autorización — solo Admin.</summary>
     [HttpGet("solicitudes-reset")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> SolicitudesReset()
         => Ok(await _service.GetSolicitudesResetAsync());
 
     /// <summary>Autoriza una solicitud de reset — solo Admin.</summary>
     [HttpPost("solicitudes-reset/{id:int}/autorizar")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> AutorizarReset(int id)
     {
         await _service.AutorizarResetAsync(id, UsuarioActualId());
@@ -55,7 +55,7 @@ public class UsuariosController : ControllerBase
 
     /// <summary>Asigna (o quita, con null) la oficina de un usuario — solo Admin.</summary>
     [HttpPut("{id:int}/oficina")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> AsignarOficina(int id, [FromBody] AsignarOficinaDto dto)
     {
         await _service.AsignarOficinaAsync(id, dto.OficinaId);
@@ -64,7 +64,7 @@ public class UsuariosController : ControllerBase
 
     /// <summary>Actualiza el rol de un usuario — solo Admin.</summary>
     [HttpPut("{id:int}/rol")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> ActualizarRol(int id, [FromBody] ActualizarRolDto dto)
     {
         await _service.ActualizarRolAsync(id, dto.Rol);
@@ -73,7 +73,7 @@ public class UsuariosController : ControllerBase
 
     /// <summary>Da de baja (baja lógica) un usuario — solo Admin.</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Eliminar(int id)
     {
         if (id == UsuarioActualId())

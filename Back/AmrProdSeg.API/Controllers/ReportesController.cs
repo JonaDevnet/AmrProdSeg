@@ -123,15 +123,15 @@ public class ReportesController : ControllerBase
 
     // ---- Export de cartera (datos completos por póliza) — solo Admin ----
     [HttpGet("cartera")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Cartera(int? vendedorId)
         => Ok(await _reportes.CarteraExportAsync(vendedorId));
 
     /// <summary>Un productor solo rinde SUS cobros (se fuerza su Id). El Admin ve todos o el vendedor que elija.</summary>
-    private int? VendedorScope(int? vendedorId) => User.IsInRole("Admin") ? vendedorId : UsuarioActualId();
+    private int? VendedorScope(int? vendedorId) => (User.IsInRole("Admin") || User.IsInRole("SuperAdmin")) ? vendedorId : UsuarioActualId();
     /// <summary>El filtro por rol (ej. todos los Admin) solo lo puede aplicar un Admin.</summary>
     private string? SoloAdminRol(string? rol)
-        => User.IsInRole("Admin") && (rol == "Admin" || rol == "Productor") ? rol : null;
+        => (User.IsInRole("Admin") || User.IsInRole("SuperAdmin")) && (rol == "Admin" || rol == "SuperAdmin" || rol == "Productor") ? rol : null;
 
     private int UsuarioActualId()
     {

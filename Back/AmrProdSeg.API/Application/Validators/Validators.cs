@@ -187,8 +187,8 @@ public class CrearUsuarioValidator : AbstractValidator<CrearUsuarioDto>
             .NotEmpty().MinimumLength(8)
             .WithMessage("La contraseña debe tener al menos 8 caracteres.");
         RuleFor(x => x.Rol)
-            .Must(r => r is "Admin" or "Productor")
-            .WithMessage("El rol debe ser 'Admin' o 'Productor'.");
+            .Must(r => r is "Vendedor" or "Productor" or "Admin" or "SuperAdmin")
+            .WithMessage("El rol debe ser 'Vendedor', 'Productor', 'Admin' o 'SuperAdmin'.");
     }
 }
 

@@ -85,13 +85,14 @@ public class FakeUsuarioRepository : IUsuarioRepository
 {
     public int? OficinaId;
     public string? PasswordCambiada;
+    public string? RolActualizado;
     public Task<int> InsertarAsync(string nombre, string email, string passwordHash, string rol) => Task.FromResult(1);
     public Task CambiarPasswordAsync(int id, string passwordHash) { PasswordCambiada = passwordHash; return Task.CompletedTask; }
     public Task<List<Usuario>> GetAllAsync() => Task.FromResult(new List<Usuario>());
     public Task AsignarOficinaAsync(int usuarioId, int? oficinaId) => Task.CompletedTask;
     public Task<int?> GetOficinaIdAsync(int usuarioId) => Task.FromResult<int?>(OficinaId);
     public Task<int> EliminarAsync(int id) => Task.FromResult(1);
-    public Task<int> ActualizarRolAsync(int id, string rol) => Task.FromResult(1);
+    public Task<int> ActualizarRolAsync(int id, string rol) { RolActualizado = rol; return Task.FromResult(1); }
 }
 
 public class FakeCompaniaRepository : ICompaniaRepository

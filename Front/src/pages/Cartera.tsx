@@ -460,7 +460,7 @@ function ExportarModal({ onClose }: { onClose: () => void }) {
           <select value={vendedorId} onChange={(e) => setVendedorId(e.target.value === "" ? "" : Number(e.target.value))}
             style={{ width: "100%", height: 40, padding: "0 12px", borderRadius: 10, border: "1.5px solid var(--line)", background: "var(--paper)", fontSize: 14, marginTop: 4, marginBottom: 4 }}>
             <option value="">— Elegí un vendedor —</option>
-            {(usuarios.data ?? []).map((u: Usuario) => <option key={u.id} value={u.id}>{u.nombre}{u.rol === "Admin" ? " (Admin)" : ""}</option>)}
+            {(usuarios.data ?? []).map((u: Usuario) => <option key={u.id} value={u.id}>{u.nombre}{u.rol === "Admin" || u.rol === "SuperAdmin" ? ` (${u.rol})` : ""}</option>)}
           </select>
         )}
 

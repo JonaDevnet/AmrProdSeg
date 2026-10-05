@@ -20,7 +20,7 @@ public class MetodosPagoController : ControllerBase
 
     /// <summary>Alta de método de pago — solo Admin.</summary>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Crear([FromBody] CrearMetodoPagoDto dto)
     {
         var id = await _service.CrearAsync(dto);
@@ -29,7 +29,7 @@ public class MetodosPagoController : ControllerBase
 
     /// <summary>Eliminar (baja lógica) — solo Admin.</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Eliminar(int id)
     {
         await _service.EliminarAsync(id);

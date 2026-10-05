@@ -73,7 +73,7 @@ public class CobrosController : ControllerBase
     public async Task<IActionResult> Anular(int id, [FromBody] AnularPagoDto dto)
         => Ok(await _anulacion.AnularOSolicitarAsync(id, UsuarioActualId(), EsAdmin(), dto.Motivo));
 
-    private bool EsAdmin() => User.IsInRole("Admin");
+    private bool EsAdmin() => User.IsInRole("Admin") || User.IsInRole("SuperAdmin");
 
     private int UsuarioActualId()
     {

@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     usuario,
     autenticado: usuario !== null,
-    esAdmin: usuario?.rol === "Admin",
+    esAdmin: usuario?.rol === "Admin" || usuario?.rol === "SuperAdmin",
     iniciarSesion,
     cerrarSesion,
   };

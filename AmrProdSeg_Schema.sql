@@ -126,7 +126,7 @@ BEGIN
         Nombre       NVARCHAR(150) NOT NULL,
         Email        VARCHAR(100)  NOT NULL UNIQUE,
         PasswordHash VARCHAR(255)  NOT NULL,
-        Rol          VARCHAR(20)   NOT NULL DEFAULT 'Productor',  -- Productor | Admin
+        Rol          VARCHAR(20)   NOT NULL DEFAULT 'Productor',  -- SuperAdmin | Admin | Productor | Vendedor
         Activo       BIT           NOT NULL DEFAULT 1,
         FechaAlta    DATETIME      NOT NULL DEFAULT GETUTCDATE()
     );
@@ -2307,7 +2307,7 @@ BEGIN
       AND (@CompaniaId  IS NULL OR p.CompaniaId = @CompaniaId)
       AND (@OficinaId   IS NULL OR c.OficinaId  = @OficinaId)
       AND (@VendedorId  IS NULL OR COALESCE(co.RegistradoPor, p.VendedorId) = @VendedorId)
-      AND (@VendedorRol IS NULL OR v.Rol = @VendedorRol)
+      AND (@VendedorRol IS NULL OR v.Rol = @VendedorRol OR (@VendedorRol = 'Admin' AND v.Rol = 'SuperAdmin'))
     ORDER BY co.FechaPago DESC;
 END
 GO
@@ -2619,7 +2619,7 @@ BEGIN
     EXEC('ALTER TABLE dbo.Configuraciones ADD CONSTRAINT PK_Configuraciones PRIMARY KEY (UsuarioId, Clave)');
 
     -- La config global existente (UsuarioId=0) pasa a ser la del Admin (fallback de todos)
-    DECLARE @admin INT = (SELECT MIN(Id) FROM Usuarios WHERE Rol = 'Admin');
+    DECLARE @admin INT = (SELECT MIN(Id) FROM Usuarios WHERE Rol IN ('Admin', 'SuperAdmin'));
     IF @admin IS NOT NULL
         EXEC sp_executesql N'UPDATE dbo.Configuraciones SET UsuarioId = @a WHERE UsuarioId = 0', N'@a INT', @a = @admin;
 END
@@ -2641,7 +2641,7 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE sp_Config_GetAdminId AS
-BEGIN SET NOCOUNT ON; SELECT MIN(Id) AS AdminId FROM Usuarios WHERE Rol = 'Admin'; END
+BEGIN SET NOCOUNT ON; SELECT MIN(Id) AS AdminId FROM Usuarios WHERE Rol IN ('Admin', 'SuperAdmin'); END
 GO
 
 /* =============================================================================
@@ -3109,7 +3109,7 @@ BEGIN
       AND (@CompaniaId  IS NULL OR p.CompaniaId = @CompaniaId)
       AND (@OficinaId   IS NULL OR c.OficinaId  = @OficinaId)
       AND (@VendedorId  IS NULL OR COALESCE(co.RegistradoPor, p.VendedorId) = @VendedorId)
-      AND (@VendedorRol IS NULL OR v.Rol = @VendedorRol)
+      AND (@VendedorRol IS NULL OR v.Rol = @VendedorRol OR (@VendedorRol = 'Admin' AND v.Rol = 'SuperAdmin'))
     ORDER BY co.FechaPago DESC;
 END
 GO

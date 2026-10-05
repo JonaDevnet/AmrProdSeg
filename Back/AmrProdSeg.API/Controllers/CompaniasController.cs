@@ -32,7 +32,7 @@ public class CompaniasController : ControllerBase
 
     /// <summary>Eliminar (baja lógica) — sólo Admin.</summary>
     [HttpDelete("companias/{id:int}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Eliminar(int id)
     {
         await _service.EliminarAsync(id);

@@ -11,7 +11,7 @@ namespace AmrProdSeg.API.Controllers;
 /// <summary>Configuración de envío (Resend/WhatsApp) del sistema. Solo Admin: los recordatorios
 /// salen de forma centralizada por la config del Admin; los vendedores no configuran envío.</summary>
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,SuperAdmin")]
 [Route("api/configuracion")]
 public class ConfiguracionController : ControllerBase
 {
