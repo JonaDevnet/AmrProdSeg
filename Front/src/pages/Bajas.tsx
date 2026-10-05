@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { useBajas, useSolicitarBaja, useAprobarBaja, useRechazarBaja } from "../hooks/bajas";
 import { useAuth } from "../auth/AuthContext";
 import { buscarGlobal } from "../api/search";
@@ -54,40 +54,25 @@ export default function Bajas() {
     return true;
   });
 
-  const [cola, setCola] = useState<any[]>([]);
+  // Bajas aprobadas (del servidor) — lista copiable para reportar a la compañía.
+  const aprobadas = todas.filter((b) => b.estado === 1);
 
-  useEffect(() => {
-    try {
-      const key = "amr:bajas:solicitadas";
-      const data = JSON.parse(localStorage.getItem(key) || "[]");
-      setCola(Array.isArray(data) ? data : []);
-    } catch {
-      setCola([]);
-    }
-  }, []);
-
-  function textoCola() {
-    return cola
-      .map((x: any) => {
-        const f = x.fecha ? new Date(x.fecha).toLocaleString() : "";
-        return `[${f}] Poliza: ${x.poliza || ""} | Compañía: ${x.compania || ""} | Patente: ${x.patente || ""} | Cliente: ${x.cliente || ""}`;
+  function textoAprobadas() {
+    return aprobadas
+      .map((b) => {
+        const f = b.fechaSolicitud ? new Date(b.fechaSolicitud).toLocaleString() : "";
+        return `[${f}] Póliza: ${b.nroPoliza ?? `#${b.polizaId}`} | Cliente: ${b.clienteNombre ?? ""} | Motivo: ${b.motivo} | Solicitada por: ${b.solicitante ?? ""}`;
       })
       .join("\n");
   }
 
   async function copiarTodo() {
     try {
-      await navigator.clipboard.writeText(textoCola());
+      await navigator.clipboard.writeText(textoAprobadas());
       alert("Copiado al portapapeles");
     } catch {
       /* silencioso */
     }
-  }
-
-  function borrarTodo() {
-    if (!confirm("¿Borrar todas las bajas solicitadas guardadas?")) return;
-    localStorage.removeItem("amr:bajas:solicitadas");
-    setCola([]);
   }
 
   return (
@@ -165,7 +150,7 @@ export default function Bajas() {
 
       {modal && <SolicitarBajaModal onClose={() => setModal(false)} />}
 
-      {/* Bajas solicitadas (guardadas al aprobar desde la campana) */}
+      {/* Bajas solicitadas (aprobadas, desde el servidor) */}
       <section style={card} className="mt-3">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "var(--ink-900)" }}>Bajas solicitadas</h2>
@@ -186,22 +171,6 @@ export default function Bajas() {
             >
               Copiar todo completo
             </button>
-            <button
-              onClick={borrarTodo}
-              style={{
-                height: 36,
-                padding: "0 12px",
-                borderRadius: 9,
-                border: 0,
-                background: "var(--bad-600)",
-                color: "white",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
-              Borrar
-            </button>
           </div>
         </div>
         <pre
@@ -220,17 +189,10 @@ export default function Bajas() {
             color: "var(--ink-700)",
           }}
         >
-          {cola.length === 0
-            ? "Sin solicitudes guardadas."
-            : cola
-                .map((x: any) => {
-                  const f = x.fecha ? new Date(x.fecha).toLocaleString() : "";
-                  return `[${f}] Poliza: ${x.poliza || ""} | Compañía: ${x.compania || ""} | Patente: ${x.patente || ""} | Cliente: ${x.cliente || ""}`;
-                })
-                .join("\n")}
+          {aprobadas.length === 0 ? "Sin bajas aprobadas." : textoAprobadas()}
         </pre>
         <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
-          {cola.length} ítems en cola
+          {aprobadas.length} ítems
         </div>
       </section>
     </div>

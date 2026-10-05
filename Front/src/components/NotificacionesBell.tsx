@@ -27,18 +27,21 @@ export default function NotificacionesBell() {
     queryKey: ["notif", "por-vencer", 10],
     queryFn: () => polizasPorVencer(10),
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,   // respaldo si el canal en vivo (SignalR) no está disponible
   });
   const anul = useQuery({
     queryKey: ["notif", "anulaciones-pend"],
     queryFn: getAnulacionesPendientes,
     enabled: esAdmin,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
   const elim = useQuery({
     queryKey: ["notif", "eliminaciones-pend"],
     queryFn: getEliminacionesPendientes,
     enabled: esAdmin,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   const solicitudes = useQuery<SolicitudCambioDto[]>({
@@ -46,18 +49,21 @@ export default function NotificacionesBell() {
     queryFn: getPendientes,
     enabled: esAdmin,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
   const exp = useQuery({
     queryKey: ["notif", "exportaciones"],
     queryFn: () => exportacionesRecientes(20),
     enabled: esAdmin,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
   const altas = useQuery({
     queryKey: ["notif", "altas"],
     queryFn: () => altasRecientes(20),
     enabled: esAdmin,
     staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
   // Exportaciones vistas (dismiss por usuario en este equipo).
@@ -120,30 +126,8 @@ export default function NotificacionesBell() {
     qc.invalidateQueries({ queryKey: ["cobros"] });
   }
 
-  function guardarBajaSolicitada(e: any) {
-    try {
-      const key = "amr:bajas:solicitadas";
-      const existentes = JSON.parse(localStorage.getItem(key) || "[]");
-      if (!Array.isArray(existentes)) return;
-      const nuevo = {
-        id: e.id,
-        fecha: new Date().toISOString(),
-        poliza: e.polizaNumero ?? "",
-        compania: e.companiaNombre ?? e.compania ?? "",
-        patente: e.patente ?? "",
-        cliente: e.clienteNombre ?? "",
-      };
-      const actualizados = [...existentes, nuevo];
-      localStorage.setItem(key, JSON.stringify(actualizados));
-    } catch {
-      /* silencioso */
-    }
-  }
-
   async function resolverElim(id: number, aprobar: boolean) {
     if (aprobar) {
-      const e = eliminaciones.find((x) => x.id === id);
-      if (e) guardarBajaSolicitada(e);
       await aprobarEliminacion(id);
     } else {
       await rechazarEliminacion(id);
