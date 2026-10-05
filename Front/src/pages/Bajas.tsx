@@ -28,10 +28,15 @@ function EstadoBadge({ estado }: { estado: number }) {
 }
 
 export default function Bajas() {
-  const { esAdmin } = useAuth();
+  const { esAdmin, usuario } = useAuth();
   const [estado, setEstado] = useState<number | undefined>(undefined);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
+  // Bajas aprobadas "borradas" (descartadas) en este equipo: no vuelven a figurar hasta que haya nuevas.
+  const vistasKey = `amr:bajas:vistas_${usuario?.nombre ?? "x"}`;
+  const [vistas, setVistas] = useState<Set<number>>(() => {
+    try { return new Set<number>(JSON.parse(localStorage.getItem(vistasKey) || "[]")); } catch { return new Set<number>(); }
+  });
   const { data, isLoading, isError } = useBajas(undefined); // todas; se filtra client-side
   const aprobar = useAprobarBaja();
   const rechazar = useRechazarBaja();
@@ -55,10 +60,12 @@ export default function Bajas() {
   });
 
   // Bajas aprobadas (del servidor) — lista copiable para reportar a la compañía.
+  // Se excluyen las que ya se borraron en este equipo; las nuevas vuelven a aparecer.
   const aprobadas = todas.filter((b) => b.estado === 1);
+  const aprobadasVisibles = aprobadas.filter((b) => !vistas.has(b.id));
 
   function textoAprobadas() {
-    return aprobadas
+    return aprobadasVisibles
       .map((b) => {
         const f = b.fechaSolicitud ? new Date(b.fechaSolicitud).toLocaleString() : "";
         return `[${f}] Póliza: ${b.nroPoliza ?? `#${b.polizaId}`} | Cliente: ${b.clienteNombre ?? ""} | Motivo: ${b.motivo} | Solicitada por: ${b.solicitante ?? ""}`;
@@ -73,6 +80,16 @@ export default function Bajas() {
     } catch {
       /* silencioso */
     }
+  }
+
+  // "Borrar": oculta las bajas aprobadas que se están mostrando en este equipo (no borra nada del servidor).
+  function borrarTexto() {
+    if (aprobadasVisibles.length === 0) return;
+    if (!confirm("¿Borrar el texto de las bajas aprobadas mostradas en este equipo? No se borran del sistema.")) return;
+    const nuevas = new Set(vistas);
+    aprobadasVisibles.forEach((b) => nuevas.add(b.id));
+    setVistas(nuevas);
+    try { localStorage.setItem(vistasKey, JSON.stringify([...nuevas].slice(-1000))); } catch { /* ignore */ }
   }
 
   return (
@@ -157,6 +174,7 @@ export default function Bajas() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={copiarTodo}
+              disabled={aprobadasVisibles.length === 0}
               style={{
                 height: 36,
                 padding: "0 12px",
@@ -166,10 +184,27 @@ export default function Bajas() {
                 color: "var(--ink-700)",
                 fontSize: 13,
                 fontWeight: 500,
-                cursor: "pointer",
+                cursor: aprobadasVisibles.length === 0 ? "default" : "pointer",
               }}
             >
               Copiar todo completo
+            </button>
+            <button
+              onClick={borrarTexto}
+              disabled={aprobadasVisibles.length === 0}
+              style={{
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 9,
+                border: 0,
+                background: aprobadasVisibles.length === 0 ? "var(--ink-400)" : "var(--bad-600)",
+                color: "white",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: aprobadasVisibles.length === 0 ? "default" : "pointer",
+              }}
+            >
+              Borrar
             </button>
           </div>
         </div>
@@ -189,10 +224,10 @@ export default function Bajas() {
             color: "var(--ink-700)",
           }}
         >
-          {aprobadas.length === 0 ? "Sin bajas aprobadas." : textoAprobadas()}
+          {aprobadasVisibles.length === 0 ? "Sin bajas aprobadas." : textoAprobadas()}
         </pre>
         <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
-          {aprobadas.length} ítems
+          {aprobadasVisibles.length} ítems
         </div>
       </section>
     </div>
