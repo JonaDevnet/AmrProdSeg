@@ -13,6 +13,7 @@ public class PolizaService : IPolizaService
     private readonly IPolizaRepository _polizaRepo;
     private readonly ICobroRepository  _cobroRepo;
     private readonly ICompaniaRepository _companiaRepo;
+    private readonly IRamoRepository   _ramoRepo;
     private readonly IVehiculoRepository _vehiculoRepo;
     private readonly IPdfService       _pdfService;
     private readonly IAuditoriaMovimientoService _auditoria;
@@ -21,6 +22,7 @@ public class PolizaService : IPolizaService
         IPolizaRepository polizaRepo,
         ICobroRepository  cobroRepo,
         ICompaniaRepository companiaRepo,
+        IRamoRepository   ramoRepo,
         IVehiculoRepository vehiculoRepo,
         IPdfService       pdfService,
         IAuditoriaMovimientoService auditoria)
@@ -28,6 +30,7 @@ public class PolizaService : IPolizaService
         _polizaRepo = polizaRepo;
         _cobroRepo  = cobroRepo;
         _companiaRepo = companiaRepo;
+        _ramoRepo   = ramoRepo;
         _vehiculoRepo = vehiculoRepo;
         _pdfService = pdfService;
         _auditoria = auditoria;
@@ -153,15 +156,35 @@ public class PolizaService : IPolizaService
         };
     }
 
-    public async Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null)
+    public async Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
     {
         var poliza = await _polizaRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Póliza no encontrada.");
 
-        if (await _companiaRepo.GetByIdAsync(dto.CompaniaId) is null)
-            throw new BusinessException($"La compañía {dto.CompaniaId} no existe.");
+        var companiaNueva = await _companiaRepo.GetByIdAsync(dto.CompaniaId)
+            ?? throw new BusinessException($"La compañía {dto.CompaniaId} no existe.");
 
-        var anterior = $"nro {poliza.Numero} · vig {poliza.FechaInicio:dd/MM/yyyy}-{poliza.FechaFin:dd/MM/yyyy} · total ${poliza.PrecioTotal} · cuotas {poliza.CantidadCuotas}";
+        // Nombres de compañía/ramo para que el detalle sea legible (sólo los cambios).
+        var companiaAnterior = await _companiaRepo.GetByIdAsync(poliza.CompaniaId);
+        var ramos = (await _ramoRepo.GetAllAsync()).ToDictionary(r => r.Id, r => r.Nombre);
+        var ramoAnterior = poliza.RamoId is int ridAnt ? ramos.GetValueOrDefault(ridAnt) : null;
+        var ramoNuevo    = dto.RamoId    is int ridNue ? ramos.GetValueOrDefault(ridNue) : null;
+
+        // Identificación de la póliza modificada (n° + patente) + detalle de los campos que cambian.
+        var ident = $"Póliza {poliza.Numero}"
+            + (string.IsNullOrWhiteSpace(poliza.Patente) ? "" : $" · Patente {poliza.Patente}");
+        var detalle = AuditoriaDetalle.Cambios(new (string, object?, object?)[]
+        {
+            ("Compañía", companiaAnterior?.Nombre, companiaNueva.Nombre),
+            ("Ramo", ramoAnterior, ramoNuevo),
+            ("Inicio", poliza.FechaInicio, dto.FechaInicio),
+            ("Fin", poliza.FechaFin, dto.FechaFin),
+            ("Precio total", poliza.PrecioTotal, dto.PrecioTotal),
+            ("Cuotas", poliza.CantidadCuotas, dto.CantidadCuotas),
+            ("Forma de pago", poliza.FormaPago, dto.FormaPago),
+            ("Prima OG", poliza.PrimaOG, dto.PrimaOG),
+            ("Cobertura", poliza.Cobertura, dto.Cobertura),
+        });
 
         poliza.CompaniaId     = dto.CompaniaId;
         poliza.RamoId         = dto.RamoId;
@@ -181,10 +204,7 @@ public class PolizaService : IPolizaService
             dto.PrimerVencimiento ?? dto.FechaInicio.AddMonths(1));
 
         if (usuarioId is int uid)
-        {
-            var nuevo = $"vig {poliza.FechaInicio:dd/MM/yyyy}-{poliza.FechaFin:dd/MM/yyyy} · total ${poliza.PrecioTotal} · cuotas {poliza.CantidadCuotas}";
-            await _auditoria.RegistrarAsync(uid, "Poliza", id, "Editar", $"Antes: {anterior} | Después: {nuevo}");
-        }
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "Editar", AuditoriaDetalle.ConMotivo($"{ident} — {detalle}", motivo), solicitanteId);
     }
 
     public async Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null)

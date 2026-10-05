@@ -159,6 +159,7 @@ public class EliminacionPoliza
     public DateTime? FechaResolucion { get; set; }
     public DateTime? FechaEliminacion { get; set; }
     public string? Solicitante { get; set; }
+    public int? SolicitanteId { get; set; }
     public string? Resolvio { get; set; }
 }
 
@@ -228,6 +229,8 @@ public class AuditoriaMovimiento
     public int Id { get; set; }
     public int UsuarioId { get; set; }
     public string? UsuarioNombre { get; set; }
+    public int? SolicitanteId { get; set; }
+    public string? SolicitanteNombre { get; set; }
     public DateTime Fecha { get; set; }
     public string Entidad { get; set; } = string.Empty;   // 'Cliente' | 'Poliza'
     public int RegistroId { get; set; }

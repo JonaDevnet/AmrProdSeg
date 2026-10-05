@@ -16,7 +16,7 @@ public class SolicitudCambioServiceTests
         {
             PorId = SolicitudPendiente(tipo: "Cliente", accion: "Eliminar"),
         };
-        var svc = new SolicitudCambioService(repo, new FakeClienteService(), new FakePolizaService());
+        var svc = new SolicitudCambioService(repo, new FakeClienteService(), new FakePolizaService(), new FakeNotificacionPusher());
 
         await svc.AprobarAsync(1, adminId: 9);
 
@@ -33,13 +33,34 @@ public class SolicitudCambioServiceTests
             PorId = SolicitudPendiente(tipo: "Cliente", accion: "Eliminar"),
         };
         var clientes = new FakeClienteService { LanzarNotFoundEnEliminar = true };
-        var svc = new SolicitudCambioService(repo, clientes, new FakePolizaService());
+        var svc = new SolicitudCambioService(repo, clientes, new FakePolizaService(), new FakeNotificacionPusher());
 
         await Assert.ThrowsAsync<NotFoundException>(() => svc.AprobarAsync(1, adminId: 9));
 
         // La solicitud NO queda trabada en pendiente: se la rechaza y el Admin ve el motivo.
         Assert.Equal(1, repo.RechazarLlamado);
         Assert.Equal(0, repo.AprobarLlamado);
+    }
+
+    [Fact]
+    public async Task Aprobar_EdicionCliente_PasaSolicitanteYMotivo()
+    {
+        var repo = new FakeSolicitudCambioRepository
+        {
+            PorId = new SolicitudCambio
+            {
+                Id = 1, Tipo = "Cliente", EntidadId = 99, Accion = "Editar",
+                Estado = 0, PayloadJson = "{}", SolicitanteId = 5, Motivo = "corregir teléfono",
+            },
+        };
+        var clientes = new FakeClienteService();
+        var svc = new SolicitudCambioService(repo, clientes, new FakePolizaService(), new FakeNotificacionPusher());
+
+        await svc.AprobarAsync(1, adminId: 9);
+
+        Assert.Equal(9, clientes.UltimoUsuarioId);
+        Assert.Equal(5, clientes.UltimoSolicitanteId);
+        Assert.Equal("corregir teléfono", clientes.UltimoMotivo);
     }
 
     private static SolicitudCambio SolicitudPendiente(string tipo, string accion)
@@ -87,12 +108,21 @@ public class FakeSolicitudCambioRepository : ISolicitudCambioRepository
 public class FakeClienteService : IClienteService
 {
     public bool LanzarNotFoundEnEliminar;
+    public int? UltimoUsuarioId;
+    public int? UltimoSolicitanteId;
+    public string? UltimoMotivo;
 
     public Task<int> CrearAsync(CrearClienteDto dto, int? usuarioId = null) => Task.FromResult(1);
-    public Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null) => Task.CompletedTask;
+    public Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
+    {
+        UltimoUsuarioId = usuarioId;
+        UltimoSolicitanteId = solicitanteId;
+        UltimoMotivo = motivo;
+        return Task.CompletedTask;
+    }
     public Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId) => Task.CompletedTask;
 
-    public Task<int> EliminarAsync(int id, int? usuarioId = null)
+    public Task<int> EliminarAsync(int id, int? usuarioId = null, int? solicitanteId = null)
         => LanzarNotFoundEnEliminar
             ? throw new NotFoundException("Cliente no encontrado.")
             : Task.FromResult(1);
@@ -115,7 +145,7 @@ public class FakePolizaService : IPolizaService
     public Task<PolizaDto?> GetActivaPorPatenteAsync(string patente) => Task.FromResult<PolizaDto?>(null);
     public Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
         => Task.FromResult(new PagedResult<PolizaDto>());
-    public Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null) => Task.CompletedTask;
+    public Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null) => Task.CompletedTask;
     public Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null) => Task.CompletedTask;
     public Task CancelarAsync(int id, int? usuarioId = null) => Task.CompletedTask;
     public Task<byte[]> GenerarPdfAsync(int id) => Task.FromResult(Array.Empty<byte>());

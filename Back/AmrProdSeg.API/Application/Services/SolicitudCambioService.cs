@@ -20,13 +20,15 @@ public class SolicitudCambioService : ISolicitudCambioService
     private readonly ISolicitudCambioRepository _repo;
     private readonly IClienteService _clientes;
     private readonly IPolizaService _polizas;
+    private readonly INotificacionPusher _pusher;
 
     public SolicitudCambioService(
-        ISolicitudCambioRepository repo, IClienteService clientes, IPolizaService polizas)
+        ISolicitudCambioRepository repo, IClienteService clientes, IPolizaService polizas, INotificacionPusher pusher)
     {
         _repo = repo;
         _clientes = clientes;
         _polizas = polizas;
+        _pusher = pusher;
     }
 
     public async Task<int> SolicitarAsync(string tipo, int entidadId, string accion, string? payloadJson, string? motivo, int solicitanteId)
@@ -35,7 +37,10 @@ public class SolicitudCambioService : ISolicitudCambioService
         const int maxMotivo = 200;
         var m = string.IsNullOrEmpty(motivo) ? motivo
             : motivo.Length <= maxMotivo ? motivo : motivo[..maxMotivo];
-        return await _repo.SolicitarAsync(tipo, entidadId, accion, payloadJson, m, solicitanteId);
+        var id = await _repo.SolicitarAsync(tipo, entidadId, accion, payloadJson, m, solicitanteId);
+        if (id > 0)
+            await _pusher.NotificarAsync("solicitud");
+        return id;
     }
 
     public Task<List<SolicitudCambioDto>> GetPendientesAsync() => ListarDtoAsync(0);
@@ -78,15 +83,15 @@ public class SolicitudCambioService : ISolicitudCambioService
             case ("Cliente", "Editar"):
                 var dc = JsonSerializer.Deserialize<ActualizarClienteDto>(s.PayloadJson ?? "{}", JsonOpts)
                          ?? throw new BusinessException("Datos de edición inválidos.");
-                await _clientes.ActualizarAsync(s.EntidadId, dc, adminId);
+                await _clientes.ActualizarAsync(s.EntidadId, dc, adminId, s.SolicitanteId, s.Motivo);
                 break;
             case ("Cliente", "Eliminar"):
-                await _clientes.EliminarAsync(s.EntidadId, adminId);
+                await _clientes.EliminarAsync(s.EntidadId, adminId, s.SolicitanteId);
                 break;
             case ("Poliza", "Editar"):
                 var dp = JsonSerializer.Deserialize<ActualizarPolizaDto>(s.PayloadJson ?? "{}", JsonOpts)
                          ?? throw new BusinessException("Datos de edición inválidos.");
-                await _polizas.ActualizarAsync(s.EntidadId, dp, adminId);
+                await _polizas.ActualizarAsync(s.EntidadId, dp, adminId, s.SolicitanteId, s.Motivo);
                 break;
             default:
                 throw new BusinessException($"Tipo de cambio no soportado: {s.Tipo}/{s.Accion}.");

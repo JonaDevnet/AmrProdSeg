@@ -68,6 +68,7 @@ public class EliminacionRepository : IEliminacionRepository
             PolizaNumero = r.IsDBNull(r.GetOrdinal("PolizaNumero")) ? null : r.GetString(r.GetOrdinal("PolizaNumero")),
             ClienteNombre = r.IsDBNull(r.GetOrdinal("ClienteNombre")) ? null : r.GetString(r.GetOrdinal("ClienteNombre")),
             Patente      = r.IsDBNull(r.GetOrdinal("Patente")) ? null : r.GetString(r.GetOrdinal("Patente")),
+            SolicitanteId = r.IsDBNull(r.GetOrdinal("SolicitanteId")) ? null : r.GetInt32(r.GetOrdinal("SolicitanteId")),
         };
     }
 

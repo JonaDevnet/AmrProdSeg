@@ -83,7 +83,29 @@ public class CobroServiceTests
 public class PolizaServiceTests
 {
     private static PolizaService Crear(FakePolizaRepository polizaRepo)
-        => new(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+        => new(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(), new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+    [Fact]
+    public async Task ActualizarAsync_RegistraAuditoriaConPolizaYPatente()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-000020", Patente = "AB123CD", CompaniaId = 1 }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1, FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddMonths(6),
+            PrecioTotal = 50000, CantidadCuotas = 6
+        }, usuarioId: 9);
+
+        var r = Assert.Single(auditoria.Registros);
+        Assert.Contains("E/T-000020", r.detalle);
+        Assert.Contains("AB123CD", r.detalle);
+    }
 
     [Theory]
     [InlineData(EstadoPoliza.Cancelada)]
@@ -189,5 +211,24 @@ public class ClienteServiceTests
             Nombre = "Juan Pérez", Documento = "30111222"
         }));
         Assert.Equal(0, repo.InsertarLlamadas);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_RegistraAuditoriaConDniDelCliente()
+    {
+        var repo = new FakeClienteRepository
+        {
+            PorId = new Cliente { Id = 1, Nombre = "Jonathan Rinaldi Rinaldi", Documento = "30111222", TipoDocumento = "DNI" }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var service = new ClienteService(repo, new FakeUsuarioRepository(),
+            new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService(),
+            auditoria);
+
+        await service.ActualizarAsync(1, new ActualizarClienteDto { Nombre = "Jonathan" }, usuarioId: 9);
+
+        var r = Assert.Single(auditoria.Registros);
+        Assert.Contains("DNI 30111222", r.detalle);
+        Assert.Contains("Nombre", r.detalle);
     }
 }

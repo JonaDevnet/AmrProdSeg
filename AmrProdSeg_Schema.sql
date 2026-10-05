@@ -2759,7 +2759,7 @@ GO
 CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetById @Id INT AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT PolizaId, PolizaNumero, ClienteNombre, Patente
+    SELECT PolizaId, PolizaNumero, ClienteNombre, Patente, SolicitadoPor AS SolicitanteId
     FROM EliminacionesPoliza
     WHERE Id = @Id;
 END
@@ -2769,7 +2769,7 @@ GO
 CREATE OR ALTER PROCEDURE sp_EliminacionPoliza_GetByPoliza @PolizaId INT AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT TOP 1 PolizaId, PolizaNumero, ClienteNombre, Patente
+    SELECT TOP 1 PolizaId, PolizaNumero, ClienteNombre, Patente, SolicitadoPor AS SolicitanteId
     FROM EliminacionesPoliza
     WHERE PolizaId = @PolizaId
     ORDER BY Id DESC;
@@ -2896,9 +2896,11 @@ BEGIN
     SELECT p.Id, p.Numero, p.ClienteId, p.VehiculoId, p.CompaniaId, p.FechaInicio, p.FechaFin,
            p.PrecioTotal, p.CantidadCuotas, p.Estado, p.PolizaOrigenId, p.FechaEmision,
            p.RamoId, r.Nombre AS RamoNombre, p.FormaPago, p.PrimaOG, p.Cobertura, p.TokenPublico,
+           v.Patente,
            uv.Nombre AS VendedorNombre, uc.Nombre AS ClienteVendedorNombre
     FROM Polizas p
     LEFT JOIN Ramos    r  ON r.Id  = p.RamoId
+    LEFT JOIN Vehiculos v ON v.Id  = p.VehiculoId
     LEFT JOIN Usuarios uv ON uv.Id = p.VendedorId
     LEFT JOIN Clientes c  ON c.Id  = p.ClienteId
     LEFT JOIN Usuarios uc ON uc.Id = c.VendedorId
@@ -3894,15 +3896,31 @@ GO
 IF OBJECT_ID('dbo.AuditoriaMovimientos', 'U') IS NULL
 BEGIN
     CREATE TABLE AuditoriaMovimientos (
-        Id          INT PRIMARY KEY IDENTITY,
-        UsuarioId   INT          NOT NULL REFERENCES Usuarios(Id),
-        Fecha       DATETIME     NOT NULL,
-        Entidad     VARCHAR(30)  NOT NULL,   -- 'Cliente' | 'Poliza'
-        RegistroId  INT          NOT NULL,
-        Accion      VARCHAR(30)  NOT NULL,   -- 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero'
-        Detalle     NVARCHAR(500) NULL
+        Id            INT PRIMARY KEY IDENTITY,
+        UsuarioId     INT           NOT NULL REFERENCES Usuarios(Id),  -- quién ejecutó/autorizó
+        SolicitanteId INT           NULL     REFERENCES Usuarios(Id),  -- quién propuso el cambio (NULL si fue directo)
+        Fecha         DATETIME      NOT NULL,
+        Entidad       VARCHAR(30)   NOT NULL,   -- 'Cliente' | 'Poliza'
+        RegistroId    INT           NOT NULL,
+        Accion        VARCHAR(30)   NOT NULL,   -- 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero' | 'Restaurar' | 'BorrarDefinitivo'
+        Detalle       NVARCHAR(1000) NULL
     );
 END
+GO
+
+-- Migración idempotente para instalaciones previas: solicitante + detalle más largo.
+IF COL_LENGTH('dbo.AuditoriaMovimientos', 'SolicitanteId') IS NULL
+BEGIN
+    ALTER TABLE AuditoriaMovimientos ADD SolicitanteId INT NULL;
+    ALTER TABLE AuditoriaMovimientos ADD CONSTRAINT FK_AuditoriaMovimientos_Solicitante
+        FOREIGN KEY (SolicitanteId) REFERENCES Usuarios(Id);
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID('dbo.AuditoriaMovimientos') AND name = 'Detalle'
+             AND max_length <> -1 AND max_length < 2000)
+    ALTER TABLE AuditoriaMovimientos ALTER COLUMN Detalle NVARCHAR(1000) NULL;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditoriaMovimientos_Usuario_Fecha')
@@ -3910,22 +3928,25 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AuditoriaMovimientos_U
 GO
 
 CREATE OR ALTER PROCEDURE sp_AuditoriaMovimiento_Insertar
-    @UsuarioId  INT, @Fecha DATETIME, @Entidad VARCHAR(30), @RegistroId INT,
-    @Accion VARCHAR(30), @Detalle NVARCHAR(500) = NULL
+    @UsuarioId INT, @Fecha DATETIME, @Entidad VARCHAR(30), @RegistroId INT,
+    @Accion VARCHAR(30), @Detalle NVARCHAR(1000) = NULL, @SolicitanteId INT = NULL
 AS
 BEGIN SET NOCOUNT ON;
-    INSERT INTO AuditoriaMovimientos (UsuarioId, Fecha, Entidad, RegistroId, Accion, Detalle)
-    VALUES (@UsuarioId, @Fecha, @Entidad, @RegistroId, @Accion, @Detalle);
+    INSERT INTO AuditoriaMovimientos (UsuarioId, SolicitanteId, Fecha, Entidad, RegistroId, Accion, Detalle)
+    VALUES (@UsuarioId, @SolicitanteId, @Fecha, @Entidad, @RegistroId, @Accion, @Detalle);
 END
 GO
 
--- Lista los movimientos (opcional filtro por usuario), más recientes primero.
+-- Lista los movimientos (opcional filtro por usuario: actor o solicitante), más recientes primero.
 CREATE OR ALTER PROCEDURE sp_AuditoriaMovimiento_Listar @UsuarioId INT = NULL AS
 BEGIN SET NOCOUNT ON;
-    SELECT a.Id, a.UsuarioId, u.Nombre AS UsuarioNombre, a.Fecha, a.Entidad, a.RegistroId, a.Accion, a.Detalle
+    SELECT a.Id, a.UsuarioId, u.Nombre AS UsuarioNombre,
+           a.SolicitanteId, sol.Nombre AS SolicitanteNombre,
+           a.Fecha, a.Entidad, a.RegistroId, a.Accion, a.Detalle
     FROM AuditoriaMovimientos a
-    LEFT JOIN Usuarios u ON u.Id = a.UsuarioId
-    WHERE (@UsuarioId IS NULL OR a.UsuarioId = @UsuarioId)
+    LEFT JOIN Usuarios u   ON u.Id   = a.UsuarioId
+    LEFT JOIN Usuarios sol ON sol.Id = a.SolicitanteId
+    WHERE (@UsuarioId IS NULL OR a.UsuarioId = @UsuarioId OR a.SolicitanteId = @UsuarioId)
     ORDER BY a.Fecha DESC, a.Id DESC;
 END
 GO

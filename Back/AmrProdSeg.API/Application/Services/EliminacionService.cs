@@ -10,11 +10,13 @@ public class EliminacionService : IEliminacionService
 {
     private readonly IEliminacionRepository _repo;
     private readonly IAuditoriaMovimientoService _auditoria;
+    private readonly INotificacionPusher _pusher;
 
-    public EliminacionService(IEliminacionRepository repo, IAuditoriaMovimientoService auditoria)
+    public EliminacionService(IEliminacionRepository repo, IAuditoriaMovimientoService auditoria, INotificacionPusher pusher)
     {
         _repo = repo;
         _auditoria = auditoria;
+        _pusher = pusher;
     }
 
     public async Task<EliminarPolizaResultDto> EliminarOSolicitarAsync(int polizaId, int usuarioId, bool esAdmin, string? motivo)
@@ -33,6 +35,7 @@ public class EliminacionService : IEliminacionService
         // Productor: queda pendiente de autorización del Admin.
         if (yaExistia)
             throw new BusinessException("Ya existe una solicitud de eliminación pendiente para esta póliza.");
+        await _pusher.NotificarAsync("eliminacion");
         return new EliminarPolizaResultDto { Solicitada = true, Mensaje = "Solicitud de eliminación enviada. Queda pendiente de autorización del administrador." };
     }
 
@@ -84,6 +87,8 @@ public class EliminacionService : IEliminacionService
         if (extra.Any()) detalle += " (" + string.Join(" · ", extra) + ")";
         detalle += ".";
 
-        await _auditoria.RegistrarAsync(adminId, "Poliza", s.PolizaId, accion, detalle);
+        // Solicitante: sólo si fue pedido por otra persona (si el admin lo hizo directo, queda NULL).
+        var solicitanteId = s.SolicitanteId is int sol && sol != adminId ? sol : (int?)null;
+        await _auditoria.RegistrarAsync(adminId, "Poliza", s.PolizaId, accion, detalle, solicitanteId);
     }
 }

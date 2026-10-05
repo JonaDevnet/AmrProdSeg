@@ -8,7 +8,7 @@ namespace AmrProdSeg.API.Application.Services;
 /// (TZ America/Argentina/Buenos_Aires en el contenedor) para mostrar hora local.</summary>
 public class AuditoriaMovimientoService : IAuditoriaMovimientoService
 {
-    private const int MaxDetalle = 500;   // columna Detalle NVARCHAR(500)
+    private const int MaxDetalle = 1000;   // columna Detalle NVARCHAR(1000)
 
     private readonly IAuditoriaMovimientoRepository _repo;
     private readonly ILogger<AuditoriaMovimientoService> _logger;
@@ -19,14 +19,14 @@ public class AuditoriaMovimientoService : IAuditoriaMovimientoService
         _logger = logger;
     }
 
-    public async Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle)
+    public async Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, int? solicitanteId = null)
     {
         var d = string.IsNullOrEmpty(detalle) ? detalle : detalle.Length <= MaxDetalle ? detalle : detalle[..MaxDetalle];
         try
         {
             // La auditoría corre DESPUÉS del cambio de negocio ya confirmado: si el INSERT
             // falla (BD caída, FK, etc.) no debe tumbar la operación aplicada ni devolver 500.
-            await _repo.RegistrarAsync(usuarioId, entidad, registroId, accion, d, DateTime.Now);
+            await _repo.RegistrarAsync(usuarioId, entidad, registroId, accion, d, DateTime.Now, solicitanteId);
         }
         catch (Exception ex)
         {

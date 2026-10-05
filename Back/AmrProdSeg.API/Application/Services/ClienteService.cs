@@ -75,12 +75,22 @@ public class ClienteService : IClienteService
         return await _clienteRepo.InsertarAsync(cliente);
     }
 
-    public async Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null)
+    public async Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
     {
         var cliente = await _clienteRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Cliente no encontrado.");
 
-        var anterior = $"\"{cliente.Nombre}\" · doc {cliente.Documento} · tel {cliente.Telefono ?? "-"} · email {cliente.Email ?? "-"}";
+        // Identificación del cliente modificado (DNI) + detalle específico de los campos que cambian.
+        var ident = $"Cliente \"{cliente.Nombre}\" · DNI {cliente.Documento}";
+        var detalle = AuditoriaDetalle.Cambios(new (string, object?, object?)[]
+        {
+            ("Nombre", cliente.Nombre, dto.Nombre),
+            ("Email", cliente.Email, dto.Email),
+            ("Teléfono", cliente.Telefono, dto.Telefono),
+            ("Dirección", cliente.Direccion, dto.Direccion),
+            ("Tipo de documento", cliente.TipoDocumento, dto.TipoDocumento),
+            ("Fecha de nacimiento", cliente.FechaNacimiento, dto.FechaNacimiento),
+        });
 
         cliente.Nombre    = dto.Nombre;
         cliente.Email     = dto.Email;
@@ -92,10 +102,7 @@ public class ClienteService : IClienteService
         await _clienteRepo.ActualizarAsync(cliente);
 
         if (usuarioId is int uid)
-        {
-            var nuevo = $"\"{cliente.Nombre}\" · doc {cliente.Documento} · tel {cliente.Telefono ?? "-"} · email {cliente.Email ?? "-"}";
-            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Editar", $"Antes: {anterior} | Después: {nuevo}");
-        }
+            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Editar", AuditoriaDetalle.ConMotivo($"{ident} — {detalle}", motivo), solicitanteId);
     }
 
     public async Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId)
@@ -111,13 +118,13 @@ public class ClienteService : IClienteService
     }
 
     /// <summary>Borrado lógico del cliente (conserva historial). Solo Admin directo o vía solicitud.</summary>
-    public async Task<int> EliminarAsync(int id, int? usuarioId = null)
+    public async Task<int> EliminarAsync(int id, int? usuarioId = null, int? solicitanteId = null)
     {
         var cliente = await _clienteRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Cliente no encontrado.");
         var afectadas = await _clienteRepo.EliminarAsync(id);
         if (afectadas > 0 && usuarioId is int uid)
-            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Eliminar", $"Eliminó al cliente \"{cliente.Nombre}\" (doc {cliente.Documento}).");
+            await _auditoria.RegistrarAsync(uid, "Cliente", id, "Eliminar", $"Eliminó al cliente \"{cliente.Nombre}\" (doc {cliente.Documento}).", solicitanteId);
         return afectadas;
     }
 

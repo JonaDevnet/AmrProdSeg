@@ -135,7 +135,7 @@ public interface IAuditoriaRepository
 
 public interface IAuditoriaMovimientoRepository
 {
-    Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha);
+    Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha, int? solicitanteId = null);
     Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
 }
 

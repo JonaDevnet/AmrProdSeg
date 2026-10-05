@@ -10,7 +10,7 @@ public interface IPolizaService
     Task<PolizaDto?> GetByIdAsync(int id);
     Task<PolizaDto?> GetActivaPorPatenteAsync(string patente);
     Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
-    Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null);
+    Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null);
     Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null);
     Task CancelarAsync(int id, int? usuarioId = null);
     Task<byte[]> GenerarPdfAsync(int id);
@@ -78,9 +78,9 @@ public interface IEliminacionService
 public interface IClienteService
 {
     Task<int> CrearAsync(CrearClienteDto dto, int? usuarioId = null);
-    Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null);
+    Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null);
     Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId);
-    Task<int> EliminarAsync(int id, int? usuarioId = null);
+    Task<int> EliminarAsync(int id, int? usuarioId = null, int? solicitanteId = null);
     Task<Cliente?> GetByIdAsync(int id);
     Task<PagedResult<Cliente>> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false);
     Task<byte[]> GenerarDossierPdfAsync(int clienteId, int? usuarioId, bool esAdmin);
@@ -171,7 +171,7 @@ public interface IAuditoriaService
 /// <summary>Auditoría de movimientos: registra quién hizo qué y cuándo en operaciones sensibles.</summary>
 public interface IAuditoriaMovimientoService
 {
-    Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle);
+    Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, int? solicitanteId = null);
     Task<List<AuditoriaMovimiento>> ListarAsync(int? usuarioId);
 }
 

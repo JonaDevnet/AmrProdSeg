@@ -11,7 +11,7 @@ public class AuditoriaMovimientoRepository : IAuditoriaMovimientoRepository
 
     public AuditoriaMovimientoRepository(IDbConnectionFactory factory) => _factory = factory;
 
-    public async Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha)
+    public async Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, DateTime fecha, int? solicitanteId = null)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
@@ -19,12 +19,13 @@ public class AuditoriaMovimientoRepository : IAuditoriaMovimientoRepository
         {
             CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.AddWithValue("@UsuarioId",  usuarioId);
-        cmd.Parameters.AddWithValue("@Fecha",      fecha);
-        cmd.Parameters.AddWithValue("@Entidad",    entidad);
-        cmd.Parameters.AddWithValue("@RegistroId", registroId);
-        cmd.Parameters.AddWithValue("@Accion",     accion);
-        cmd.Parameters.AddWithValue("@Detalle",    (object?)detalle ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@UsuarioId",     usuarioId);
+        cmd.Parameters.AddWithValue("@Fecha",         fecha);
+        cmd.Parameters.AddWithValue("@Entidad",       entidad);
+        cmd.Parameters.AddWithValue("@RegistroId",    registroId);
+        cmd.Parameters.AddWithValue("@Accion",        accion);
+        cmd.Parameters.AddWithValue("@Detalle",       (object?)detalle ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@SolicitanteId", (object?)solicitanteId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -44,14 +45,16 @@ public class AuditoriaMovimientoRepository : IAuditoriaMovimientoRepository
         {
             lista.Add(new AuditoriaMovimiento
             {
-                Id            = reader.GetInt32(reader.GetOrdinal("Id")),
-                UsuarioId     = reader.GetInt32(reader.GetOrdinal("UsuarioId")),
-                UsuarioNombre = reader.IsDBNull(reader.GetOrdinal("UsuarioNombre")) ? null : reader.GetString(reader.GetOrdinal("UsuarioNombre")),
-                Fecha         = reader.GetDateTime(reader.GetOrdinal("Fecha")),
-                Entidad       = reader.GetString(reader.GetOrdinal("Entidad")),
-                RegistroId    = reader.GetInt32(reader.GetOrdinal("RegistroId")),
-                Accion        = reader.GetString(reader.GetOrdinal("Accion")),
-                Detalle       = reader.IsDBNull(reader.GetOrdinal("Detalle")) ? null : reader.GetString(reader.GetOrdinal("Detalle"))
+                Id                = reader.GetInt32(reader.GetOrdinal("Id")),
+                UsuarioId         = reader.GetInt32(reader.GetOrdinal("UsuarioId")),
+                UsuarioNombre     = reader.IsDBNull(reader.GetOrdinal("UsuarioNombre")) ? null : reader.GetString(reader.GetOrdinal("UsuarioNombre")),
+                SolicitanteId     = reader.IsDBNull(reader.GetOrdinal("SolicitanteId")) ? null : reader.GetInt32(reader.GetOrdinal("SolicitanteId")),
+                SolicitanteNombre = reader.IsDBNull(reader.GetOrdinal("SolicitanteNombre")) ? null : reader.GetString(reader.GetOrdinal("SolicitanteNombre")),
+                Fecha             = reader.GetDateTime(reader.GetOrdinal("Fecha")),
+                Entidad           = reader.GetString(reader.GetOrdinal("Entidad")),
+                RegistroId        = reader.GetInt32(reader.GetOrdinal("RegistroId")),
+                Accion            = reader.GetString(reader.GetOrdinal("Accion")),
+                Detalle           = reader.IsDBNull(reader.GetOrdinal("Detalle")) ? null : reader.GetString(reader.GetOrdinal("Detalle"))
             });
         }
         return lista;

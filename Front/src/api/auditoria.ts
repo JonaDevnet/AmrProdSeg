@@ -4,11 +4,13 @@ import api from "../security/axiosInstance";
 export interface AuditoriaMovimiento {
   id: number;
   usuarioId: number;
-  usuarioNombre: string | null;
+  usuarioNombre: string | null;      // quién ejecutó/autorizó
+  solicitanteId: number | null;      // quién propuso el cambio (null si fue directo)
+  solicitanteNombre: string | null;
   fecha: string;
   entidad: string;   // 'Cliente' | 'Poliza'
   registroId: number;
-  accion: string;    // 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero'
+  accion: string;    // 'Editar' | 'Eliminar' | 'Cancelar' | 'AsignarNumero' | 'Restaurar' | 'BorrarDefinitivo'
   detalle: string | null;
 }
 

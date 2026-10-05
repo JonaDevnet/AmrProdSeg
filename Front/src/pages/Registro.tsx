@@ -105,16 +105,17 @@ export default function Registro() {
               ) : (
                 <table style={table}>
                   <thead><tr>
-                    <th style={th}>Fecha y hora</th><th style={th}>Usuario</th><th style={th}>Entidad</th>
-                    <th style={th}>Acción</th><th style={th}>Detalle</th>
+                    <th style={th}>Fecha y hora</th><th style={th}>Entidad</th>
+                    <th style={th}>Acción</th><th style={th}>Modificó</th><th style={th}>Autorizó</th><th style={th}>Detalle</th>
                   </tr></thead>
                   <tbody>
                     {movimientos.map((m) => (
                       <tr key={m.id} style={{ borderTop: "1px solid var(--line-2)" }}>
                         <td style={{ ...td, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink-500)" }}>{formatFechaHora(m.fecha)}</td>
-                        <td style={td}>{m.usuarioNombre ?? "—"}</td>
                         <td style={td}>{m.entidad} <span style={{ color: "var(--ink-400)" }}>#{m.registroId}</span></td>
                         <td style={td}>{m.accion}</td>
+                        <td style={td}>{m.solicitanteNombre ?? m.usuarioNombre ?? "—"}</td>
+                        <td style={td}>{m.solicitanteNombre ? (m.usuarioNombre ?? "—") : "—"}</td>
                         <td style={{ ...td, color: "var(--ink-600)", whiteSpace: "normal", maxWidth: 420 }}>{m.detalle ?? "—"}</td>
                       </tr>
                     ))}

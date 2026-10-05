@@ -225,6 +225,9 @@ public class PolizaRepository : IPolizaRepository
         Cobertura      = Tiene(r, "Cobertura") && !r.IsDBNull(r.GetOrdinal("Cobertura"))
                          ? r.GetString(r.GetOrdinal("Cobertura"))
                          : null,
+        Patente        = Tiene(r, "Patente") && !r.IsDBNull(r.GetOrdinal("Patente"))
+                         ? r.GetString(r.GetOrdinal("Patente"))
+                         : null,
         TokenPublico   = Tiene(r, "TokenPublico") && !r.IsDBNull(r.GetOrdinal("TokenPublico"))
                          ? r.GetGuid(r.GetOrdinal("TokenPublico"))
                          : Guid.Empty,

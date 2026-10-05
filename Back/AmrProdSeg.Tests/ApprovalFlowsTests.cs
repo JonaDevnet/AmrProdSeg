@@ -54,7 +54,7 @@ public class AnulacionServiceTests
     [Fact]
     public async Task Admin_AnulaDirecto_Ok()
     {
-        var svc = new AnulacionService(new FakeAnulacionRepository { AnularDirectoResultado = 1 });
+        var svc = new AnulacionService(new FakeAnulacionRepository { AnularDirectoResultado = 1 }, new FakeNotificacionPusher());
         var r = await svc.AnularOSolicitarAsync(1, 9, esAdmin: true, "x");
         Assert.True(r.Anulada);
     }
@@ -62,14 +62,14 @@ public class AnulacionServiceTests
     [Fact]
     public async Task Admin_CuotaNoPagada_BusinessException()
     {
-        var svc = new AnulacionService(new FakeAnulacionRepository { AnularDirectoResultado = 0 });
+        var svc = new AnulacionService(new FakeAnulacionRepository { AnularDirectoResultado = 0 }, new FakeNotificacionPusher());
         await Assert.ThrowsAsync<BusinessException>(() => svc.AnularOSolicitarAsync(1, 9, esAdmin: true, "x"));
     }
 
     [Fact]
     public async Task Productor_Solicita_Ok()
     {
-        var svc = new AnulacionService(new FakeAnulacionRepository { SolicitarResultado = 3 });
+        var svc = new AnulacionService(new FakeAnulacionRepository { SolicitarResultado = 3 }, new FakeNotificacionPusher());
         var r = await svc.AnularOSolicitarAsync(1, 2, esAdmin: false, "x");
         Assert.True(r.Solicitada);
     }
@@ -77,14 +77,14 @@ public class AnulacionServiceTests
     [Fact]
     public async Task Productor_SolicitudDuplicada_BusinessException()
     {
-        var svc = new AnulacionService(new FakeAnulacionRepository { SolicitarResultado = 0 });
+        var svc = new AnulacionService(new FakeAnulacionRepository { SolicitarResultado = 0 }, new FakeNotificacionPusher());
         await Assert.ThrowsAsync<BusinessException>(() => svc.AnularOSolicitarAsync(1, 2, esAdmin: false, "x"));
     }
 
     [Fact]
     public async Task Aprobar_NoExiste_BusinessException()
     {
-        var svc = new AnulacionService(new FakeAnulacionRepository { AprobarResultado = 0 });
+        var svc = new AnulacionService(new FakeAnulacionRepository { AprobarResultado = 0 }, new FakeNotificacionPusher());
         await Assert.ThrowsAsync<BusinessException>(() => svc.AprobarAsync(1, 9));
     }
 }
@@ -95,7 +95,7 @@ public class EliminacionServiceTests
     {
         var repo = new FakeEliminacionRepository();
         var auditoria = new FakeAuditoriaMovimientoService();
-        return (new EliminacionService(repo, auditoria), repo, auditoria);
+        return (new EliminacionService(repo, auditoria, new FakeNotificacionPusher()), repo, auditoria);
     }
 
     [Fact]

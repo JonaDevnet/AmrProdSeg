@@ -10,11 +10,11 @@ namespace AmrProdSeg.Tests;
 
 public class FakeAuditoriaMovimientoService : IAuditoriaMovimientoService
 {
-    public List<(int usuarioId, string entidad, int registroId, string accion, string? detalle)> Registros = new();
+    public List<(int usuarioId, string entidad, int registroId, string accion, string? detalle, int? solicitanteId)> Registros = new();
 
-    public Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle)
+    public Task RegistrarAsync(int usuarioId, string entidad, int registroId, string accion, string? detalle, int? solicitanteId = null)
     {
-        Registros.Add((usuarioId, entidad, registroId, accion, detalle));
+        Registros.Add((usuarioId, entidad, registroId, accion, detalle, solicitanteId));
         return Task.CompletedTask;
     }
 
@@ -75,12 +75,13 @@ public class FakeVehiculoRepository : IVehiculoRepository
 public class FakeClienteRepository : IClienteRepository
 {
     public Cliente? PorDocumento;
+    public Cliente? PorId;
     public int InsertarLlamadas;
 
     public Task<int> InsertarAsync(Cliente c) { InsertarLlamadas++; return Task.FromResult(5); }
     public Task ActualizarAsync(Cliente c) => Task.CompletedTask;
     public Task ActualizarDocumentoAsync(int id, string nuevoDocumento, int usuarioId) => Task.CompletedTask;
-    public Task<Cliente?> GetByIdAsync(int id) => Task.FromResult<Cliente?>(new Cliente { Id = id });
+    public Task<Cliente?> GetByIdAsync(int id) => Task.FromResult<Cliente?>(PorId ?? new Cliente { Id = id });
     public Task<(List<Cliente> Items, int Total)> BuscarAsync(string termino, int page, int pageSize, int? usuarioId = null, bool esAdmin = false)
         => Task.FromResult((new List<Cliente>(), 0));
     public Task<Cliente?> VerificarDocumentoAsync(string documento) => Task.FromResult(PorDocumento);
@@ -113,6 +114,15 @@ public class FakeCompaniaRepository : ICompaniaRepository
     public Task<int> InsertarAsync(Compania c) => Task.FromResult(1);
     public Task<List<Compania>> GetAllAsync() => Task.FromResult(new List<Compania>());
     public Task<Compania?> GetByIdAsync(int id) => Task.FromResult(PorId);
+    public Task<int> EliminarAsync(int id) => Task.FromResult(1);
+}
+
+public class FakeRamoRepository : IRamoRepository
+{
+    public List<Ramo> Ramos = new();
+
+    public Task<int> InsertarAsync(string nombre) => Task.FromResult(1);
+    public Task<List<Ramo>> GetAllAsync() => Task.FromResult(Ramos);
     public Task<int> EliminarAsync(int id) => Task.FromResult(1);
 }
 
