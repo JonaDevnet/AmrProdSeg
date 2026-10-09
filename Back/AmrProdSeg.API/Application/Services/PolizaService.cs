@@ -228,6 +228,37 @@ public class PolizaService : IPolizaService
             await _auditoria.RegistrarAsync(uid, "Poliza", id, "Cancelar", $"Canceló la póliza {poliza.Numero}.");
     }
 
+    /// <summary>
+    /// Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (sin crear registro nuevo
+    /// ni pasar al historial) y actualiza el período de cuotas/importes. La vigencia no cambia.
+    /// </summary>
+    public async Task RefacturarAsync(int id, RenovarPolizaDto dto, int? usuarioId = null)
+    {
+        var poliza = await _polizaRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException("Póliza no encontrada.");
+
+        if (poliza.Estado != EstadoPoliza.Activa)
+            throw new BusinessException($"No se puede refacturar una póliza en estado {poliza.Estado}.");
+        if (dto.CantidadCuotas is < 1 or > 3)
+            throw new BusinessException("El período de cuotas debe ser de 1 a 3 cuotas.");
+        if (DateTime.Today >= poliza.FechaFin)
+            throw new BusinessException("La vigencia de la póliza terminó: corresponde renovarla, no refacturarla.");
+
+        var primerVenc = dto.PrimerVencimiento ?? DateTime.Today;
+        await _cobroRepo.AgregarCicloAsync(id, dto.PrecioTotal, dto.CantidadCuotas, primerVenc,
+            dto.PrimaOG, dto.Cobertura, null);
+
+        if (usuarioId is int uid)
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "Refacturar", $"Refacturó la póliza {poliza.Numero} ({dto.CantidadCuotas} cuotas).");
+    }
+
+    /// <summary>True si el ciclo vigente de la póliza tiene alguna cuota sin pagar (Pendiente o Vencida).</summary>
+    public async Task<bool> TieneCuotasImpagasAsync(int polizaId)
+    {
+        var cuotas = await _cobroRepo.GetPorPolizaActualAsync(polizaId);
+        return cuotas.Any(c => c.Estado != EstadoCobro.Pagado);
+    }
+
     public async Task<byte[]> GenerarPdfAsync(int id)
     {
         var poliza = await _polizaRepo.GetByIdAsync(id)

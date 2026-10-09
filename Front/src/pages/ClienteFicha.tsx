@@ -189,6 +189,9 @@ export default function ClienteFicha() {
                 Corregir documento
               </Button>
             )}
+            <Button variant="secondary" onClick={() => navigate(`/clientes/${clienteId}/cuotas`)}>
+              <IconFile size={16} /> Cuotas y pago
+            </Button>
             <Button variant="secondary" onClick={() => { setFormError(undefined); setEditar(true); }}>
               <IconEdit size={16} /> Editar
             </Button>
@@ -328,7 +331,7 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
 
 // Vencimiento de la CUOTA ACTUAL (la última pagada; si ninguna, la 1ª) + estado según cobranza.
 function VencimientoEstado({ polizaId }: { polizaId: number }) {
-  const cobros = useCobrosPorPoliza(polizaId);
+  const cobros = useCobrosPorPoliza(polizaId, true);
   const cuotas = cobros.data ?? [];
   const ordenadas = [...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota);
   // Cuota actual = la última PAGADA (estado=1); si no hay ninguna pagada, la 1ª cuota.
@@ -456,6 +459,11 @@ function planCuotas(n: number): string {
   return plan ? `${plan} (${n})` : `${n} cuotas`;
 }
 
+// Ordinal de la cuota para la leyenda de vencimientos (1re, 2da, 3ra, …).
+function ordinalCuota(n: number): string {
+  return n === 1 ? "1re" : n === 2 ? "2da" : n === 3 ? "3ra" : `${n}ª`;
+}
+
 const PLAN_CUOTAS: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3 };
 
 // Período de vigencia de la póliza, en meses.
@@ -490,6 +498,7 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? vehiculo?.tipoCobertura ?? "");
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
+  const [periodo, setPeriodo] = useState(() => nombrePeriodoPoliza(poliza.fechaInicio.slice(0, 10), poliza.fechaFin.slice(0, 10)));
   const [precioCuota, setPrecioCuota] = useState(String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
   const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
@@ -502,8 +511,22 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
 
   // "Período de cuotas" ↔ cantidad: Mensual=1, Bimestral=2, Trimestral=3.
   const periodoCuotas = Object.entries(PLAN_CUOTAS).find(([, n]) => n === Number(cantidadCuotas))?.[0] ?? "";
-  // "Período de póliza" ↔ meses entre inicio y fin (Mensual=1 … Anual=12).
-  const periodoPoliza = nombrePeriodoPoliza(fechaInicio, fechaFin);
+
+  // Al cambiar el inicio se re-calcula la fecha fin según el período elegido.
+  function cambiarInicio(v: string) {
+    setFechaInicio(v);
+    const m = PERIODO_POLIZA[periodo];
+    if (m) setFechaFin(sumarMeses(v, m));
+  }
+  // Al cambiar el período se re-calcula la fecha fin desde el inicio.
+  function cambiarPeriodo(p: string) {
+    setPeriodo(p);
+    setFechaFin(sumarMeses(fechaInicio, PERIODO_POLIZA[p] ?? 12));
+  }
+
+  // Leyenda de vencimientos de las cuotas (inicio + 1 mes, +1 mes c/u).
+  const nCuotas = Math.max(0, Math.min(24, Number(cantidadCuotas) || 0));
+  const vencimientos = Array.from({ length: nCuotas }, (_, i) => `Vto. ${ordinalCuota(i + 1)}: ${formatFecha(sumarMeses(fechaInicio, i + 1))}`).join("  ·  ");
 
   async function guardar() {
     setError(undefined); setGuardando(true);
@@ -542,12 +565,12 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-500)", margin: "6px 0 2px" }}>Período de póliza (vigencia)</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
         <Field label="Período">
-          <Select value={periodoPoliza} onChange={(e) => setFechaFin(sumarMeses(fechaInicio, PERIODO_POLIZA[e.target.value] ?? 12))}>
-            {periodoPoliza === "" && <option value="">Personalizado</option>}
+          <Select value={periodo} onChange={(e) => cambiarPeriodo(e.target.value)}>
+            {periodo === "" && <option value="">Personalizado</option>}
             {Object.keys(PERIODO_POLIZA).map((p) => <option key={p} value={p}>{p}</option>)}
           </Select>
         </Field>
-        <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Field>
+        <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => cambiarInicio(e.target.value)} /></Field>
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
@@ -559,6 +582,9 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         </Field>
         <Field label="Cantidad de cuotas"><Input type="number" value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
       </div>
+      {vencimientos && (
+        <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>{vencimientos}</div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
         <Field label="Prima OG (por cuota, interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>

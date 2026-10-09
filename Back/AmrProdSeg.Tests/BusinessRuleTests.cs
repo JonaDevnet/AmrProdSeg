@@ -107,6 +107,51 @@ public class PolizaServiceTests
         Assert.Contains("AB123CD", r.detalle);
     }
 
+    [Fact]
+    public async Task RefacturarAsync_VigenciaTerminada_BusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-1", Estado = EstadoPoliza.Activa, FechaFin = DateTime.Today.AddDays(-1) }
+        };
+        var cobroRepo = new FakeCobroRepository();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await Assert.ThrowsAsync<BusinessException>(() => svc.RefacturarAsync(1,
+            new RenovarPolizaDto { CantidadCuotas = 3, PrecioTotal = 30000, FechaFin = DateTime.Today }));
+        Assert.Equal(0, cobroRepo.AgregarCicloLlamadas);
+    }
+
+    [Fact]
+    public async Task RefacturarAsync_Ok_AgregaCiclo()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-1", Estado = EstadoPoliza.Activa, FechaFin = DateTime.Today.AddMonths(6) }
+        };
+        var cobroRepo = new FakeCobroRepository();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await svc.RefacturarAsync(1, new RenovarPolizaDto { CantidadCuotas = 3, PrecioTotal = 30000, PrimerVencimiento = DateTime.Today.AddMonths(1) });
+
+        Assert.Equal(1, cobroRepo.AgregarCicloLlamadas);
+    }
+
+    [Fact]
+    public async Task TieneCuotasImpagasAsync_DetectaImpagas()
+    {
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas = { new Cobro { Estado = EstadoCobro.Pagado }, new Cobro { Estado = EstadoCobro.Vencido } }
+        };
+        var svc = new PolizaService(new FakePolizaRepository(), cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        Assert.True(await svc.TieneCuotasImpagasAsync(1));
+    }
+
     [Theory]
     [InlineData(EstadoPoliza.Cancelada)]
     [InlineData(EstadoPoliza.Renovada)]

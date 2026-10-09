@@ -30,12 +30,20 @@ public interface ICobroRepository
     Task<Cobro?> GetByIdAsync(int id);
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
+    /// <summary>Cobros del ciclo vigente (max Ciclo) — vista operativa (Cobranzas).</summary>
+    Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId);
     Task MarcarVencidosAsync();
     /// <summary>
     /// Regenera las cuotas NO pagadas según el nuevo precio, cantidad de cuotas y vencimiento de
     /// la 1ª cuota (cuota i = primerVencimiento + (i-1) meses). Las pagadas no se tocan.
     /// </summary>
     Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento);
+    /// <summary>
+    /// Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (continúa la numeración,
+    /// 1er vencimiento del ciclo = <paramref name="primerVencimiento"/>) y actualiza período/importes.
+    /// </summary>
+    Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
+        decimal? primaOG, string? cobertura, string? formaPago);
 }
 
 public interface IClienteRepository

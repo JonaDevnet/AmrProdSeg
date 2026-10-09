@@ -13,12 +13,18 @@ public interface IPolizaService
     Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null);
     Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null);
     Task CancelarAsync(int id, int? usuarioId = null);
+    /// <summary>Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (sin historial).</summary>
+    Task RefacturarAsync(int id, RenovarPolizaDto dto, int? usuarioId = null);
+    /// <summary>True si la póliza tiene alguna cuota sin pagar (Pendiente o Vencida).</summary>
+    Task<bool> TieneCuotasImpagasAsync(int polizaId);
     Task<byte[]> GenerarPdfAsync(int id);
 }
 
 public interface ICobroService
 {
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
+    /// <summary>Cobros del ciclo vigente (max Ciclo).</summary>
+    Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId);
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null);
     Task MarcarVencidosAsync();

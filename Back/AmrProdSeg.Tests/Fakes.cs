@@ -51,14 +51,18 @@ public class FakeCobroRepository : ICobroRepository
 {
     public Cobro? CobroPorId;
     public int MarcarPagadoLlamadas;
+    public List<Cobro> Cuotas = new();
+    public int AgregarCicloLlamadas;
 
     public Task InsertarLoteAsync(IEnumerable<Cobro> cobros) => Task.CompletedTask;
     public Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null) { MarcarPagadoLlamadas++; return Task.CompletedTask; }
     public Task<Cobro?> GetByIdAsync(int id) => Task.FromResult(CobroPorId);
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio) => Task.FromResult(new List<Cobro>());
-    public Task<List<Cobro>> GetPorPolizaAsync(int polizaId) => Task.FromResult(new List<Cobro>());
+    public Task<List<Cobro>> GetPorPolizaAsync(int polizaId) => Task.FromResult(Cuotas);
+    public Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId) => Task.FromResult(Cuotas);
     public Task MarcarVencidosAsync() => Task.CompletedTask;
     public Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento) => Task.CompletedTask;
+    public Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento, decimal? primaOG, string? cobertura, string? formaPago) { AgregarCicloLlamadas++; return Task.CompletedTask; }
 }
 
 public class FakeVehiculoRepository : IVehiculoRepository

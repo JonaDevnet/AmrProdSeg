@@ -1,8 +1,8 @@
 import api from "../security/axiosInstance";
 import type { Cobro } from "../types";
 
-export async function getCobrosPorPoliza(polizaId: number): Promise<Cobro[]> {
-  const { data } = await api.get<Cobro[]>("/cobros", { params: { polizaId } });
+export async function getCobrosPorPoliza(polizaId: number, soloActual = false): Promise<Cobro[]> {
+  const { data } = await api.get<Cobro[]>("/cobros", { params: { polizaId, soloActual } });
   return data;
 }
 

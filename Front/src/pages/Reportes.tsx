@@ -360,22 +360,39 @@ function RendicionTab({ companias, colorDe, vendedor }: { companias: { id: numbe
       otrosEntries.forEach(([m, v]) => filas.push([m, v]));
       filas.push(["Total otros medios", totalOtros]);
       filas.push(["Total cobrado (todos los medios)", total]);
+
+      // RENDICION: detalle por cuota de los medios que SÍ se rinden.
       filas.push([]);
-      // Referencia Prima OG por cuota: cobrado − prima OG (la prima OG ya es por cuota), sólo cobros que se rinden.
-      filas.push(["REFERENCIA — Prima OG (diferencia por cuota, medios que se rinden)"]);
-      filas.push(["Fecha", "Cliente", "Póliza", "Patente", "Cuota", "Método", "Cobrado", "Prima OG", "Diferencia"]);
+      filas.push(["RENDICION"]);
+      const cabRendicion: (string | number)[] = ["Fecha", "Cliente", "Póliza", "Patente", "Cuota", "Método", "Cobrado"];
+      if (restarDiferencia) cabRendicion.push("Prima OG", "Diferencia");
+      filas.push(cabRendicion);
       items.filter((p) => { const c = claseMetodo(p.metodo); return c === "efectivo" || c === "transferencia"; })
         .forEach((p) => {
           const prima = p.primaOG || 0;
-          filas.push([fmtDate(p.fechaPago), p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.numeroCuota, p.metodo, p.monto, prima, p.monto - prima]);
+          const fila: (string | number)[] = [fmtDate(p.fechaPago), p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.numeroCuota, p.metodo, p.monto];
+          if (restarDiferencia) fila.push(prima, p.monto - prima);
+          filas.push(fila);
         });
-      filas.push(["TOTALES", "", "", "", "", "", totalRendible, primaOgRendible, diferencia]);
+      const totRendicion: (string | number)[] = ["TOTALES", "", "", "", "", "", totalRendible];
+      if (restarDiferencia) totRendicion.push(primaOgRendible, diferencia);
+      filas.push(totRendicion);
+      if (restarDiferencia) {
+        // Debajo de TOTALES: al cobrado se le resta la diferencia (Prima OG).
+        filas.push(["Cobrado − Diferencia", "", "", "", "", "", totalRendible - diferencia]);
+      }
+
+      // MEDIOS QUE NO SE RINDEN: detalle por cuota de los medios no rendidos (mismas columnas, sin Prima OG/Diferencia).
+      const noRendidos = items.filter((p) => { const c = claseMetodo(p.metodo); return c !== "efectivo" && c !== "transferencia"; });
+      const totalNoRendido = noRendidos.reduce((a, p) => a + p.monto, 0);
+      filas.push([]);
+      filas.push(["MEDIOS QUE NO SE RINDEN"]);
+      filas.push(["Fecha", "Cliente", "Póliza", "Patente", "Cuota", "Método", "Cobrado"]);
+      noRendidos.forEach((p) => {
+        filas.push([fmtDate(p.fechaPago), p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.numeroCuota, p.metodo, p.monto]);
+      });
+      filas.push(["TOTALES", "", "", "", "", "", totalNoRendido]);
     }
-    filas.push([]);
-    // ── Detalle por cuota (todos los medios) ──
-    filas.push(["DETALLE POR CUOTA"]);
-    filas.push(["Fecha", "Cliente", "Póliza", "Patente", "Ramo", "Método", "Cobrado"]);
-    items.forEach((p) => filas.push([fmtDate(p.fechaPago), p.clienteNombre, p.nroPoliza, p.patente ?? "-", p.ramo, p.metodo, p.monto]));
 
     descargarCSV(`AMR-Rendicion-${(compania?.nombre ?? "").replace(/\s/g, "_")}-${from}_a_${to}.csv`, filas);
   };

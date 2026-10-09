@@ -126,6 +126,7 @@ public class RenovarPolizaDto
     public decimal? PrimaOG { get; set; }
     public string? Cobertura { get; set; }   // por defecto la de la póliza original
     public DateTime? PrimerVencimiento { get; set; }   // venc. de la 1ª cuota (default: 1ª original + 1 mes)
+    public string? Motivo { get; set; }      // motivo (obligatorio si queda pendiente de aprobación)
 }
 
 public class PolizaDto
@@ -162,6 +163,9 @@ public class RenovacionResultDto
 {
     public int NuevaPolizaId { get; set; }
     public string PdfUrl { get; set; } = string.Empty;
+    public bool Aplicada { get; set; }    // aplicada en el acto
+    public bool Solicitada { get; set; }  // pendiente de autorización del Admin
+    public string Mensaje { get; set; } = string.Empty;
 }
 
 // ---------- Clientes ----------

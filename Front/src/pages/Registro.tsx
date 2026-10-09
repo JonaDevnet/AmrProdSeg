@@ -103,6 +103,7 @@ export default function Registro() {
               ) : movimientos.length === 0 ? (
                 <div style={vacio}>Sin movimientos registrados.</div>
               ) : (
+                <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
                 <table style={table}>
                   <thead><tr>
                     <th style={th}>Fecha y hora</th><th style={th}>Entidad</th>
@@ -121,10 +122,11 @@ export default function Registro() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           ) : tab === "pap" ? (
-            <div style={{ padding: 16, display: "grid", gap: 12 }}>
+            <div style={{ padding: 16, display: "grid", gap: 12, maxHeight: "60vh", overflowY: "auto" }}>
               {papelera.length === 0 ? (
                 <div style={vacio}>La papelera está vacía.</div>
               ) : papelera.map((p) => (
@@ -149,6 +151,7 @@ export default function Registro() {
               ))}
             </div>
           ) : tab === "elim" ? (
+            <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
             <table style={table}>
               <thead><tr>
                 <th style={th}>Póliza</th><th style={th}>Cliente</th><th style={th}>Patente</th>
@@ -173,7 +176,9 @@ export default function Registro() {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
+            <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
             <table style={table}>
               <thead><tr>
                 <th style={th}>Póliza</th><th style={th}>Cliente</th><th style={th}>Cuota</th>
@@ -198,6 +203,7 @@ export default function Registro() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </section>
@@ -225,6 +231,6 @@ function tabBtn(active: boolean): CSSProperties {
 }
 const card: CSSProperties = { margin: "16px 0 60px", background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 16, overflow: "hidden", boxShadow: "var(--shadow-sm)" };
 const table: CSSProperties = { width: "100%", borderCollapse: "collapse", fontSize: 13.5 };
-const th: CSSProperties = { textAlign: "left", padding: "12px 16px", fontSize: 11.5, fontWeight: 500, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid var(--line-2)", background: "oklch(0.985 0.008 245)", whiteSpace: "nowrap" };
+const th: CSSProperties = { textAlign: "left", padding: "12px 16px", fontSize: 11.5, fontWeight: 500, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid var(--line-2)", background: "oklch(0.985 0.008 245)", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
 const td: CSSProperties = { padding: "12px 16px", color: "var(--ink-900)", verticalAlign: "middle", whiteSpace: "nowrap" };
 const vacio: CSSProperties = { padding: "28px 16px", textAlign: "center", color: "var(--ink-400)", fontSize: 14 };

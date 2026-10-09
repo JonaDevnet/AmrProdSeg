@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,6 +18,7 @@ const schema = z
     precioCuota: z.coerce.number().positive("Debe ser mayor a 0"),
     cantidadCuotas: z.coerce.number().int().min(1).max(3),
     primaOG: z.coerce.number().min(0).optional(),
+    motivo: z.string().optional(),
   });
 
 type Values = z.infer<typeof schema>;
@@ -43,12 +45,15 @@ interface Props {
   companias: Compania[];
   /** Vencimiento de la ÚLTIMA cuota de la póliza original (para continuar el patrón = +1 mes). */
   ultimaCuotaOriginal?: string;
-  onSubmit: (dto: RenovarPolizaDto) => Promise<void> | void;
+  /** Si la póliza tiene cuotas impagas (y quien actúa no es Admin), el motivo es obligatorio. */
+  requiereMotivo?: boolean;
+  onSubmit: (dto: RenovarPolizaDto, accion: "renovar" | "refacturar") => Promise<void> | void;
   enviando: boolean;
 }
 
-export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, onSubmit, enviando }: Props) {
+export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, requiereMotivo, onSubmit, enviando }: Props) {
   const { data: coberturas = [] } = useCoberturas();
+  const [error, setError] = useState<string>();
 
   const cuotaActual = Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100;
   const cuotasDefault = [1, 2, 3].includes(poliza.cantidadCuotas) ? poliza.cantidadCuotas : 1;
@@ -92,6 +97,11 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, on
   const cuotasPreview = Array.from({ length: cantidad }, (_, i) => addMesesISO(primerVencPreview, i));
 
   function enviar(v: Values) {
+    setError(undefined);
+    if (requiereMotivo && !(v.motivo ?? "").trim()) {
+      setError("Indicá el motivo: la póliza tiene cuotas impagas y requiere autorización del administrador.");
+      return;
+    }
     let fechaInicio: string, fechaFin: string, primerVenc: string;
     if (periodoTerminado) {
       // Renovación: nueva vigencia desde la fecha elegida (mismo largo de período que la original).
@@ -114,7 +124,8 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, on
       precioTotal: Math.round(v.precioCuota * v.cantidadCuotas * 100) / 100,
       cantidadCuotas: v.cantidadCuotas,
       primaOG: v.primaOG,
-    });
+      motivo: (v.motivo ?? "").trim() || undefined,
+    }, periodoTerminado ? "renovar" : "refacturar");
   }
 
   const accion = periodoTerminado ? "Renovar" : "Refacturar";
@@ -181,6 +192,18 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, on
       <Field label="Prima OG (por cuota, interna)" error={errors.primaOG?.message}>
         <Input type="number" step="0.01" placeholder="Prima real de la compañía" {...register("primaOG")} />
       </Field>
+
+      {requiereMotivo && (
+        <Field label="Motivo (obligatorio)" error={errors.motivo?.message}>
+          <Input {...register("motivo")} placeholder="Motivo del cambio con cuotas impagas" />
+        </Field>
+      )}
+
+      {error && (
+        <div style={{ marginBottom: 10, padding: "10px 14px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 9, fontSize: 13, color: "var(--bad-700)" }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
         <Button type="submit" disabled={enviando}>

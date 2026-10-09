@@ -49,6 +49,7 @@ disenioAMR
 # ── Guías internas (no se publican en el repo) ──
 GUIA_DE_USO.md
 GUIA_TECNICA.md
+TUTORIAL_DESDE_CERO.md
 
 # ── Datos de clientes (NUNCA subir a GitHub) ──
 registroClientes*.xlsm

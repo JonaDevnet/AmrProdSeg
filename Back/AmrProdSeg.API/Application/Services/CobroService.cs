@@ -49,6 +49,9 @@ public class CobroService : ICobroService
     public Task<List<Cobro>> GetPorPolizaAsync(int polizaId)
         => _cobroRepo.GetPorPolizaAsync(polizaId);
 
+    public Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId)
+        => _cobroRepo.GetPorPolizaActualAsync(polizaId);
+
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio)
         => _cobroRepo.GetPendientesMesAsync(mes, anio);
 
@@ -73,8 +76,8 @@ public class CobroService : ICobroService
             throw new BusinessException("Indicá cuánto se pagó con el segundo método (mayor a 0 y menor al total de la cuota).");
 
         // No se puede cobrar una cuota si hay una anterior impaga (vencida o pendiente):
-        // las cuotas se cobran en orden.
-        var cuotas = await _cobroRepo.GetPorPolizaAsync(cobro.PolizaId);
+        // las cuotas se cobran en orden dentro del ciclo vigente.
+        var cuotas = await _cobroRepo.GetPorPolizaActualAsync(cobro.PolizaId);
         var primeraImpaga = cuotas
             .Where(c => c.Estado != EstadoCobro.Pagado)
             .OrderBy(c => c.NumeroCuota)
@@ -124,6 +127,11 @@ public class CobroService : ICobroService
         // Vencimiento de la cuota que se está cobrando (cada comprobante muestra el de SU cuota).
         var proxVenc = cobro.FechaVencimiento;
 
+        // Total de cuotas del ciclo al que pertenece la cuota cobrada (por refacturación puede haber varios ciclos).
+        var cuotasPoliza = await _cobroRepo.GetPorPolizaAsync(poliza.Id);
+        var cuotasTotal = cuotasPoliza.Count(c => c.Ciclo == cobro.Ciclo);
+        if (cuotasTotal == 0) cuotasTotal = poliza.CantidadCuotas;
+
         var baseUrl = (_configuration["PublicBaseUrl"] ?? _configuration["AllowedOrigin"] ?? "http://localhost:5173").TrimEnd('/');
 
         var dto = new ComprobanteCobroDto
@@ -137,7 +145,7 @@ public class CobroService : ICobroService
             Dominio         = veh?.Patente ?? "—",
             Anio            = veh is null || veh.Anio == 0 ? "" : veh.Anio.ToString(),
             CuotaActual     = cobro.NumeroCuota,
-            CuotasTotal     = poliza.CantidadCuotas,
+            CuotasTotal     = cuotasTotal,
             ProxVencimiento = proxVenc,
             Importe         = cobro.Monto,
             Cobertura       = poliza.Cobertura ?? veh?.TipoCobertura ?? "—",

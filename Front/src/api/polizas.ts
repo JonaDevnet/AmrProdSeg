@@ -11,6 +11,7 @@ export interface RenovarPolizaDto {
   cantidadCuotas: number;
   primaOG?: number;
   cobertura?: string;
+  motivo?: string;   // obligatorio si la póliza tiene cuotas impagas (queda pendiente de aprobación)
 }
 
 export interface ListarPolizasParams {
@@ -114,6 +115,15 @@ export async function renovarPoliza(
   dto: RenovarPolizaDto
 ): Promise<RenovacionResult> {
   const { data } = await api.post<RenovacionResult>(`/polizas/${id}/renovar`, dto);
+  return data;
+}
+
+/** Refacturación: agrega un ciclo de cuotas a la MISMA póliza (no crea registro nuevo). */
+export async function refacturarPoliza(
+  id: number,
+  dto: RenovarPolizaDto
+): Promise<RenovacionResult> {
+  const { data } = await api.post<RenovacionResult>(`/polizas/${id}/refacturar`, dto);
   return data;
 }
 

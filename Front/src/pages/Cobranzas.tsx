@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePolizas, useCompanias, useCobrosPorPoliza, useRenovarPoliza } from "../hooks/polizas";
+import { usePolizas, useCompanias, useCobrosPorPoliza, useRenovarPoliza, useRefacturarPoliza } from "../hooks/polizas";
 import { useCobrosPendientes } from "../hooks/cobranzas";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useAuth } from "../auth/AuthContext";
@@ -161,9 +161,10 @@ export default function Cobranzas() {
 function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Poliza; compania?: string; companias: { id: number; nombre: string }[]; autoCobrar?: boolean }) {
   const { esAdmin } = useAuth();
   const qc = useQueryClient();
-  const cobros = useCobrosPorPoliza(poliza.id);
+  const cobros = useCobrosPorPoliza(poliza.id, true);
   const autoHecho = useRef(false);
   const renovar = useRenovarPoliza(poliza.id);
+  const refacturar = useRefacturarPoliza(poliza.id);
   const [cuotaPago, setCuotaPago] = useState<Cobro | null>(null);
   const [comprobante, setComprobante] = useState<ComprobanteData | null>(null);
   const [anular, setAnular] = useState<Cobro | null>(null);
@@ -208,10 +209,14 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
     }
   }, [autoCobrar, primeraImpaga]);
 
-  async function confirmarRenovar(dto: RenovarPolizaDto) {
+  async function confirmarRenovar(dto: RenovarPolizaDto, accion: "renovar" | "refacturar" = "renovar") {
     setAccionError(undefined);
-    try { await renovar.mutateAsync(dto); setRenovarOpen(false); }
-    catch (e: any) { setAccionError(e?.response?.data?.error ?? "No se pudo renovar."); }
+    try {
+      const res = accion === "refacturar" ? await refacturar.mutateAsync(dto) : await renovar.mutateAsync(dto);
+      setRenovarOpen(false);
+      if (res.solicitada) alert(res.mensaje ?? "Solicitud enviada. Queda pendiente de autorización del administrador.");
+      else await cobros.refetch();
+    } catch (e: any) { setAccionError(e?.response?.data?.error ?? "No se pudo renovar."); }
   }
 
   const totalCuotas = cuotas.reduce((a, c) => a + c.monto, 0);
@@ -382,7 +387,7 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
       )}
       {renovarOpen && (
         <Modal titulo="Renovar póliza" onClose={() => setRenovarOpen(false)} ancho={520}>
-          <RenovarForm poliza={poliza} companias={companias as any} onSubmit={confirmarRenovar} enviando={renovar.isPending} />
+          <RenovarForm poliza={poliza} companias={companias as any} requiereMotivo={cuotas.some((c) => c.estado !== 1) && !esAdmin} onSubmit={confirmarRenovar} enviando={renovar.isPending || refacturar.isPending} />
         </Modal>
       )}
     </div>

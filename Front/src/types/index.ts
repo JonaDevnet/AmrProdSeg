@@ -96,14 +96,18 @@ export interface Cobro {
   fechaPago?: string | null;
   metodoPagoId?: number | null;
   metodoPago2Id?: number | null;   // segundo método (pago mixto)
+  ciclo?: number;                  // ciclo de facturación (1 = original; 2,3… = refacturación)
   nroPoliza?: string | null;
   clienteNombre?: string | null;
   cobradorNombre?: string | null;   // quién registró el cobro (admin)
 }
 
 export interface RenovacionResult {
-  nuevaPolizaId: number;
-  pdfUrl: string;
+  nuevaPolizaId?: number;
+  pdfUrl?: string;
+  aplicada?: boolean;    // aplicada en el acto
+  solicitada?: boolean;  // pendiente de autorización del Admin
+  mensaje?: string;
 }
 
 // ---------- Reportes (§11) ----------

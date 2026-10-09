@@ -127,6 +127,7 @@ export default function Bajas() {
         {isLoading ? <Cargando /> : isError ? <ErrorState /> : bajas.length === 0 ? (
           <VacioState mensaje="No hay bajas para este filtro." />
         ) : (
+          <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
@@ -162,6 +163,7 @@ export default function Bajas() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -287,7 +289,7 @@ const cardHead: CSSProperties = { padding: "14px 18px", borderBottom: "1px solid
 function tab(active: boolean): CSSProperties {
   return { padding: "6px 12px", borderRadius: 8, fontSize: 13.5, fontWeight: 500, cursor: "pointer", border: 0, color: active ? "var(--navy-900)" : "var(--ink-500)", background: active ? "var(--blue-100)" : "transparent" };
 }
-const th: CSSProperties = { textAlign: "left", padding: "12px 18px", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-500)", background: "oklch(0.985 0.008 245)", borderBottom: "1px solid var(--line-2)", whiteSpace: "nowrap" };
+const th: CSSProperties = { textAlign: "left", padding: "12px 18px", fontSize: 12, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-500)", background: "oklch(0.985 0.008 245)", borderBottom: "1px solid var(--line-2)", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
 const td: CSSProperties = { padding: "14px 18px", fontSize: 14, verticalAlign: "middle" };
 
 

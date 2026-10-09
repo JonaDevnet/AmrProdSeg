@@ -118,6 +118,11 @@ BEGIN
 END
 GO
 
+-- Migración idempotente: ciclo de facturación (1 = original; 2,3… = refacturación).
+IF COL_LENGTH('dbo.Cobros', 'Ciclo') IS NULL
+    ALTER TABLE Cobros ADD Ciclo INT NOT NULL CONSTRAINT DF_Cobros_Ciclo DEFAULT 1;
+GO
+
 /* --- Usuarios (ASP.NET Identity con tabla propia) --- */
 IF OBJECT_ID('dbo.Usuarios', 'U') IS NULL
 BEGIN
@@ -3050,7 +3055,7 @@ CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPoliza @PolizaId INT AS
 BEGIN
     SET NOCOUNT ON;
     SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
-           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, u.Nombre AS CobradorNombre
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, co.Ciclo, u.Nombre AS CobradorNombre
     FROM Cobros co
     LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
     WHERE co.PolizaId = @PolizaId
@@ -3062,9 +3067,23 @@ CREATE OR ALTER PROCEDURE sp_Cobro_GetById @Id INT AS
 BEGIN
     SET NOCOUNT ON;
     SELECT Id, PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, FechaPago,
-           MetodoPagoId, MetodoPago2Id, MetodoPago2Monto
+           MetodoPagoId, MetodoPago2Id, MetodoPago2Monto, Ciclo
     FROM Cobros
     WHERE Id = @Id;
+END
+GO
+
+-- Solo el ciclo vigente (max Ciclo): vista operativa (Cobranzas, detalle de póliza).
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPolizaActual @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @ciclo INT = (SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId);
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, co.Ciclo, u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId AND co.Ciclo = @ciclo
+    ORDER BY co.NumeroCuota;
 END
 GO
 
@@ -3464,6 +3483,49 @@ BEGIN
             VALUES (@PolizaId, @i, @venc, @monto, 0);
         SET @i = @i + 1;
     END
+END
+GO
+
+/* =============================================================================
+   Refacturación — agrega un nuevo ciclo de cuotas a la MISMA póliza (sin crear
+   un registro nuevo) y actualiza el período de cuotas/importes de la póliza.
+   Las cuotas continúan la numeración; el 1er vencimiento del ciclo es el que
+   indique el front (última cuota + 1 mes).
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_Refacturar
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT,
+    @PrimerVencimiento DATE, @PrimaOG DECIMAL(18,2) = NULL,
+    @Cobertura VARCHAR(100) = NULL, @FormaPago VARCHAR(50) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    DECLARE @ultimoCiclo INT = ISNULL((SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId=@PolizaId), 0);
+    DECLARE @nuevoCiclo  INT = @ultimoCiclo + 1;
+
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+    -- La numeración de cuotas se reinicia en cada ciclo (1,2,3…).
+    DECLARE @i INT = 1, @n INT = 1;
+    WHILE @i <= @CantidadCuotas
+    BEGIN
+        INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, Ciclo)
+        VALUES (@PolizaId, @n, DATEADD(MONTH, @i - 1, @PrimerVencimiento),
+                CASE WHEN @i = @CantidadCuotas THEN @ultima ELSE @base END, 0, @nuevoCiclo);
+        SET @i = @i + 1; SET @n = @n + 1;
+    END
+
+    UPDATE Polizas
+    SET CantidadCuotas = @CantidadCuotas,
+        PrecioTotal    = @PrecioTotal,
+        PrimaOG        = COALESCE(@PrimaOG, PrimaOG),
+        Cobertura      = COALESCE(@Cobertura, Cobertura),
+        FormaPago      = COALESCE(@FormaPago, FormaPago)
+    WHERE Id = @PolizaId;
+
+    SELECT CAST(@nuevoCiclo AS INT) AS Ciclo;
 END
 GO
 

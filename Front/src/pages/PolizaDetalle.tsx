@@ -1,6 +1,6 @@
 import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
-import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza, useEndosarTitular, useEndosos } from "../hooks/polizas";
+import { usePoliza, useCobrosPorPoliza, useCompanias, useCancelarPoliza, useRenovarPoliza, useRefacturarPoliza, useEndosarTitular, useEndosos } from "../hooks/polizas";
 import { useCliente, useVehiculosPorCliente } from "../hooks/clientes";
 import { descargarPolizaPdf, type RenovarPolizaDto, type EndosoTitularDto } from "../api/polizas";
 import Button from "../components/ui/Button";
@@ -41,12 +41,13 @@ export default function PolizaDetalle() {
   const { esAdmin } = useAuth();
 
   const { data: poliza, isLoading, isError } = usePoliza(polizaId);
-  const cobros = useCobrosPorPoliza(polizaId);
+  const cobros = useCobrosPorPoliza(polizaId, true);
   const companias = useCompanias();
   const cliente = useCliente(poliza?.clienteId ?? 0);
   const vehiculos = useVehiculosPorCliente(poliza?.clienteId ?? 0);
   const cancelar = useCancelarPoliza(polizaId);
   const renovar = useRenovarPoliza(polizaId);
+  const refacturar = useRefacturarPoliza(polizaId);
   const endosar = useEndosarTitular(polizaId);
   const endosos = useEndosos(polizaId);
 
@@ -92,14 +93,21 @@ export default function PolizaDetalle() {
     }
   }
 
-  async function confirmarRenovacion(dto: RenovarPolizaDto) {
+  async function confirmarRenovarRefacturar(dto: RenovarPolizaDto, accion: "renovar" | "refacturar") {
     setAccionError(undefined);
     try {
-      const res = await renovar.mutateAsync(dto);
+      const res = accion === "refacturar"
+        ? await refacturar.mutateAsync(dto)
+        : await renovar.mutateAsync(dto);
       setRenovarOpen(false);
-      navigate(`/polizas/${res.nuevaPolizaId}`);
+      if (res.solicitada) {
+        alert(res.mensaje ?? "Solicitud enviada. Queda pendiente de autorización del administrador.");
+        return;
+      }
+      if (res.nuevaPolizaId) navigate(`/polizas/${res.nuevaPolizaId}`);
+      else cobros.refetch();
     } catch (e: any) {
-      setAccionError(e?.response?.data?.error ?? "No se pudo renovar la póliza.");
+      setAccionError(e?.response?.data?.error ?? "No se pudo completar la operación.");
     }
   }
 
@@ -115,7 +123,13 @@ export default function PolizaDetalle() {
 
   const cuotas = cobros.data ?? [];
   const pagadas = cuotas.filter((c) => c.estado === 1).length;
+  const impagas = cuotas.some((c) => c.estado !== 1);
   const renovable = poliza.estado === "Activa" || poliza.estado === "Vencida";
+  const hoyIso = new Date().toISOString().slice(0, 10);
+  // Refacturación: la póliza sigue vigente (no llegó la fecha fin). Si terminó, es Renovación.
+  const refactura = poliza.estado === "Activa" && hoyIso < poliza.fechaFin.slice(0, 10);
+  // Con cuotas impagas, un no-admin debe dejar el motivo (queda pendiente de aprobación).
+  const requiereMotivo = impagas && !esAdmin;
 
   return (
     <div>
@@ -142,7 +156,7 @@ export default function PolizaDetalle() {
             </Button>
             {renovable && (
               <Button onClick={() => { setAccionError(undefined); setRenovarOpen(true); }}>
-                Renovar
+                {refactura ? "Refacturar" : "Renovar"}
               </Button>
             )}
             {renovable && (
@@ -332,8 +346,9 @@ export default function PolizaDetalle() {
             poliza={poliza}
             companias={companias.data}
             ultimaCuotaOriginal={[...cuotas].sort((a, b) => b.numeroCuota - a.numeroCuota)[0]?.fechaVencimiento?.slice(0, 10)}
-            onSubmit={confirmarRenovacion}
-            enviando={renovar.isPending}
+            requiereMotivo={requiereMotivo}
+            onSubmit={confirmarRenovarRefacturar}
+            enviando={renovar.isPending || refacturar.isPending}
           />
         </Modal>
       )}

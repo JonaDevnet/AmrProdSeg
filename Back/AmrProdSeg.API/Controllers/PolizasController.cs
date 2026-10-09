@@ -90,9 +90,57 @@ public class PolizasController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Renueva una póliza. Si la póliza tiene cuotas impagas, el Productor deja una solicitud
+    /// pendiente de autorización del Admin (campanita); el Admin la aplica en el acto.
+    /// </summary>
     [HttpPost("{id:int}/renovar")]
     public async Task<IActionResult> Renovar(int id, [FromBody] RenovarPolizaDto dto)
-        => Ok(await _service.RenovarAsync(id, dto, UsuarioActualId()));
+    {
+        var uid = UsuarioActualId();
+        if (await _service.TieneCuotasImpagasAsync(id) && !EsAdmin())
+        {
+            if (string.IsNullOrWhiteSpace(dto.Motivo))
+                return BadRequest(new { error = "Indicá el motivo: la póliza tiene cuotas impagas y requiere autorización del administrador." });
+            var sid = await _solicitudes.SolicitarAsync("Poliza", id, "Renovar", JsonSerializer.Serialize(dto), dto.Motivo, uid);
+            return Ok(new RenovacionResultDto
+            {
+                Solicitada = true,
+                Mensaje = sid == 0
+                    ? "Ya hay una solicitud de renovación pendiente para esta póliza."
+                    : "Solicitud de renovación enviada. Queda pendiente de autorización del administrador."
+            });
+        }
+        var res = await _service.RenovarAsync(id, dto, uid);
+        res.Aplicada = true;
+        res.Mensaje = "Póliza renovada.";
+        return Ok(res);
+    }
+
+    /// <summary>
+    /// Refacturación: agrega un ciclo de cuotas a la MISMA póliza (no crea registro nuevo).
+    /// Si hay cuotas impagas, el Productor deja una solicitud pendiente de autorización del Admin.
+    /// </summary>
+    [HttpPost("{id:int}/refacturar")]
+    public async Task<IActionResult> Refacturar(int id, [FromBody] RenovarPolizaDto dto)
+    {
+        var uid = UsuarioActualId();
+        if (await _service.TieneCuotasImpagasAsync(id) && !EsAdmin())
+        {
+            if (string.IsNullOrWhiteSpace(dto.Motivo))
+                return BadRequest(new { error = "Indicá el motivo: la póliza tiene cuotas impagas y requiere autorización del administrador." });
+            var sid = await _solicitudes.SolicitarAsync("Poliza", id, "Refacturar", JsonSerializer.Serialize(dto), dto.Motivo, uid);
+            return Ok(new RenovacionResultDto
+            {
+                Solicitada = true,
+                Mensaje = sid == 0
+                    ? "Ya hay una solicitud de refacturación pendiente para esta póliza."
+                    : "Solicitud de refacturación enviada. Queda pendiente de autorización del administrador."
+            });
+        }
+        await _service.RefacturarAsync(id, dto, uid);
+        return Ok(new RenovacionResultDto { Aplicada = true, Mensaje = "Póliza refacturada." });
+    }
 
     /// <summary>Endoso de cambio de titular: cambia el cliente de la póliza (guardando el anterior).</summary>
     [HttpPost("{id:int}/endoso")]

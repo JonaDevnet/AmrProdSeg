@@ -10,6 +10,7 @@ import { IconBell } from "./Icons";
 import { formatFecha, formatMoneda, formatFechaHora } from "../utils/format";
 import { getPendientes, aprobar, rechazar } from "../api/solicitudesCambio";
 import type { SolicitudCambioDto } from "../api/solicitudesCambio";
+import { getSolicitudesReset, autorizarReset } from "../api/usuarios";
 
 export default function NotificacionesBell() {
   const navigate = useNavigate();
@@ -65,6 +66,13 @@ export default function NotificacionesBell() {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+  const reset = useQuery({
+    queryKey: ["solicitudes-reset"],
+    queryFn: getSolicitudesReset,
+    enabled: esAdmin,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
 
   // Exportaciones vistas (dismiss por usuario en este equipo).
   const expKey = `amr_notif_exp_${usuario?.nombre ?? "x"}`;
@@ -83,11 +91,14 @@ export default function NotificacionesBell() {
   const anulaciones = anul.data ?? [];
   const eliminaciones = elim.data ?? [];
   const solicitudesPendientes = solicitudes.data ?? [];
+  const resetPendientes = reset.data ?? [];
   const exportaciones = exp.data ?? [];
   const exportacionesNuevas = exportaciones.filter((e) => !expVistas.has(e.id));
   const altasRecientesData = altas.data ?? [];
   const altasNuevas = altasRecientesData.filter((a) => !altasVistas.has(a.id));
-  const total = items.length + anulaciones.length + eliminaciones.length + solicitudesPendientes.length + exportacionesNuevas.length + altasNuevas.length;
+  // Todas las aprobaciones pendientes van juntas bajo la sección "Solicitudes".
+  const totalSolicitudes = anulaciones.length + solicitudesPendientes.length + eliminaciones.length + resetPendientes.length;
+  const total = items.length + totalSolicitudes + exportacionesNuevas.length + altasNuevas.length;
 
   function limpiarExportaciones() {
     const nuevas = new Set(expVistas);
@@ -151,6 +162,17 @@ export default function NotificacionesBell() {
     qc.invalidateQueries({ queryKey: ["polizas"] });
   }
 
+  async function resolverReset(id: number) {
+    try {
+      await autorizarReset(id);
+    } catch (e: any) {
+      alert(e?.response?.data?.error ?? "No se pudo autorizar el cambio de contraseña.");
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["solicitudes-reset"] });
+    qc.invalidateQueries({ queryKey: ["usuarios"] });
+  }
+
   return (
     <div style={{ position: "relative" }}>
       <button onClick={() => setAbierto((v) => !v)} title="Notificaciones" style={iconButton}>
@@ -178,44 +200,35 @@ export default function NotificacionesBell() {
                 Limpiar todo
               </button>
             </div>
-            {/* Solicitudes de anulación (Admin) */}
-            {esAdmin && (
+            {/* Solicitudes: todas las aprobaciones pendientes (anulaciones, cambios,
+                eliminaciones de póliza y reset de contraseña). Se muestra solo si hay alguna. */}
+            {esAdmin && totalSolicitudes > 0 && (
               <>
                 <div style={head}>
-                  Solicitudes de anulación
-                  {anulaciones.length > 0 && <span style={badge}>{anulaciones.length}</span>}
+                  Solicitudes
+                  <span style={badge}>{totalSolicitudes}</span>
                 </div>
-                {anulaciones.length === 0 ? (
-                  <div style={vacio}>Sin solicitudes pendientes.</div>
-                ) : (
-                  anulaciones.map((a) => (
-                    <div key={a.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
-                        Anular cuota {a.numeroCuota} · {formatMoneda(a.monto)}
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
-                        {a.solicitante ?? "—"} solicita anular a {a.clienteNombre ?? "—"}
-                      </div>
-                      <div className="mono" style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 3 }}>{a.nroPoliza}</div>
-                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                        <button onClick={() => resolver(a.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Aceptar</button>
-                        <button onClick={() => resolver(a.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </>
-            )}
 
-            {/* Solicitudes de edición/eliminación (Admin) */}
-            {esAdmin && solicitudesPendientes.length > 0 && (
-              <>
-                <div style={head}>
-                  Solicitudes de edición
-                  <span style={badge}>{solicitudesPendientes.length}</span>
-                </div>
+                {/* 1) Anulación de cuota */}
+                {anulaciones.map((a) => (
+                  <div key={`anul-${a.id}`} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>
+                      Anular cuota {a.numeroCuota} · {formatMoneda(a.monto)}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
+                      {a.solicitante ?? "—"} solicita anular a {a.clienteNombre ?? "—"}
+                    </div>
+                    <div className="mono" style={{ fontSize: 11.5, color: "var(--ink-900)", marginTop: 3 }}>{a.nroPoliza}</div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => resolver(a.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Aceptar</button>
+                      <button onClick={() => resolver(a.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 2) Cambios: editar/eliminar cliente/póliza, renovar/refacturar */}
                 {solicitudesPendientes.map((s) => (
-                  <div key={s.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                  <div key={`sol-${s.id}`} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>
                       {s.tipo} · <span style={{ color: s.accion === "Eliminar" ? "var(--bad-700)" : "var(--navy-900)" }}>{s.accion}</span>
                       {s.entidadDesc ? <span style={{ fontWeight: 500 }}> · {s.entidadDesc}</span> : <span className="mono"> · #{s.entidadId}</span>}
@@ -231,18 +244,10 @@ export default function NotificacionesBell() {
                     </div>
                   </div>
                 ))}
-              </>
-            )}
 
-            {/* Solicitudes de eliminación de póliza (Admin) */}
-            {esAdmin && eliminaciones.length > 0 && (
-              <>
-                <div style={head}>
-                  Solicitudes de eliminación
-                  <span style={badge}>{eliminaciones.length}</span>
-                </div>
+                {/* 3) Eliminación de póliza */}
                 {eliminaciones.map((e) => (
-                  <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                  <div key={`elim-${e.id}`} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--bad-700)" }}>
                       Eliminar póliza <span className="mono">{e.polizaNumero}</span>
                     </div>
@@ -255,6 +260,21 @@ export default function NotificacionesBell() {
                     <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                       <button onClick={() => resolverElim(e.id, true)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--bad-600)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Autorizar</button>
                       <button onClick={() => resolverElim(e.id, false)} style={{ flex: 1, height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-900)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Rechazar</button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 4) Reset de contraseña */}
+                {resetPendientes.map((r) => (
+                  <div key={`reset-${r.id}`} style={{ padding: "10px 16px", borderBottom: "1px solid var(--line-2)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--navy-900)" }}>
+                      Cambio de contraseña
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-900)", marginTop: 2 }}>
+                      {r.usuarioNombre ?? r.email} solicita restablecer su contraseña · {formatFechaHora(r.fechaSolicitud)}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button onClick={() => resolverReset(r.id)} style={{ flex: 1, height: 30, borderRadius: 8, border: 0, background: "var(--ok-700)", color: "white", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>Autorizar cambio</button>
                     </div>
                   </div>
                 ))}

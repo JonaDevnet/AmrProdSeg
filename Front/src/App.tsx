@@ -8,6 +8,7 @@ import Verificar from "./pages/Verificar";
 import Login from "./pages/Login";
 import Cartera from "./pages/Cartera";
 import ClienteFicha from "./pages/ClienteFicha";
+import CuotasYPago from "./pages/CuotasYPago";
 import Polizas from "./pages/Polizas";
 import PolizaDetalle from "./pages/PolizaDetalle";
 import Cobranzas from "./pages/Cobranzas";
@@ -45,6 +46,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/cartera" element={<Cartera />} />
               <Route path="/clientes/:id" element={<ClienteFicha />} />
+              <Route path="/clientes/:id/cuotas" element={<CuotasYPago />} />
               <Route path="/polizas" element={<Polizas />} />
               <Route path="/polizas/:id" element={<PolizaDetalle />} />
               <Route path="/cobranzas" element={<Cobranzas />} />

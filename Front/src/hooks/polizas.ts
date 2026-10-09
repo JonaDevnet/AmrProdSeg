@@ -27,10 +27,10 @@ export function usePoliza(id: number) {
   });
 }
 
-export function useCobrosPorPoliza(id: number) {
+export function useCobrosPorPoliza(id: number, soloActual = false) {
   return useQuery({
-    queryKey: ["cobros", "poliza", id],
-    queryFn: () => getCobrosPorPoliza(id),
+    queryKey: ["cobros", "poliza", id, soloActual ? "actual" : "todos"],
+    queryFn: () => getCobrosPorPoliza(id, soloActual),
     enabled: Number.isFinite(id) && id > 0,
   });
 }
@@ -61,6 +61,18 @@ export function useRenovarPoliza(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["poliza", id] });
       qc.invalidateQueries({ queryKey: ["polizas"] });
+    },
+  });
+}
+
+export function useRefacturarPoliza(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: polizasApi.RenovarPolizaDto) => polizasApi.refacturarPoliza(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+      qc.invalidateQueries({ queryKey: ["cobros"] });
     },
   });
 }

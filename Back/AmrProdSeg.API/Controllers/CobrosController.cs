@@ -22,8 +22,8 @@ public class CobrosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> PorPoliza([FromQuery] int polizaId)
-        => Ok(await _service.GetPorPolizaAsync(polizaId));
+    public async Task<IActionResult> PorPoliza([FromQuery] int polizaId, [FromQuery] bool soloActual = false)
+        => Ok(soloActual ? await _service.GetPorPolizaActualAsync(polizaId) : await _service.GetPorPolizaAsync(polizaId));
 
     [HttpGet("pendientes")]
     public async Task<IActionResult> Pendientes([FromQuery] int mes, [FromQuery] int anio)

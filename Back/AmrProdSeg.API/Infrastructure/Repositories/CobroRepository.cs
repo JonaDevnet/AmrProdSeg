@@ -99,6 +99,20 @@ public class CobroRepository : ICobroRepository
         return await LeerCobrosAsync(cmd);
     }
 
+    public async Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Cobro_GetPorPolizaActual", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId", polizaId);
+
+        return await LeerCobrosAsync(cmd);
+    }
+
     public async Task<Cobro?> GetByIdAsync(int id)
     {
         using var conn = _factory.Create();
@@ -142,6 +156,26 @@ public class CobroRepository : ICobroRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
+        decimal? primaOG, string? cobertura, string? formaPago)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Poliza_Refacturar", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId",          polizaId);
+        cmd.Parameters.AddWithValue("@PrecioTotal",       precioTotal);
+        cmd.Parameters.AddWithValue("@CantidadCuotas",    cantidadCuotas);
+        cmd.Parameters.AddWithValue("@PrimerVencimiento", primerVencimiento.Date);
+        cmd.Parameters.AddWithValue("@PrimaOG",           (object?)primaOG ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Cobertura",         (object?)cobertura ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FormaPago",         (object?)formaPago ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static async Task<List<Cobro>> LeerCobrosAsync(SqlCommand cmd)
     {
         var lista = new List<Cobro>();
@@ -180,6 +214,9 @@ public class CobroRepository : ICobroRepository
                            : null,
         CobradorNombre   = TieneCol(reader, "CobradorNombre") && !reader.IsDBNull(reader.GetOrdinal("CobradorNombre"))
                            ? reader.GetString(reader.GetOrdinal("CobradorNombre"))
-                           : null
+                           : null,
+        Ciclo            = TieneCol(reader, "Ciclo") && !reader.IsDBNull(reader.GetOrdinal("Ciclo"))
+                           ? reader.GetInt32(reader.GetOrdinal("Ciclo"))
+                           : 1
     };
 }
