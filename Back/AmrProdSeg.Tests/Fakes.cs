@@ -53,6 +53,12 @@ public class FakeCobroRepository : ICobroRepository
     public int MarcarPagadoLlamadas;
     public List<Cobro> Cuotas = new();
     public int AgregarCicloLlamadas;
+    public int AgregarModificacionPeriodoLlamadas;
+    public decimal? UltimaModificacionPrecio;
+    public int? UltimaModificacionCuotas;
+    public DateTime? UltimoModificacionVencimiento;
+    public string? UltimaModificacionDescripcion;
+    public List<CobroEvento> Eventos = new();
 
     public Task InsertarLoteAsync(IEnumerable<Cobro> cobros) => Task.CompletedTask;
     public Task MarcarPagadoAsync(int id, DateTime fechaPago, int? metodoPagoId, int? registradoPor = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null) { MarcarPagadoLlamadas++; return Task.CompletedTask; }
@@ -61,8 +67,22 @@ public class FakeCobroRepository : ICobroRepository
     public Task<List<Cobro>> GetPorPolizaAsync(int polizaId) => Task.FromResult(Cuotas);
     public Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId) => Task.FromResult(Cuotas);
     public Task MarcarVencidosAsync() => Task.CompletedTask;
-    public Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento) => Task.CompletedTask;
-    public Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento, decimal? primaOG, string? cobertura, string? formaPago) { AgregarCicloLlamadas++; return Task.CompletedTask; }
+    public Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
+        decimal? primaOG, string? cobertura, string? formaPago, int? usuarioId = null)
+    { AgregarCicloLlamadas++; return Task.CompletedTask; }
+
+    public Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
+        DateTime primerVencimiento, string descripcion, int? usuarioId = null)
+    {
+        AgregarModificacionPeriodoLlamadas++;
+        UltimaModificacionPrecio = precioTotal;
+        UltimaModificacionCuotas = cantidadCuotas;
+        UltimoModificacionVencimiento = primerVencimiento;
+        UltimaModificacionDescripcion = descripcion;
+        return Task.CompletedTask;
+    }
+
+    public Task<List<CobroEvento>> GetEventosAsync(int polizaId) => Task.FromResult(Eventos);
 }
 
 public class FakeVehiculoRepository : IVehiculoRepository
@@ -99,7 +119,18 @@ public class FakeUsuarioRepository : IUsuarioRepository
     public string? RolActualizado;
     public bool Inactivo;
     public int ActividadLlamadas;
+    public int ReactivarLlamadas;
+    public int ReactivarResultado = 1;
+    public string? NombreReactivado;
+    public string? RolReactivado;
     public Task<int> InsertarAsync(string nombre, string email, string passwordHash, string rol) => Task.FromResult(1);
+    public Task<int> ReactivarAsync(int id, string nombre, string passwordHash, string rol)
+    {
+        ReactivarLlamadas++;
+        NombreReactivado = nombre;
+        RolReactivado = rol;
+        return Task.FromResult(ReactivarResultado);
+    }
     public Task CambiarPasswordAsync(int id, string passwordHash) { PasswordCambiada = passwordHash; return Task.CompletedTask; }
     public Task<List<Usuario>> GetAllAsync() => Task.FromResult(new List<Usuario>());
     public Task AsignarOficinaAsync(int usuarioId, int? oficinaId) => Task.CompletedTask;
@@ -108,6 +139,49 @@ public class FakeUsuarioRepository : IUsuarioRepository
     public Task<int> ActualizarRolAsync(int id, string rol) { RolActualizado = rol; return Task.FromResult(1); }
     public Task MarcarActividadAsync(int id) { ActividadLlamadas++; return Task.CompletedTask; }
     public Task<bool> EstaInactivoAsync(int id) => Task.FromResult(Inactivo);
+}
+
+public class FakeNacionalidadRepository : INacionalidadRepository
+{
+    public List<Nacionalidad> Lista = new()
+    {
+        new Nacionalidad { Id = 1, Nombre = "Argentina", Activo = true }
+    };
+    public Nacionalidad? PorId = new() { Id = 1, Nombre = "Argentina", Activo = true };
+    public int InsertarLlamadas;
+    public int EliminarLlamadas;
+
+    public Task<int> InsertarAsync(string nombre) { InsertarLlamadas++; return Task.FromResult(1); }
+    public Task<List<Nacionalidad>> GetAllAsync() => Task.FromResult(Lista);
+    public Task<Nacionalidad?> GetByIdAsync(int id) => Task.FromResult(PorId?.Id == id ? PorId : null);
+    public Task<int> EliminarAsync(int id) { EliminarLlamadas++; return Task.FromResult(1); }
+}
+
+public class FakeNotaRepository : INotaRepository
+{
+    public List<Nota> Notas = new();
+    public int InsertarLlamadas;
+    public int EliminarLlamadas;
+    public int EliminarResultado = 1;
+    public int? UltimoUsuarioId;
+    public string? UltimoTexto;
+
+    public Task<int> InsertarAsync(int usuarioId, string texto)
+    {
+        InsertarLlamadas++;
+        UltimoUsuarioId = usuarioId;
+        UltimoTexto = texto;
+        return Task.FromResult(1);
+    }
+
+    public Task<List<Nota>> GetPorUsuarioAsync(int usuarioId) => Task.FromResult(Notas);
+
+    public Task<int> EliminarAsync(int id, int usuarioId)
+    {
+        EliminarLlamadas++;
+        UltimoUsuarioId = usuarioId;
+        return Task.FromResult(EliminarResultado);
+    }
 }
 
 public class FakeCompaniaRepository : ICompaniaRepository
@@ -213,6 +287,7 @@ public class FakeAuthRepository : IAuthRepository
     public int GuardarLlamado;
 
     public Task<Usuario?> GetUsuarioByEmailAsync(string email) => Task.FromResult(UsuarioPorEmail);
+    public Task<Usuario?> GetUsuarioByEmailInclInactivoAsync(string email) => Task.FromResult(UsuarioPorEmail);
     public Task<Usuario?> GetUsuarioByIdAsync(int id) => Task.FromResult(UsuarioPorId);
     public Task GuardarRefreshTokenAsync(int usuarioId, string token, DateTime expiracion) { GuardarLlamado++; return Task.CompletedTask; }
     public Task<RefreshToken?> GetRefreshTokenAsync(string token) => Task.FromResult(RefreshPorToken);
@@ -289,7 +364,7 @@ public class FakeAnulacionRepository : IAnulacionRepository
     public int SolicitarResultado = 1;
     public int AprobarResultado = 1;
     public int RechazarResultado = 1;
-    public Task<int> AnularPagoDirectoAsync(int cobroId) => Task.FromResult(AnularDirectoResultado);
+    public Task<int> AnularPagoDirectoAsync(int cobroId, int? usuarioId = null) => Task.FromResult(AnularDirectoResultado);
     public Task<int> SolicitarAsync(int cobroId, int usuarioId, string? motivo) => Task.FromResult(SolicitarResultado);
     public Task<List<AnulacionCobro>> GetPendientesAsync() => Task.FromResult(new List<AnulacionCobro>());
     public Task<List<AnulacionCobro>> GetHistorialAsync() => Task.FromResult(new List<AnulacionCobro>());

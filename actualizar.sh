@@ -9,7 +9,7 @@ git pull
 echo "→ Actualizando la base de datos (schema idempotente)..."
 SA=$(grep '^MSSQL_SA_PASSWORD=' .env | cut -d= -f2-)
 if docker ps --format '{{.Names}}' | grep -q '^amr-db$'; then
-    docker exec -i amr-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA" -C < AmrProdSeg_Schema.sql
+    docker exec -i amr-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA" -C -f 65001 < AmrProdSeg_Schema.sql
     echo "  ✔ Schema aplicado."
 else
     echo "  ⚠ El contenedor amr-db no está corriendo; se salta el schema (corrélo a mano después)."

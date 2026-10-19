@@ -4169,3 +4169,634 @@ BEGIN
 END
 GO
 
+/* =============================================================================
+   §66 — Nacionalidad del cliente (catálogo obligatorio).
+   La columna queda NULL para los clientes existentes; la API la exige al crear
+   o editar un cliente. El catálogo se administra como Ramos/Coberturas.
+   ============================================================================= */
+IF OBJECT_ID('dbo.Nacionalidades', 'U') IS NULL
+BEGIN
+    CREATE TABLE Nacionalidades (
+        Id     INT PRIMARY KEY IDENTITY,
+        Nombre NVARCHAR(80) NOT NULL UNIQUE,
+        Activo BIT NOT NULL DEFAULT 1
+    );
+END
+GO
+
+-- Catálogo inicial. Idempotente: agrega sólo los que falten.
+INSERT INTO Nacionalidades (Nombre)
+SELECT v.Nombre
+FROM (VALUES
+    (N'Argentina'), (N'Boliviana'), (N'Brasile' + NCHAR(241) + N'a'), (N'Chilena'),
+    (N'Colombiana'), (N'Paraguaya'), (N'Peruana'), (N'Uruguaya'),
+    (N'Venezolana'), (N'Espa' + NCHAR(241) + N'ola'), (N'Italiana'), (N'Mexicana'),
+    (N'Otra')
+) v(Nombre)
+WHERE NOT EXISTS (SELECT 1 FROM Nacionalidades n WHERE n.Nombre = v.Nombre);
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nacionalidad_Insertar @Nombre NVARCHAR(80) AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Nacionalidades WHERE Nombre = @Nombre)
+    BEGIN
+        UPDATE Nacionalidades SET Activo = 1 WHERE Nombre = @Nombre;
+        SELECT Id AS NuevoId FROM Nacionalidades WHERE Nombre = @Nombre;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Nacionalidades (Nombre) VALUES (@Nombre);
+        SELECT SCOPE_IDENTITY() AS NuevoId;
+    END
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nacionalidad_GetAll AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Nombre, Activo
+    FROM Nacionalidades
+    WHERE Activo = 1
+    ORDER BY Nombre;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nacionalidad_Eliminar @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Nacionalidades SET Activo = 0 WHERE Id = @Id;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+IF COL_LENGTH('dbo.Clientes', 'NacionalidadId') IS NULL
+    ALTER TABLE Clientes ADD NacionalidadId INT NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Clientes_Nacionalidad')
+    ALTER TABLE Clientes ADD CONSTRAINT FK_Clientes_Nacionalidad
+        FOREIGN KEY (NacionalidadId) REFERENCES Nacionalidades(Id);
+GO
+
+/* --- Cliente: alta/edición/consulta con nacionalidad --- */
+CREATE OR ALTER PROCEDURE sp_Cliente_Insertar
+    @Nombre NVARCHAR(150), @Documento VARCHAR(20), @Email VARCHAR(100) = NULL,
+    @Telefono VARCHAR(30) = NULL, @Direccion NVARCHAR(200) = NULL,
+    @TipoDocumento VARCHAR(20) = NULL, @OficinaId INT = NULL, @VendedorId INT = NULL,
+    @FechaNacimiento DATE = NULL, @NacionalidadId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Clientes (Nombre, Documento, Email, Telefono, Direccion, TipoDocumento, OficinaId, VendedorId, FechaNacimiento, NacionalidadId)
+    VALUES (@Nombre, @Documento, @Email, @Telefono, @Direccion, @TipoDocumento, @OficinaId, @VendedorId, @FechaNacimiento, @NacionalidadId);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_Actualizar
+    @Id INT, @Nombre NVARCHAR(150), @Email VARCHAR(100) = NULL,
+    @Telefono VARCHAR(30) = NULL, @Direccion NVARCHAR(200) = NULL,
+    @TipoDocumento VARCHAR(20) = NULL, @FechaNacimiento DATE = NULL,
+    @NacionalidadId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Clientes
+    SET Nombre = @Nombre, Email = @Email, Telefono = @Telefono,
+        Direccion = @Direccion,
+        TipoDocumento = COALESCE(@TipoDocumento, TipoDocumento),
+        FechaNacimiento = @FechaNacimiento,
+        NacionalidadId = COALESCE(@NacionalidadId, NacionalidadId)
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT c.Id, c.Nombre, c.Documento, c.Email, c.Telefono, c.Direccion,
+           c.FechaAlta, c.Activo, c.TipoDocumento, c.OficinaId, c.FechaNacimiento,
+           c.NacionalidadId, n.Nombre AS NacionalidadNombre
+    FROM Clientes c
+    LEFT JOIN Nacionalidades n ON n.Id = c.NacionalidadId
+    WHERE c.Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cliente_Buscar
+    @Termino NVARCHAR(100), @Offset INT, @PageSize INT,
+    @UsuarioId INT = NULL, @EsAdmin BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @Ofi INT = (SELECT OficinaId FROM Usuarios WHERE Id = @UsuarioId);
+    SELECT c.Id, c.Nombre, c.Documento, c.Email, c.Telefono, c.Direccion,
+           c.FechaAlta, c.Activo, c.TipoDocumento, c.OficinaId, c.FechaNacimiento,
+           c.NacionalidadId, n.Nombre AS NacionalidadNombre,
+           COUNT(*) OVER() AS Total
+    FROM Clientes c
+    LEFT JOIN Nacionalidades n ON n.Id = c.NacionalidadId
+    WHERE c.Activo = 1
+      AND (@Termino = '' OR c.Nombre LIKE '%' + @Termino + '%' OR c.Documento LIKE '%' + @Termino + '%')
+      AND (@EsAdmin = 1 OR @Ofi IS NULL OR c.OficinaId IS NULL OR c.OficinaId = @Ofi
+           OR EXISTS (SELECT 1 FROM ClientesCompartidos cc WHERE cc.ClienteId = c.Id AND cc.OficinaId = @Ofi))
+    ORDER BY c.Nombre ASC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Reporte_Cartera @VendedorId INT = NULL AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        (SELECT MIN(co.FechaVencimiento) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado <> 1) AS ProximoVencimiento,
+        cp.Nombre AS Compania,
+        (SELECT COUNT(*) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado = 1) AS CuotasPagadas,
+        p.CantidadCuotas AS CuotasTotal,
+        (SELECT ISNULL(SUM(co.Monto), 0) FROM Cobros co WHERE co.PolizaId = p.Id AND co.Estado = 1) AS PrecioCobrado,
+        p.PrecioTotal,
+        ISNULL(p.PrimaOG, 0) AS PrimaOG,
+        p.Numero AS NroPoliza,
+        c.Nombre AS ClienteNombre, c.Documento, ISNULL(c.TipoDocumento, '') AS TipoDocumento,
+        ISNULL(n.Nombre, '') AS Nacionalidad,
+        ISNULL(c.Email, '') AS Email, ISNULL(c.Telefono, '') AS Telefono, ISNULL(c.Direccion, '') AS Direccion,
+        ISNULL(v.Patente, '') AS Patente, ISNULL(v.Marca, '') AS Marca, ISNULL(v.Modelo, '') AS Modelo,
+        ISNULL(CAST(v.Anio AS VARCHAR(10)), '') AS Anio, ISNULL(v.Chasis, '') AS Chasis, ISNULL(v.Motor, '') AS Motor,
+        ISNULL(v.Combustion, '') AS Combustion, ISNULL(v.TipoCobertura, '') AS TipoCobertura,
+        p.VendedorId
+    FROM Polizas p
+    INNER JOIN Clientes  c  ON c.Id  = p.ClienteId
+    INNER JOIN Companias cp ON cp.Id = p.CompaniaId
+    LEFT  JOIN Vehiculos v  ON v.Id  = p.VehiculoId
+    LEFT  JOIN Nacionalidades n ON n.Id = c.NacionalidadId
+    WHERE p.Estado = 0
+      AND (@VendedorId IS NULL OR p.VendedorId = @VendedorId)
+    ORDER BY c.Nombre, p.Numero;
+END
+GO
+
+/* =============================================================================
+   §67 — Reactivación de usuarios dados de baja.
+   El email es UNIQUE y la baja es lógica, por lo que "volver a crear" un usuario
+   con el mismo correo reutiliza la misma fila (mismo Id, conserva historial).
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Usuario_GetByEmailInclInactivo @Email VARCHAR(100) AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Nombre, Email, PasswordHash, Rol, Activo, FechaAlta
+    FROM Usuarios
+    WHERE Email = @Email;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Usuario_Reactivar
+    @Id INT, @Nombre NVARCHAR(150), @PasswordHash VARCHAR(255), @Rol VARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS (SELECT 1 FROM Usuarios WHERE Id = @Id AND Activo = 0)
+    BEGIN
+        SELECT CAST(0 AS INT) AS Afectadas;
+        RETURN;
+    END
+    UPDATE Usuarios
+    SET Nombre = @Nombre, PasswordHash = @PasswordHash, Rol = @Rol,
+        Activo = 1, UltimaActividad = NULL
+    WHERE Id = @Id;
+    UPDATE RefreshTokens SET Revocado = 1 WHERE UsuarioId = @Id;
+    SELECT CAST(1 AS INT) AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Usuario_Eliminar @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Usuarios SET Activo = 0 WHERE Id = @Id;
+    DECLARE @Afectadas INT = @@ROWCOUNT;
+    UPDATE RefreshTokens SET Revocado = 1 WHERE UsuarioId = @Id;
+    SELECT @Afectadas AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Usuario_Insertar
+    @Nombre NVARCHAR(150), @Email VARCHAR(100), @PasswordHash VARCHAR(255), @Rol VARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (SELECT 1 FROM Usuarios WHERE Email = @Email)
+    BEGIN
+        SELECT CAST(-1 AS INT) AS NuevoId;
+        RETURN;
+    END
+    INSERT INTO Usuarios (Nombre, Email, PasswordHash, Rol)
+    VALUES (@Nombre, @Email, @PasswordHash, @Rol);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+/* =============================================================================
+   §68 — Historial de ciclos de cuotas y de pagos.
+   - CobrosCiclos: metadatos de cada bloque (Original, Refacturación,
+     Modificación de período, Renovación). Las cuotas de ciclos anteriores
+     NUNCA se actualizan ni se borran al modificar la póliza.
+   - CobroEventos: historial append-only de pagos y anulaciones. El estado
+     operativo sigue viviendo en Cobros, como hasta ahora.
+   ============================================================================= */
+IF OBJECT_ID('dbo.CobrosCiclos', 'U') IS NULL
+BEGIN
+    CREATE TABLE CobrosCiclos (
+        Id               INT PRIMARY KEY IDENTITY,
+        PolizaId         INT NOT NULL,
+        Ciclo            INT NOT NULL,
+        Tipo             VARCHAR(30) NOT NULL,   -- Original | Refacturacion | ModificacionPeriodo | Renovacion
+        Descripcion      NVARCHAR(300) NULL,
+        PrecioTotal      DECIMAL(18,2) NOT NULL,
+        CantidadCuotas   INT NOT NULL,
+        PrimerVencimiento DATE NULL,
+        CreadoPor        INT NULL,
+        FechaCreacion    DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_CobrosCiclos_Polizas FOREIGN KEY (PolizaId) REFERENCES Polizas(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_CobrosCiclos_Poliza_Ciclo UNIQUE (PolizaId, Ciclo)
+    );
+    CREATE INDEX IX_CobrosCiclos_Poliza ON CobrosCiclos(PolizaId, Ciclo);
+END
+GO
+
+IF OBJECT_ID('dbo.CobroEventos', 'U') IS NULL
+BEGIN
+    CREATE TABLE CobroEventos (
+        Id               INT PRIMARY KEY IDENTITY,
+        CobroId          INT NOT NULL,
+        Tipo             VARCHAR(20) NOT NULL,   -- Pago | Anulacion
+        FechaEvento      DATETIME NOT NULL,
+        Monto            DECIMAL(18,2) NULL,
+        MetodoPagoId     INT NULL,
+        MetodoPago2Id    INT NULL,
+        MetodoPago2Monto DECIMAL(18,2) NULL,
+        UsuarioId        INT NULL,
+        FechaRegistro    DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        Detalle          NVARCHAR(300) NULL,
+        CONSTRAINT FK_CobroEventos_Cobros FOREIGN KEY (CobroId) REFERENCES Cobros(Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_CobroEventos_Cobro ON CobroEventos(CobroId, FechaRegistro);
+END
+GO
+
+-- Backfill de ciclos existentes. El ciclo 1 es el original; los siguientes
+-- se consideran refacturaciones históricas.
+INSERT INTO CobrosCiclos
+    (PolizaId, Ciclo, Tipo, Descripcion, PrecioTotal, CantidadCuotas, PrimerVencimiento, CreadoPor, FechaCreacion)
+SELECT c.PolizaId, c.Ciclo,
+       CASE WHEN c.Ciclo = 1 THEN 'Original' ELSE 'Refacturacion' END,
+       CASE WHEN c.Ciclo = 1 THEN N'Original' ELSE N'Refacturación' END,
+       SUM(c.Monto), COUNT(*), MIN(c.FechaVencimiento), NULL, GETUTCDATE()
+FROM Cobros c
+WHERE NOT EXISTS (
+    SELECT 1 FROM CobrosCiclos cc
+    WHERE cc.PolizaId = c.PolizaId AND cc.Ciclo = c.Ciclo
+)
+GROUP BY c.PolizaId, c.Ciclo;
+GO
+
+-- Para pólizas que ya eran renovaciones, el ciclo 1 se rotula como Renovación.
+UPDATE cc
+SET Tipo = 'Renovacion',
+    Descripcion = N'Renovación de póliza ' + po.Numero
+FROM CobrosCiclos cc
+INNER JOIN Polizas p  ON p.Id  = cc.PolizaId
+INNER JOIN Polizas po ON po.Id = p.PolizaOrigenId
+WHERE cc.Ciclo = 1 AND cc.Tipo = 'Original';
+GO
+
+-- Backfill del historial de pagos para cuotas ya cobradas.
+INSERT INTO CobroEventos
+    (CobroId, Tipo, FechaEvento, Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto, UsuarioId, FechaRegistro, Detalle)
+SELECT c.Id, 'Pago', c.FechaPago, c.Monto, c.MetodoPagoId, c.MetodoPago2Id, c.MetodoPago2Monto,
+       c.RegistradoPor, GETUTCDATE(), N'Pago registrado (histórico)'
+FROM Cobros c
+WHERE c.Estado = 1
+  AND c.FechaPago IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM CobroEventos e
+      WHERE e.CobroId = c.Id AND e.Tipo = 'Pago'
+  );
+GO
+
+/* --- Alta de cuotas: crea el bloque Original/Renovación la primera vez --- */
+CREATE OR ALTER PROCEDURE sp_Cobro_Insertar
+    @PolizaId         INT,
+    @NumeroCuota      INT,
+    @FechaVencimiento DATE,
+    @Monto            DECIMAL(18,2),
+    @Estado           INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF NOT EXISTS (SELECT 1 FROM CobrosCiclos WHERE PolizaId = @PolizaId AND Ciclo = 1)
+    BEGIN
+        DECLARE @OrigenNumero VARCHAR(20), @Tipo VARCHAR(30), @Descripcion NVARCHAR(300);
+        SELECT @OrigenNumero = po.Numero
+        FROM Polizas p
+        LEFT JOIN Polizas po ON po.Id = p.PolizaOrigenId
+        WHERE p.Id = @PolizaId;
+
+        IF @OrigenNumero IS NULL
+        BEGIN
+            SET @Tipo = 'Original';
+            SET @Descripcion = N'Original';
+        END
+        ELSE
+        BEGIN
+            SET @Tipo = 'Renovacion';
+            SET @Descripcion = N'Renovación de póliza ' + @OrigenNumero;
+        END
+
+        INSERT INTO CobrosCiclos
+            (PolizaId, Ciclo, Tipo, Descripcion, PrecioTotal, CantidadCuotas, PrimerVencimiento, CreadoPor, FechaCreacion)
+        SELECT p.Id, 1, @Tipo, @Descripcion, p.PrecioTotal, p.CantidadCuotas,
+               @FechaVencimiento, p.VendedorId, GETUTCDATE()
+        FROM Polizas p
+        WHERE p.Id = @PolizaId;
+    END
+
+    INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado)
+    VALUES (@PolizaId, @NumeroCuota, @FechaVencimiento, @Monto, @Estado);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+/* --- Pago: registra el evento y después actualiza el estado operativo --- */
+CREATE OR ALTER PROCEDURE sp_Cobro_MarcarPagado
+    @Id INT, @FechaPago DATETIME, @MetodoPagoId INT = NULL, @RegistradoPor INT = NULL,
+    @MetodoPago2Id INT = NULL, @MetodoPago2Monto DECIMAL(18,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO CobroEventos
+        (CobroId, Tipo, FechaEvento, Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto, UsuarioId, FechaRegistro, Detalle)
+    SELECT Id, 'Pago', @FechaPago, Monto, @MetodoPagoId, @MetodoPago2Id, @MetodoPago2Monto,
+           @RegistradoPor, GETUTCDATE(), N'Pago registrado'
+    FROM Cobros
+    WHERE Id = @Id AND Estado <> 1;
+
+    UPDATE Cobros
+    SET Estado = 1, FechaPago = @FechaPago, MetodoPagoId = @MetodoPagoId,
+        MetodoPago2Id = @MetodoPago2Id, MetodoPago2Monto = @MetodoPago2Monto,
+        RegistradoPor = ISNULL(@RegistradoPor, RegistradoPor)
+    WHERE Id = @Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_AnularPago
+    @CobroId INT, @UsuarioId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO CobroEventos
+        (CobroId, Tipo, FechaEvento, Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto, UsuarioId, FechaRegistro, Detalle)
+    SELECT Id, 'Anulacion', GETUTCDATE(), Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto,
+           @UsuarioId, GETUTCDATE(), N'Pago anulado'
+    FROM Cobros
+    WHERE Id = @CobroId AND Estado = 1;
+
+    UPDATE Cobros
+    SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL,
+        MetodoPago2Id = NULL, MetodoPago2Monto = NULL
+    WHERE Id = @CobroId AND Estado = 1;
+
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anulacion_Aprobar @Id INT, @AdminId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        DECLARE @CobroId INT = (SELECT CobroId FROM AnulacionesCobro WHERE Id = @Id AND Estado = 0);
+        IF @CobroId IS NULL
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(0 AS INT) AS Afectadas;
+            RETURN;
+        END
+
+        INSERT INTO CobroEventos
+            (CobroId, Tipo, FechaEvento, Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto, UsuarioId, FechaRegistro, Detalle)
+        SELECT Id, 'Anulacion', GETUTCDATE(), Monto, MetodoPagoId, MetodoPago2Id, MetodoPago2Monto,
+               @AdminId, GETUTCDATE(), N'Pago anulado por aprobación'
+        FROM Cobros
+        WHERE Id = @CobroId AND Estado = 1;
+
+        UPDATE Cobros
+        SET Estado = 0, FechaPago = NULL, MetodoPagoId = NULL,
+            MetodoPago2Id = NULL, MetodoPago2Monto = NULL
+        WHERE Id = @CobroId;
+        UPDATE AnulacionesCobro
+        SET Estado = 1, ResueltoPor = @AdminId, FechaResolucion = GETUTCDATE()
+        WHERE Id = @Id;
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Afectadas;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+/* --- Consultas de cuotas con metadatos del ciclo --- */
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, co.Ciclo,
+           cc.Tipo AS CicloTipo, cc.Descripcion AS CicloDescripcion,
+           u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN CobrosCiclos cc ON cc.PolizaId = co.PolizaId AND cc.Ciclo = co.Ciclo
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId
+    ORDER BY co.Ciclo, co.NumeroCuota;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetPorPolizaActual @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @ciclo INT = (SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId);
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, co.Ciclo,
+           cc.Tipo AS CicloTipo, cc.Descripcion AS CicloDescripcion,
+           u.Nombre AS CobradorNombre
+    FROM Cobros co
+    LEFT JOIN CobrosCiclos cc ON cc.PolizaId = co.PolizaId AND cc.Ciclo = co.Ciclo
+    LEFT JOIN Usuarios u ON u.Id = co.RegistradoPor
+    WHERE co.PolizaId = @PolizaId AND co.Ciclo = @ciclo
+    ORDER BY co.NumeroCuota;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Cobro_GetById @Id INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT co.Id, co.PolizaId, co.NumeroCuota, co.FechaVencimiento, co.Monto, co.Estado,
+           co.FechaPago, co.MetodoPagoId, co.MetodoPago2Id, co.MetodoPago2Monto, co.Ciclo,
+           cc.Tipo AS CicloTipo, cc.Descripcion AS CicloDescripcion
+    FROM Cobros co
+    LEFT JOIN CobrosCiclos cc ON cc.PolizaId = co.PolizaId AND cc.Ciclo = co.Ciclo
+    WHERE co.Id = @Id;
+END
+GO
+
+/* --- Refacturación: nuevo ciclo, sin tocar los anteriores --- */
+CREATE OR ALTER PROCEDURE sp_Poliza_Refacturar
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT,
+    @PrimerVencimiento DATE, @PrimaOG DECIMAL(18,2) = NULL,
+    @Cobertura VARCHAR(100) = NULL, @FormaPago VARCHAR(50) = NULL,
+    @UsuarioId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    DECLARE @ultimoCiclo INT = ISNULL((SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId), 0);
+    DECLARE @nuevoCiclo  INT = @ultimoCiclo + 1;
+
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+    INSERT INTO CobrosCiclos
+        (PolizaId, Ciclo, Tipo, Descripcion, PrecioTotal, CantidadCuotas, PrimerVencimiento, CreadoPor, FechaCreacion)
+    VALUES (@PolizaId, @nuevoCiclo, 'Refacturacion', N'Refacturación de póliza',
+            @PrecioTotal, @CantidadCuotas, @PrimerVencimiento, @UsuarioId, GETUTCDATE());
+
+    DECLARE @i INT = 1;
+    WHILE @i <= @CantidadCuotas
+    BEGIN
+        INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, Ciclo)
+        VALUES (@PolizaId, @i, DATEADD(MONTH, @i - 1, @PrimerVencimiento),
+                CASE WHEN @i = @CantidadCuotas THEN @ultima ELSE @base END, 0, @nuevoCiclo);
+        SET @i = @i + 1;
+    END
+
+    UPDATE Polizas
+    SET CantidadCuotas = @CantidadCuotas,
+        PrecioTotal    = @PrecioTotal,
+        PrimaOG        = COALESCE(@PrimaOG, PrimaOG),
+        Cobertura      = COALESCE(@Cobertura, Cobertura),
+        FormaPago      = COALESCE(@FormaPago, FormaPago)
+    WHERE Id = @PolizaId;
+
+    SELECT CAST(@nuevoCiclo AS INT) AS Ciclo;
+END
+GO
+
+/* --- Modificación de período: nuevo ciclo con cuotas reajustadas --- */
+CREATE OR ALTER PROCEDURE sp_Poliza_ModificarPeriodo
+    @PolizaId INT, @PrecioTotal DECIMAL(18,2), @CantidadCuotas INT,
+    @PrimerVencimiento DATE, @Descripcion NVARCHAR(300), @UsuarioId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    DECLARE @ultimoCiclo INT = ISNULL((SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId), 0);
+    DECLARE @nuevoCiclo  INT = @ultimoCiclo + 1;
+    DECLARE @base   DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+    DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+    INSERT INTO CobrosCiclos
+        (PolizaId, Ciclo, Tipo, Descripcion, PrecioTotal, CantidadCuotas, PrimerVencimiento, CreadoPor, FechaCreacion)
+    VALUES (@PolizaId, @nuevoCiclo, 'ModificacionPeriodo', @Descripcion,
+            @PrecioTotal, @CantidadCuotas, @PrimerVencimiento, @UsuarioId, GETUTCDATE());
+
+    DECLARE @i INT = 1;
+    WHILE @i <= @CantidadCuotas
+    BEGIN
+        INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, Ciclo)
+        VALUES (@PolizaId, @i, DATEADD(MONTH, @i - 1, @PrimerVencimiento),
+                CASE WHEN @i = @CantidadCuotas THEN @ultima ELSE @base END, 0, @nuevoCiclo);
+        SET @i = @i + 1;
+    END
+
+    SELECT CAST(@nuevoCiclo AS INT) AS Ciclo;
+END
+GO
+
+/* --- Historial append-only de pagos/anulaciones --- */
+CREATE OR ALTER PROCEDURE sp_CobroEventos_GetPorPoliza @PolizaId INT AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT e.Id, e.CobroId, co.Ciclo, co.NumeroCuota, e.Tipo,
+           e.FechaEvento, e.Monto,
+           e.MetodoPagoId, ISNULL(mp.Nombre, 'Sin especificar') AS Metodo,
+           e.MetodoPago2Id, mp2.Nombre AS Metodo2, e.MetodoPago2Monto,
+           e.UsuarioId, u.Nombre AS UsuarioNombre,
+           e.FechaRegistro, e.Detalle
+    FROM CobroEventos e
+    INNER JOIN Cobros co ON co.Id = e.CobroId
+    LEFT  JOIN MetodosPago mp ON mp.Id = e.MetodoPagoId
+    LEFT  JOIN MetodosPago mp2 ON mp2.Id = e.MetodoPago2Id
+    LEFT  JOIN Usuarios u ON u.Id = e.UsuarioId
+    WHERE co.PolizaId = @PolizaId
+    ORDER BY e.FechaRegistro DESC, e.Id DESC;
+END
+GO
+
+/* =============================================================================
+   §69 — Notas/recordatorios privados por usuario.
+   Cada usuario sólo puede listar, crear y eliminar SUS propias notas.
+   ============================================================================= */
+IF OBJECT_ID('dbo.NotasUsuario', 'U') IS NULL
+BEGIN
+    CREATE TABLE NotasUsuario (
+        Id            INT PRIMARY KEY IDENTITY,
+        UsuarioId     INT NOT NULL REFERENCES Usuarios(Id),
+        Texto         NVARCHAR(1000) NOT NULL,
+        FechaCreacion DATETIME NOT NULL DEFAULT GETUTCDATE()
+    );
+    CREATE INDEX IX_NotasUsuario_Usuario_Fecha ON NotasUsuario(UsuarioId, FechaCreacion DESC);
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nota_Insertar
+    @UsuarioId INT,
+    @Texto NVARCHAR(1000)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO NotasUsuario (UsuarioId, Texto)
+    VALUES (@UsuarioId, @Texto);
+    SELECT SCOPE_IDENTITY() AS NuevoId;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nota_GetPorUsuario
+    @UsuarioId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Texto, FechaCreacion
+    FROM NotasUsuario
+    WHERE UsuarioId = @UsuarioId
+    ORDER BY FechaCreacion DESC, Id DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Nota_Eliminar
+    @Id INT,
+    @UsuarioId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM NotasUsuario
+    WHERE Id = @Id AND UsuarioId = @UsuarioId;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+

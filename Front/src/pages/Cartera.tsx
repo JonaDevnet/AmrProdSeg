@@ -419,12 +419,12 @@ function ExportarModal({ onClose }: { onClose: () => void }) {
       if (filasDatos.length === 0) { setError("No hay pólizas para exportar con ese criterio."); setCargando(false); return; }
       const filas: (string | number)[][] = [
         ["Próximo vencimiento", "Compañía", "Cuota actual", "Cuotas totales", "Precio cobrado", "Precio total", "Prima OG", "N° póliza",
-          "Cliente", "Documento", "Tipo doc", "Email", "Teléfono", "Dirección",
+          "Cliente", "Documento", "Tipo doc", "Nacionalidad", "Email", "Teléfono", "Dirección",
           "Patente", "Marca", "Modelo", "Año", "N° chasis", "N° motor", "Combustión", "Tipo de cobertura"],
         ...filasDatos.map((r) => [
           r.proximoVencimiento ? fmtFecha(r.proximoVencimiento) : "—",
           r.compania, r.cuotaActual, r.cuotasTotal, r.precioCobrado, r.precioTotal, r.primaOG, r.nroPoliza,
-          r.clienteNombre, r.documento, r.tipoDocumento, r.email, r.telefono, r.direccion,
+          r.clienteNombre, r.documento, r.tipoDocumento, r.nacionalidad, r.email, r.telefono, r.direccion,
           r.patente, r.marca, r.modelo, r.anio, r.chasis, r.motor, r.combustion,
           r.tipoCobertura,
         ]),

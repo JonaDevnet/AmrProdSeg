@@ -31,7 +31,8 @@ public class AltaRepository : IAltaRepository
                     ("@Telefono", (object?)cliente.Telefono ?? DBNull.Value),
                     ("@Direccion", (object?)cliente.Direccion ?? DBNull.Value),
                     ("@TipoDocumento", (object?)cliente.TipoDocumento ?? DBNull.Value),
-                    ("@FechaNacimiento", (object?)cliente.FechaNacimiento ?? DBNull.Value));
+                    ("@FechaNacimiento", (object?)cliente.FechaNacimiento ?? DBNull.Value),
+                    ("@NacionalidadId", (object?)cliente.NacionalidadId ?? DBNull.Value));
 
             int? vehiculoId = null;
             if (vehiculo != null && vehiculo.Id > 0)

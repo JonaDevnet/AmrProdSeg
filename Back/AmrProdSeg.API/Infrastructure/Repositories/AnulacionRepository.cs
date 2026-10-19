@@ -10,8 +10,9 @@ public class AnulacionRepository : IAnulacionRepository
     private readonly IDbConnectionFactory _factory;
     public AnulacionRepository(IDbConnectionFactory factory) => _factory = factory;
 
-    public async Task<int> AnularPagoDirectoAsync(int cobroId)
-        => await EscalarAsync("sp_Cobro_AnularPago", ("@CobroId", cobroId));
+    public async Task<int> AnularPagoDirectoAsync(int cobroId, int? usuarioId = null)
+        => await EscalarAsync("sp_Cobro_AnularPago",
+            ("@CobroId", cobroId), ("@UsuarioId", (object?)usuarioId ?? DBNull.Value));
 
     public async Task<int> SolicitarAsync(int cobroId, int usuarioId, string? motivo)
         => await EscalarAsync("sp_Anulacion_Solicitar",

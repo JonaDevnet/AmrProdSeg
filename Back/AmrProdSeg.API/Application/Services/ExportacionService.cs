@@ -43,7 +43,8 @@ public class ExportacionService : IExportacionService
         var compania = await _companiaRepo.GetByIdAsync(poliza.CompaniaId);
 
         var data = new ClienteDossierData(
-            cliente.Nombre, cliente.Documento, cliente.TipoDocumento, cliente.Email, cliente.Telefono,
+            cliente.Nombre, cliente.Documento, cliente.TipoDocumento, cliente.NacionalidadNombre,
+            cliente.Email, cliente.Telefono,
             cliente.Direccion, cliente.FechaNacimiento, cliente.FechaAlta,
             veh is null
                 ? new List<DossierVehiculo>()

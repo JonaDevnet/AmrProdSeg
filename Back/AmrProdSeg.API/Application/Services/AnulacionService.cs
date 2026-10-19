@@ -20,7 +20,7 @@ public class AnulacionService : IAnulacionService
     {
         if (esAdmin)
         {
-            var afectadas = await _repo.AnularPagoDirectoAsync(cobroId);
+            var afectadas = await _repo.AnularPagoDirectoAsync(cobroId, usuarioId);
             if (afectadas == 0)
                 throw new BusinessException("La cuota no está pagada o no existe.");
             return new AnularPagoResultDto { Anulada = true, Mensaje = "Pago anulado: la cuota volvió a estado pendiente." };

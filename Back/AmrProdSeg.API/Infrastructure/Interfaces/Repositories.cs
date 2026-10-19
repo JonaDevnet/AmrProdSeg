@@ -34,16 +34,16 @@ public interface ICobroRepository
     Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId);
     Task MarcarVencidosAsync();
     /// <summary>
-    /// Regenera las cuotas NO pagadas según el nuevo precio, cantidad de cuotas y vencimiento de
-    /// la 1ª cuota (cuota i = primerVencimiento + (i-1) meses). Las pagadas no se tocan.
-    /// </summary>
-    Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento);
-    /// <summary>
     /// Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (continúa la numeración,
     /// 1er vencimiento del ciclo = <paramref name="primerVencimiento"/>) y actualiza período/importes.
     /// </summary>
     Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
-        decimal? primaOG, string? cobertura, string? formaPago);
+        decimal? primaOG, string? cobertura, string? formaPago, int? usuarioId = null);
+    /// <summary>Agrega un ciclo nuevo por modificación de período, sin tocar los ciclos anteriores.</summary>
+    Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
+        DateTime primerVencimiento, string descripcion, int? usuarioId = null);
+    /// <summary>Historial append-only de pagos/anulaciones de la póliza.</summary>
+    Task<List<CobroEvento>> GetEventosAsync(int polizaId);
 }
 
 public interface IClienteRepository
@@ -94,6 +94,14 @@ public interface ICoberturaRepository
     Task<int> EliminarAsync(int id);
 }
 
+public interface INacionalidadRepository
+{
+    Task<int> InsertarAsync(string nombre);
+    Task<List<Nacionalidad>> GetAllAsync();
+    Task<Nacionalidad?> GetByIdAsync(int id);
+    Task<int> EliminarAsync(int id);
+}
+
 public interface IOficinaRepository
 {
     Task<int> InsertarAsync(string nombre);
@@ -115,6 +123,7 @@ public interface IBajaRepository
 public interface IAuthRepository
 {
     Task<Usuario?> GetUsuarioByEmailAsync(string email);
+    Task<Usuario?> GetUsuarioByEmailInclInactivoAsync(string email);
     Task<Usuario?> GetUsuarioByIdAsync(int id);
     Task GuardarRefreshTokenAsync(int usuarioId, string token, DateTime expiracion);
     Task<RefreshToken?> GetRefreshTokenAsync(string token);
@@ -124,6 +133,7 @@ public interface IAuthRepository
 public interface IUsuarioRepository
 {
     Task<int> InsertarAsync(string nombre, string email, string passwordHash, string rol);
+    Task<int> ReactivarAsync(int id, string nombre, string passwordHash, string rol);
     Task CambiarPasswordAsync(int id, string passwordHash);
     Task<List<Usuario>> GetAllAsync();
     Task AsignarOficinaAsync(int usuarioId, int? oficinaId);
@@ -212,6 +222,13 @@ public interface IConfiguracionRepository
     Task<int> GetAdminIdAsync();
 }
 
+public interface INotaRepository
+{
+    Task<int> InsertarAsync(int usuarioId, string texto);
+    Task<List<Nota>> GetPorUsuarioAsync(int usuarioId);
+    Task<int> EliminarAsync(int id, int usuarioId);
+}
+
 public interface IMovimientoRepository
 {
     Task<int> InsertarAsync(Movimiento m);
@@ -221,7 +238,7 @@ public interface IMovimientoRepository
 
 public interface IAnulacionRepository
 {
-    Task<int> AnularPagoDirectoAsync(int cobroId);
+    Task<int> AnularPagoDirectoAsync(int cobroId, int? usuarioId = null);
     Task<int> SolicitarAsync(int cobroId, int usuarioId, string? motivo);
     Task<List<AnulacionCobro>> GetPendientesAsync();
     Task<List<AnulacionCobro>> GetHistorialAsync();

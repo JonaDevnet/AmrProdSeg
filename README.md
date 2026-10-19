@@ -3,6 +3,8 @@
 Plataforma web para productores de seguros: clientes, vehículos, pólizas, cobranzas,
 renovaciones, reportes y comprobantes en PDF.
 
+> **Versión actual:** 1.2.0 — 19/10/2026
+
 - **Backend:** ASP.NET Core (.NET 10) en capas + ADO.NET + SQL Server (Stored Procedures), JWT con roles, FluentValidation, Quartz.NET, QuestPDF, ClosedXML, Serilog.
 - **Frontend:** React 18 + TypeScript + Vite, React Router, React Query, React Hook Form + Zod, Recharts.
 - **Base de datos:** SQL Server (`AmrProdSeg`).
@@ -21,7 +23,7 @@ renovaciones, reportes y comprobantes en PDF.
 Ejecutar, **en orden**, sobre tu instancia de SQL Server:
 
 ```bash
-sqlcmd -S "localhost\SQLEXPRESS" -E -i AmrProdSeg_Schema.sql
+sqlcmd -S "localhost\SQLEXPRESS" -E -f 65001 -i AmrProdSeg_Schema.sql
 sqlcmd -S "localhost\SQLEXPRESS" -E -i AmrProdSeg_Seed.sql
 sqlcmd -S "localhost\SQLEXPRESS" -E -d AmrProdSeg -i AmrProdSeg_SeedDemo.sql   # opcional: datos demo ricos
 ```
@@ -59,18 +61,19 @@ El dev server **proxea `/api` → `http://localhost:5207`**, así que ambos debe
 
 ## 5. Funcionalidades
 
-- **Cartera de clientes**: búsqueda, paginación, alta/edición, corrección de documento (Admin, auditada).
+- **Cartera de clientes**: búsqueda, paginación, alta/edición, **nacionalidad obligatoria desde catálogo**, corrección de documento (Admin, auditada).
 - **Vehículos**: alta/edición desde la ficha del cliente.
-- **Pólizas**: listado con filtros, detalle, plan de cuotas, comprobante PDF, cancelación.
-- **Cobranzas**: cuotas pendientes con **dots de progreso** por póliza, registro de pago con **método de pago**,
+- **Pólizas**: listado con filtros, detalle, plan de cuotas, comprobante PDF, cancelación. Las cuotas ya generadas son **inmutables**: los cambios de período agregan un ciclo nuevo debajo (Modificación de período) y el resto de cambios de plan se hacen con **Refacturar** o **Renovar**.
+- **Cobranzas**: cuotas pendientes con **dots de progreso** por póliza, registro de pago con **método de pago** e **historial completo de pagos/anulaciones**,
   **comprobante** (imprimir + enviar por Email/WhatsApp), **anulación** de pago (Admin directo / Productor con aprobación) y **renovación**.
 - **Alta de asegurado**: wizard de 3 pasos (cliente + vehículo + póliza) en **una transacción**. Emite Nº **E/T**
   (en trámite) y luego se asigna el **número definitivo**. Captura **prima OG** (interna).
 - **Reportes** (3 tabs fieles al diseño): **Pagos recibidos**, **Rendición** (con prima OG y diferencia) y
   **Hechos del día**, con exportación a **CSV/Excel**.
 - **Mis finanzas**: dashboard personal de ingresos/egresos, **privado por usuario**.
+- **Notas privadas** (ícono al lado de la campanita): cada usuario escribe sus recordatorios y los elimina cuando los resuelve; nadie más puede verlos.
 - **Búsqueda global** (⌘K / Ctrl+K) sobre clientes, vehículos y pólizas.
-- **Administración** (rol Admin): usuarios/vendedores, compañías, métodos de pago y ramos (alta y **eliminación**).
+- **Administración** (rol Admin): usuarios/vendedores, compañías, métodos de pago, ramos, coberturas y nacionalidades (alta y **eliminación**). Los usuarios dados de baja pueden **reactivarse** reutilizando su mismo correo.
 - **Recuperación de contraseña con autorización del Admin**: el vendedor la solicita, el Admin la
   autoriza y el vendedor define su nueva contraseña.
 - **Notificaciones de vencimiento** (job diario Quartz): recordatorios por **Email** (SMTP) y

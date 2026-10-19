@@ -135,6 +135,7 @@ export interface EndosoTitularDto {
   telefono?: string;
   direccion?: string;
   tipoDocumento?: string;
+  nacionalidadId?: number;
   motivo?: string;
 }
 

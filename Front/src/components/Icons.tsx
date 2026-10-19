@@ -77,6 +77,21 @@ export const IconBell = (p: P) => (
     <path d="M10.3 21a2 2 0 0 0 3.4 0" />
   </Icon>
 );
+export const IconNote = (p: P) => (
+  <Icon {...p}>
+    <path d="M5 3h9l4 4v14H5z" />
+    <path d="M14 3v5h5" />
+    <path d="M8 13h7M8 17h5" />
+  </Icon>
+);
+export const IconTrash = (p: P) => (
+  <Icon {...p}>
+    <path d="M3 6h18" />
+    <path d="M8 6V4h8v2" />
+    <path d="M19 6l-1 15H6L5 6" />
+    <path d="M10 11v6M14 11v6" />
+  </Icon>
+);
 export const IconLogout = (p: P) => (
   <Icon {...p}>
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

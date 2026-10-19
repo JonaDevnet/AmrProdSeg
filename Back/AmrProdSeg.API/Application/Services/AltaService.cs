@@ -17,6 +17,7 @@ public class AltaService : IAltaService
     private readonly IPdfService _pdfService;
     private readonly IAvisoRepository _avisoRepo;
     private readonly INotificacionPusher _pusher;
+    private readonly INacionalidadRepository _nacionalidadRepo;
 
     public AltaService(
         IAltaRepository altaRepo,
@@ -26,7 +27,8 @@ public class AltaService : IAltaService
         ICompaniaRepository companiaRepo,
         IPdfService pdfService,
         IAvisoRepository avisoRepo,
-        INotificacionPusher pusher)
+        INotificacionPusher pusher,
+        INacionalidadRepository nacionalidadRepo)
     {
         _altaRepo     = altaRepo;
         _clienteRepo  = clienteRepo;
@@ -36,10 +38,16 @@ public class AltaService : IAltaService
         _pdfService   = pdfService;
         _avisoRepo    = avisoRepo;
         _pusher       = pusher;
+        _nacionalidadRepo = nacionalidadRepo;
     }
 
     public async Task<AltaResultDto> RegistrarAsync(AltaAseguradoDto dto, int? usuarioId = null)
     {
+        if (dto.NacionalidadId is not int nacionalidadId || nacionalidadId <= 0)
+            throw new BusinessException("Elegí la nacionalidad.");
+        if (await _nacionalidadRepo.GetByIdAsync(nacionalidadId) is null)
+            throw new BusinessException("La nacionalidad seleccionada no existe.");
+
         // Un cliente puede tener muchas pólizas: si el documento ya existe, se REUTILIZA el cliente.
         var clienteExistente = await _clienteRepo.VerificarDocumentoAsync(dto.Documento);
 
@@ -71,7 +79,8 @@ public class AltaService : IAltaService
             Telefono      = dto.Telefono,
             Direccion     = Up(dto.Direccion),
             TipoDocumento = dto.TipoDocumento,
-            FechaNacimiento = dto.FechaNacimiento
+            FechaNacimiento = dto.FechaNacimiento,
+            NacionalidadId = dto.NacionalidadId
         };
 
         // El vehículo se crea sólo si el ramo lo requiere (hay patente/marca cargada).

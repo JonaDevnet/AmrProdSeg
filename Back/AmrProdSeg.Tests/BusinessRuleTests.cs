@@ -90,7 +90,11 @@ public class PolizaServiceTests
     {
         var polizaRepo = new FakePolizaRepository
         {
-            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-000020", Patente = "AB123CD", CompaniaId = 1 }
+            PolizaPorId = new Poliza
+            {
+                Id = 1, Numero = "E/T-000020", Patente = "AB123CD", CompaniaId = 1,
+                PrecioTotal = 50000, CantidadCuotas = 6
+            }
         };
         var auditoria = new FakeAuditoriaMovimientoService();
         var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
@@ -105,6 +109,112 @@ public class PolizaServiceTests
         var r = Assert.Single(auditoria.Registros);
         Assert.Contains("E/T-000020", r.detalle);
         Assert.Contains("AB123CD", r.detalle);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_CambiaPeriodo_AgregaCicloNuevo()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza
+            {
+                Id = 1, Numero = "E/T-1", CompaniaId = 1,
+                FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 6, 1),
+                PrecioTotal = 50000, CantidadCuotas = 6
+            }
+        };
+        var cobroRepo = new FakeCobroRepository();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1,
+            FechaInicio = new DateTime(2026, 2, 1), FechaFin = new DateTime(2026, 8, 1),
+            PrecioTotal = 50000, CantidadCuotas = 6
+        });
+
+        Assert.Equal(1, cobroRepo.AgregarModificacionPeriodoLlamadas);
+        Assert.Equal(new DateTime(2026, 3, 1), cobroRepo.UltimoModificacionVencimiento);
+        Assert.Contains("Modificación de período", cobroRepo.UltimaModificacionDescripcion);
+        Assert.Equal(50000m, cobroRepo.UltimaModificacionPrecio);
+        Assert.Equal(6, cobroRepo.UltimaModificacionCuotas);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_SoloCambiaFin_ContinuaDesdeLaUltimaCuota()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza
+            {
+                Id = 1, Numero = "E/T-1", CompaniaId = 1,
+                FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 3, 1),
+                PrecioTotal = 50000, CantidadCuotas = 2
+            }
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { Id = 1, PolizaId = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 1, 21) },
+                new Cobro { Id = 2, PolizaId = 1, NumeroCuota = 2, FechaVencimiento = new DateTime(2026, 2, 21) }
+            }
+        };
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1,
+            FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 7, 1),
+            PrecioTotal = 50000, CantidadCuotas = 2
+        });
+
+        Assert.Equal(new DateTime(2026, 3, 21), cobroRepo.UltimoModificacionVencimiento);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_SinCambioPeriodo_NoAgregaCiclo()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza
+            {
+                Id = 1, Numero = "E/T-1", CompaniaId = 1,
+                FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 6, 1),
+                PrecioTotal = 50000, CantidadCuotas = 6
+            }
+        };
+        var cobroRepo = new FakeCobroRepository();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1,
+            FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 6, 1),
+            PrecioTotal = 50000, CantidadCuotas = 6
+        });
+
+        Assert.Equal(0, cobroRepo.AgregarModificacionPeriodoLlamadas);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_CambiaPrecioOCuotas_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-1", CompaniaId = 1, PrecioTotal = 50000, CantidadCuotas = 6 }
+        };
+        var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await Assert.ThrowsAsync<BusinessException>(() => svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1, FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddMonths(6),
+            PrecioTotal = 60000, CantidadCuotas = 3
+        }));
     }
 
     [Fact]
@@ -249,11 +359,11 @@ public class ClienteServiceTests
         var repo = new FakeClienteRepository { PorDocumento = new Cliente { Id = 1, Documento = "30111222" } };
         var service = new ClienteService(repo, new FakeUsuarioRepository(),
             new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService(),
-            new FakeAuditoriaMovimientoService());
+            new FakeAuditoriaMovimientoService(), new FakeNacionalidadRepository());
 
         await Assert.ThrowsAsync<BusinessException>(() => service.CrearAsync(new CrearClienteDto
         {
-            Nombre = "Juan Pérez", Documento = "30111222"
+            Nombre = "Juan Pérez", Documento = "30111222", NacionalidadId = 1
         }));
         Assert.Equal(0, repo.InsertarLlamadas);
     }
@@ -268,9 +378,9 @@ public class ClienteServiceTests
         var auditoria = new FakeAuditoriaMovimientoService();
         var service = new ClienteService(repo, new FakeUsuarioRepository(),
             new FakeVehiculoRepository(), new FakePolizaRepository(), new FakeCompaniaRepository(), new FakePdfService(),
-            auditoria);
+            auditoria, new FakeNacionalidadRepository());
 
-        await service.ActualizarAsync(1, new ActualizarClienteDto { Nombre = "Jonathan" }, usuarioId: 9);
+        await service.ActualizarAsync(1, new ActualizarClienteDto { Nombre = "Jonathan", NacionalidadId = 1 }, usuarioId: 9);
 
         var r = Assert.Single(auditoria.Registros);
         Assert.Contains("DNI 30111222", r.detalle);

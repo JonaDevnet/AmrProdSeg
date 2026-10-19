@@ -29,6 +29,7 @@ public class ClienteRepository : IClienteRepository
         cmd.Parameters.AddWithValue("@OficinaId", (object?)c.OficinaId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@VendedorId", (object?)c.VendedorId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FechaNacimiento", (object?)c.FechaNacimiento ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@NacionalidadId", (object?)c.NacionalidadId ?? DBNull.Value);
 
         var result = await cmd.ExecuteScalarAsync();
         return Convert.ToInt32(result);
@@ -50,6 +51,7 @@ public class ClienteRepository : IClienteRepository
         cmd.Parameters.AddWithValue("@Direccion", (object?)c.Direccion ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@TipoDocumento", (object?)c.TipoDocumento ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FechaNacimiento", (object?)c.FechaNacimiento ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@NacionalidadId", (object?)c.NacionalidadId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
     }
 
@@ -155,6 +157,8 @@ public class ClienteRepository : IClienteRepository
         Direccion = r.IsDBNull(r.GetOrdinal("Direccion")) ? null : r.GetString(r.GetOrdinal("Direccion")),
         TipoDocumento = r.IsDBNull(r.GetOrdinal("TipoDocumento")) ? null : r.GetString(r.GetOrdinal("TipoDocumento")),
         FechaNacimiento = TieneCol(r, "FechaNacimiento") && !r.IsDBNull(r.GetOrdinal("FechaNacimiento")) ? r.GetDateTime(r.GetOrdinal("FechaNacimiento")) : null,
+        NacionalidadId = TieneCol(r, "NacionalidadId") && !r.IsDBNull(r.GetOrdinal("NacionalidadId")) ? r.GetInt32(r.GetOrdinal("NacionalidadId")) : null,
+        NacionalidadNombre = TieneCol(r, "NacionalidadNombre") && !r.IsDBNull(r.GetOrdinal("NacionalidadNombre")) ? r.GetString(r.GetOrdinal("NacionalidadNombre")) : null,
         OficinaId = TieneCol(r, "OficinaId") && !r.IsDBNull(r.GetOrdinal("OficinaId")) ? r.GetInt32(r.GetOrdinal("OficinaId")) : null,
         FechaAlta = r.GetDateTime(r.GetOrdinal("FechaAlta")),
         Activo    = r.GetBoolean(r.GetOrdinal("Activo"))

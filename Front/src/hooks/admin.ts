@@ -4,6 +4,7 @@ import { getCompanias, crearCompania, eliminarCompania, type CrearCompaniaDto } 
 import { getMetodosPago, crearMetodoPago, eliminarMetodoPago } from "../api/metodosPago";
 import { getRamos, crearRamo, eliminarRamo } from "../api/ramos";
 import { getCoberturas, crearCobertura, eliminarCobertura } from "../api/coberturas";
+import { getNacionalidades, crearNacionalidad, eliminarNacionalidad } from "../api/nacionalidades";
 import { getOficinas, crearOficina, eliminarOficina } from "../api/oficinas";
 import type { Rol } from "../types";
 
@@ -167,5 +168,26 @@ export function useEliminarCobertura() {
   return useMutation({
     mutationFn: (id: number) => eliminarCobertura(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["coberturas"] }),
+  });
+}
+
+/* -------- Nacionalidades -------- */
+export function useNacionalidades() {
+  return useQuery({ queryKey: ["nacionalidades"], queryFn: getNacionalidades, staleTime: 5 * 60 * 1000 });
+}
+
+export function useCrearNacionalidad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nombre: string) => crearNacionalidad(nombre),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nacionalidades"] }),
+  });
+}
+
+export function useEliminarNacionalidad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => eliminarNacionalidad(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nacionalidades"] }),
   });
 }

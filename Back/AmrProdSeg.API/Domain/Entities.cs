@@ -12,6 +12,8 @@ public class Cliente
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
     public DateTime? FechaNacimiento { get; set; }
+    public int? NacionalidadId { get; set; }
+    public string? NacionalidadNombre { get; set; }   // sólo lectura (JOIN)
     public int? OficinaId { get; set; }
     public int? VendedorId { get; set; }          // usuario que dio de alta al cliente
     public DateTime FechaAlta { get; set; }
@@ -99,6 +101,13 @@ public class Ramo
     public bool Activo { get; set; } = true;
 }
 
+public class Nacionalidad
+{
+    public int Id { get; set; }
+    public string Nombre { get; set; } = string.Empty;
+    public bool Activo { get; set; } = true;
+}
+
 public class Cobertura
 {
     public int Id { get; set; }
@@ -176,11 +185,34 @@ public class Cobro
     public int? MetodoPago2Id { get; set; }   // segundo método (opcional, ej. parte efectivo + parte transferencia)
     public decimal? MetodoPago2Monto { get; set; }   // cuánto se pagó con el 2° método (el resto va al principal)
     public int Ciclo { get; set; } = 1;               // ciclo de facturación (1 = original; 2,3… = refacturación)
+    public string? CicloTipo { get; set; }             // Original | Refacturacion | ModificacionPeriodo | Renovacion
+    public string? CicloDescripcion { get; set; }
 
     // Campos de sólo lectura para listados (provienen de JOINs, no se persisten)
     public string? NroPoliza { get; set; }
     public string? ClienteNombre { get; set; }
     public string? CobradorNombre { get; set; }   // quién registró el cobro (admin)
+}
+
+/// <summary>Evento append-only del historial de pagos/anulaciones de una cuota.</summary>
+public class CobroEvento
+{
+    public int Id { get; set; }
+    public int CobroId { get; set; }
+    public int Ciclo { get; set; }
+    public int NumeroCuota { get; set; }
+    public string Tipo { get; set; } = string.Empty;   // Pago | Anulacion
+    public DateTime FechaEvento { get; set; }
+    public decimal? Monto { get; set; }
+    public int? MetodoPagoId { get; set; }
+    public string Metodo { get; set; } = string.Empty;
+    public int? MetodoPago2Id { get; set; }
+    public string? Metodo2 { get; set; }
+    public decimal? MetodoPago2Monto { get; set; }
+    public int? UsuarioId { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public DateTime FechaRegistro { get; set; }
+    public string? Detalle { get; set; }
 }
 
 public class MetodoPago
@@ -222,6 +254,15 @@ public class Movimiento
     public string? Categoria { get; set; }
     public string? Descripcion { get; set; }
     public DateTime Fecha { get; set; }
+}
+
+/// <summary>Nota o recordatorio privado de un usuario.</summary>
+public class Nota
+{
+    public int Id { get; set; }
+    public int UsuarioId { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public DateTime FechaCreacion { get; set; }
 }
 
 /// <summary>Registro de una operación sensible (auditoría de movimientos).</summary>

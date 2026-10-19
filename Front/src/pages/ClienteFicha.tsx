@@ -88,6 +88,7 @@ export default function ClienteFicha() {
       telefono: limpio(v.telefono),
       direccion: limpio(v.direccion),
       fechaNacimiento: limpio(v.fechaNacimiento),
+      nacionalidadId: v.nacionalidadId,
     };
     try {
       await actualizar.mutateAsync(dto);
@@ -202,6 +203,7 @@ export default function ClienteFicha() {
           <Dato label="Email" valor={cliente.email} />
           <Dato label="Teléfono" valor={cliente.telefono} />
           <Dato label="Dirección" valor={cliente.direccion} />
+          <Dato label="Nacionalidad" valor={cliente.nacionalidadNombre} />
           <Dato label="Nacimiento" valor={cliente.fechaNacimiento ? formatFecha(cliente.fechaNacimiento) : null} />
           <Dato label="Alta" valor={formatFecha(cliente.fechaAlta)} />
         </div>
@@ -459,13 +461,6 @@ function planCuotas(n: number): string {
   return plan ? `${plan} (${n})` : `${n} cuotas`;
 }
 
-// Ordinal de la cuota para la leyenda de vencimientos (1re, 2da, 3ra, …).
-function ordinalCuota(n: number): string {
-  return n === 1 ? "1re" : n === 2 ? "2da" : n === 3 ? "3ra" : `${n}ª`;
-}
-
-const PLAN_CUOTAS: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3 };
-
 // Período de vigencia de la póliza, en meses.
 const PERIODO_POLIZA: Record<string, number> = { Mensual: 1, Bimestral: 2, Trimestral: 3, Cuatrimestral: 4, Semestral: 6, Anual: 12 };
 
@@ -499,18 +494,9 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
   const [periodo, setPeriodo] = useState(() => nombrePeriodoPoliza(poliza.fechaInicio.slice(0, 10), poliza.fechaFin.slice(0, 10)));
-  const [precioCuota, setPrecioCuota] = useState(String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
-  const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string>();
-
-  // Modelo "Inicio de póliza": la 1ª cuota vence 1 mes después del inicio y las
-  // siguientes +1 mes cada una. Se DERIVA del inicio (no se edita a mano).
-  const primeraCuota = sumarMeses(fechaInicio, 1);
-
-  // "Período de cuotas" ↔ cantidad: Mensual=1, Bimestral=2, Trimestral=3.
-  const periodoCuotas = Object.entries(PLAN_CUOTAS).find(([, n]) => n === Number(cantidadCuotas))?.[0] ?? "";
 
   // Al cambiar el inicio se re-calcula la fecha fin según el período elegido.
   function cambiarInicio(v: string) {
@@ -524,19 +510,16 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
     setFechaFin(sumarMeses(fechaInicio, PERIODO_POLIZA[p] ?? 12));
   }
 
-  // Leyenda de vencimientos de las cuotas (inicio + 1 mes, +1 mes c/u).
-  const nCuotas = Math.max(0, Math.min(24, Number(cantidadCuotas) || 0));
-  const vencimientos = Array.from({ length: nCuotas }, (_, i) => `Vto. ${ordinalCuota(i + 1)}: ${formatFecha(sumarMeses(fechaInicio, i + 1))}`).join("  ·  ");
-
   async function guardar() {
     setError(undefined); setGuardando(true);
     try {
       await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
-        fechaInicio, fechaFin, precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100, cantidadCuotas: Number(cantidadCuotas),
+        fechaInicio, fechaFin,
+        // El plan de cuotas generado es inmutable: se envían los valores actuales.
+        precioTotal: poliza.precioTotal, cantidadCuotas: poliza.cantidadCuotas,
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
-        primerVencimiento: primeraCuota,
       });
       // El número se cambia por su endpoint propio (valida que no esté en uso por una póliza viva).
       if (numero.trim() && numero.trim() !== poliza.numero) {
@@ -573,30 +556,12 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => cambiarInicio(e.target.value)} /></Field>
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Período de cuotas">
-          <Select value={periodoCuotas} onChange={(e) => setCantidadCuotas(String(PLAN_CUOTAS[e.target.value] ?? cantidadCuotas))}>
-            {periodoCuotas === "" && <option value="">{cantidadCuotas} cuotas</option>}
-            {Object.keys(PLAN_CUOTAS).map((p) => <option key={p} value={p}>{p}</option>)}
-          </Select>
-        </Field>
-        <Field label="Cantidad de cuotas"><Input type="number" value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
-      </div>
-      {vencimientos && (
-        <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>{vencimientos}</div>
-      )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
-        <Field label="Prima OG (por cuota, interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
-      </div>
+      <Field label="Prima OG (por cuota, interna)">
+        <Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" />
+      </Field>
       <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
-        {/* Las cuotas se generan desde el <strong>inicio de póliza</strong> (arriba): la 1ª vence el{" "}
-        <strong>{primeraCuota.split("-").reverse().join("/")}</strong> (inicio + 1 mes) y las siguientes +1 mes cada una.
-        Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro). */}
+        Las cuotas ya generadas no se modifican. Si cambiás el período, se agrega un ciclo nuevo debajo de los anteriores; para cambios de precio o cantidad de cuotas usá <strong>Refacturar</strong> o <strong>Renovar</strong>.
       </div>
-      {/* <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 2 }}>
-        Total de la póliza: <strong>{formatMoneda((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0))}</strong> ({cantidadCuotas} cuotas)
-      </div> */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
         <Button variant="secondary" onClick={onClose}>Cancelar</Button>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>

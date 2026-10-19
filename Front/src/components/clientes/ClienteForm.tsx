@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Field, Input } from "../ui/Field";
+import { Field, Input, Select } from "../ui/Field";
 import Button from "../ui/Button";
+import { useNacionalidades } from "../../hooks/admin";
 import type { Cliente } from "../../types";
 
 const schema = z.object({
@@ -12,6 +13,7 @@ const schema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().max(30).optional().or(z.literal("")),
   direccion: z.string().max(200).optional().or(z.literal("")),
+  nacionalidadId: z.coerce.number().int().positive("Elegí una nacionalidad"),
 });
 
 // La fecha de nacimiento se maneja aparte (texto para pegar/escribir + calendario).
@@ -47,6 +49,7 @@ interface Props {
 
 export default function ClienteForm({ cliente, onSubmit, enviando }: Props) {
   const editar = !!cliente;
+  const { data: nacionalidades = [] } = useNacionalidades();
   const {
     register,
     handleSubmit,
@@ -59,6 +62,7 @@ export default function ClienteForm({ cliente, onSubmit, enviando }: Props) {
       email: cliente?.email ?? "",
       telefono: cliente?.telefono ?? "",
       direccion: cliente?.direccion ?? "",
+      nacionalidadId: cliente?.nacionalidadId ?? 0,
     },
   });
 
@@ -84,6 +88,15 @@ export default function ClienteForm({ cliente, onSubmit, enviando }: Props) {
           disabled={editar}
           style={editar ? { background: "var(--canvas)", color: "var(--ink-500)" } : undefined}
         />
+      </Field>
+
+      <Field label="Nacionalidad" error={errors.nacionalidadId?.message}>
+        <Select {...register("nacionalidadId")}>
+          <option value={0}>Seleccionar…</option>
+          {nacionalidades.map((n) => (
+            <option key={n.id} value={n.id}>{n.nombre}</option>
+          ))}
+        </Select>
       </Field>
 
       <Field label="Email" error={errors.email?.message}>

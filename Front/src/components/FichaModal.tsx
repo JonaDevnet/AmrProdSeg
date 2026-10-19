@@ -56,6 +56,7 @@ export default function FichaModal({ polizaId, onClose }: { polizaId: number; on
                   ["Nombre completo", cliente.data?.nombre],
                   ["Tipo de documento", cliente.data?.tipoDocumento],
                   ["Documento", cliente.data?.documento, true],
+                  ["Nacionalidad", cliente.data?.nacionalidadNombre],
                   ["Email", cliente.data?.email],
                   ["Teléfono", cliente.data?.telefono, true],
                   ["Domicilio", cliente.data?.direccion],

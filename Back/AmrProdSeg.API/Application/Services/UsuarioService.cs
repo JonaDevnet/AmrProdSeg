@@ -24,12 +24,30 @@ public class UsuarioService : IUsuarioService
 
     public async Task<int> CrearAsync(CrearUsuarioDto dto)
     {
-        var existente = await _authRepo.GetUsuarioByEmailAsync(dto.Email);
-        if (existente != null)
-            throw new BusinessException($"Ya existe un usuario con el email {dto.Email}.");
+        var email = (dto.Email ?? string.Empty).Trim();
+        var nombre = (dto.Nombre ?? string.Empty).Trim();
+
+        // La baja de usuarios es lógica: el email sigue ocupando el UNIQUE. Si el
+        // usuario existe inactivo, se reactiva la MISMA fila (conserva Id e historial).
+        var existente = await _authRepo.GetUsuarioByEmailInclInactivoAsync(email);
+
+        if (existente is { Activo: true })
+            throw new BusinessException($"Ya existe un usuario con el email {email}.");
 
         var hash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
-        return await _usuarioRepo.InsertarAsync(dto.Nombre, dto.Email, hash, dto.Rol);
+
+        if (existente is { Activo: false })
+        {
+            var reactivado = await _usuarioRepo.ReactivarAsync(existente.Id, nombre, hash, dto.Rol);
+            if (reactivado == 0)
+                throw new BusinessException("No se pudo reactivar el usuario.");
+            return existente.Id;
+        }
+
+        var id = await _usuarioRepo.InsertarAsync(nombre, email, hash, dto.Rol);
+        if (id <= 0)
+            throw new BusinessException($"Ya existe un usuario con el email {email}.");
+        return id;
     }
 
     public async Task CambiarPasswordAsync(int usuarioId, CambiarPasswordDto dto)

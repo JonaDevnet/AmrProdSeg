@@ -2,6 +2,7 @@ import { useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCliente, usePolizasPorCliente, useVehiculosPorCliente } from "../hooks/clientes";
 import { useCobrosPorPoliza } from "../hooks/polizas";
+import { useHistorialCobros } from "../hooks/cobranzas";
 import { imprimirComprobante } from "../api/cobros";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import { formatFecha, formatMoneda } from "../utils/format";
@@ -33,6 +34,7 @@ export default function CuotasYPago() {
 
   const cobros = useCobrosPorPoliza(selId ?? 0);
   const cuotas = cobros.data ?? [];
+  const historial = useHistorialCobros(selId ?? 0);
 
   // Agrupa las cuotas por ciclo (1 = original; 2,3… = refacturación).
   const porCiclo = new Map<number, Cobro[]>();
@@ -62,6 +64,9 @@ export default function CuotasYPago() {
       <p style={{ color: "var(--ink-500)", fontSize: 14, margin: "0 0 18px" }}>
         {cliente?.nombre ?? "Cliente"} · seleccioná una póliza para ver sus cuotas.
       </p>
+      <div style={{ margin: "-8px 0 18px", padding: "10px 14px", background: "var(--blue-50)", border: "1px solid var(--line)", borderRadius: 9, fontSize: 13, color: "var(--ink-700)" }}>
+        Los registros de cuotas ya generados no se modifican. Si cambiás el período de la póliza, las cuotas nuevas se agregan como un ciclo aparte; para otros cambios de plan usá <strong>Refacturar</strong> o <strong>Renovar</strong>.
+      </div>
 
       {lista.length === 0 ? (
         <VacioState mensaje="El cliente no tiene pólizas." />
@@ -103,12 +108,19 @@ export default function CuotasYPago() {
           ) : cuotas.length === 0 ? (
             <VacioState mensaje="La póliza no tiene cuotas cargadas." />
           ) : (
-            grupos.map(([ciclo, filas], idx) => (
+            grupos.map(([ciclo, filas], idx) => {
+              const tipo = filas[0]?.cicloTipo;
+              const descripcion = filas[0]?.cicloDescripcion;
+              return (
               <div key={ciclo} style={{ marginBottom: 22 }}>
                 {idx > 0 && (
-                  <div style={{ margin: "6px 0 10px", fontSize: 13.5, fontWeight: 600, color: "var(--navy-900)" }}>
-                    Refacturacion de poliza: {polizaSel?.numero}
-                  </div>
+                  <div style={{ margin: "6px 0 10px", height: 1, background: "var(--line)" }} />
+                )}
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--navy-900)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
+                  Ciclo {ciclo} · {tipoCicloLabel(tipo)}
+                </div>
+                {descripcion && (
+                  <div style={{ fontSize: 12.5, color: "var(--ink-500)", marginBottom: 4 }}>{descripcion}</div>
                 )}
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-500)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>
                   Poliza: {polizaSel?.numero}
@@ -152,12 +164,68 @@ export default function CuotasYPago() {
                   </table>
                 </div>
               </div>
-            ))
+              );
+            })
+          )}
+
+          {historial.data && historial.data.length > 0 && (
+            <div style={{ marginTop: 28 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--navy-900)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
+                Historial de pagos
+              </div>
+              <div style={{ background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Fecha evento</th>
+                      <th style={th}>Ciclo / cuota</th>
+                      <th style={th}>Movimiento</th>
+                      <th style={th}>Importe</th>
+                      <th style={th}>Medio</th>
+                      <th style={th}>Usuario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historial.data.map((e) => (
+                      <tr key={e.id} style={{ borderTop: "1px solid var(--line-2)" }}>
+                        <td style={td}>{formatFecha(e.fechaEvento)}</td>
+                        <td style={td}>Ciclo {e.ciclo} · cuota {e.numeroCuota}</td>
+                        <td style={td}>
+                          <span style={{
+                            padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                            background: e.tipo === "Pago" ? "var(--ok-100)" : "var(--bad-100)",
+                            color: e.tipo === "Pago" ? "var(--ok-700)" : "var(--bad-700)",
+                          }}>
+                            {e.tipo === "Pago" ? "Pago" : "Anulación"}
+                          </span>
+                        </td>
+                        <td style={td}>{e.monto != null ? formatMoneda(e.monto) : "—"}</td>
+                        <td style={td}>
+                          {e.metodo}
+                          {e.metodo2 ? ` + ${e.metodo2}${e.metodoPago2Monto != null ? ` (${formatMoneda(e.metodoPago2Monto)})` : ""}` : ""}
+                        </td>
+                        <td style={{ ...td, color: "var(--ink-500)" }}>{e.usuarioNombre ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </>
       )}
     </div>
   );
+}
+
+function tipoCicloLabel(tipo?: string | null) {
+  switch (tipo) {
+    case "Original": return "Original";
+    case "Refacturacion": return "Refacturación";
+    case "ModificacionPeriodo": return "Modificación de período";
+    case "Renovacion": return "Renovación";
+    default: return "Cuotas";
+  }
 }
 
 const backBtn: CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, border: 0, background: "transparent", color: "var(--ink-500)", cursor: "pointer", fontSize: 13.5, marginTop: 14, marginBottom: 14, padding: 0 };

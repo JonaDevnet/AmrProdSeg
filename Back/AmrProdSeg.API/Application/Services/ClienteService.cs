@@ -15,10 +15,11 @@ public class ClienteService : IClienteService
     private readonly ICompaniaRepository _companiaRepo;
     private readonly IPdfService _pdf;
     private readonly IAuditoriaMovimientoService _auditoria;
+    private readonly INacionalidadRepository _nacionalidadRepo;
 
     public ClienteService(IClienteRepository clienteRepo, IUsuarioRepository usuarioRepo,
         IVehiculoRepository vehiculoRepo, IPolizaRepository polizaRepo, ICompaniaRepository companiaRepo, IPdfService pdf,
-        IAuditoriaMovimientoService auditoria)
+        IAuditoriaMovimientoService auditoria, INacionalidadRepository nacionalidadRepo)
     {
         _clienteRepo = clienteRepo;
         _usuarioRepo = usuarioRepo;
@@ -27,6 +28,7 @@ public class ClienteService : IClienteService
         _companiaRepo = companiaRepo;
         _pdf = pdf;
         _auditoria = auditoria;
+        _nacionalidadRepo = nacionalidadRepo;
     }
 
     /// <summary>Genera la ficha completa del cliente en PDF (datos, vehículos y todas las pólizas).</summary>
@@ -39,7 +41,8 @@ public class ClienteService : IClienteService
         var companias = (await _companiaRepo.GetAllAsync()).ToDictionary(c => c.Id, c => c.Nombre);
 
         var data = new ClienteDossierData(
-            cliente.Nombre, cliente.Documento, cliente.TipoDocumento, cliente.Email, cliente.Telefono,
+            cliente.Nombre, cliente.Documento, cliente.TipoDocumento, cliente.NacionalidadNombre,
+            cliente.Email, cliente.Telefono,
             cliente.Direccion, cliente.FechaNacimiento, cliente.FechaAlta,
             vehiculos.Select(v => new DossierVehiculo(v.Patente, v.Marca, v.Modelo, v.Anio, v.Chasis, v.Motor, v.Combustion)).ToList(),
             polizas.Select(p => new DossierPoliza(
@@ -53,6 +56,8 @@ public class ClienteService : IClienteService
 
     public async Task<int> CrearAsync(CrearClienteDto dto, int? usuarioId = null)
     {
+        await ValidarNacionalidadAsync(dto.NacionalidadId);
+
         var existente = await _clienteRepo.VerificarDocumentoAsync(dto.Documento);
         if (existente != null)
             throw new BusinessException($"Ya existe un cliente con el documento {dto.Documento}.");
@@ -69,6 +74,7 @@ public class ClienteService : IClienteService
             Direccion = dto.Direccion,
             TipoDocumento = dto.TipoDocumento,
             FechaNacimiento = dto.FechaNacimiento,
+            NacionalidadId = dto.NacionalidadId,
             OficinaId = oficinaId,
             VendedorId = usuarioId
         };
@@ -77,6 +83,8 @@ public class ClienteService : IClienteService
 
     public async Task ActualizarAsync(int id, ActualizarClienteDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
     {
+        await ValidarNacionalidadAsync(dto.NacionalidadId);
+
         var cliente = await _clienteRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Cliente no encontrado.");
 
@@ -98,6 +106,7 @@ public class ClienteService : IClienteService
         cliente.Direccion = dto.Direccion;
         cliente.TipoDocumento = dto.TipoDocumento;
         cliente.FechaNacimiento = dto.FechaNacimiento;
+        cliente.NacionalidadId = dto.NacionalidadId;
 
         await _clienteRepo.ActualizarAsync(cliente);
 
@@ -126,6 +135,14 @@ public class ClienteService : IClienteService
         if (afectadas > 0 && usuarioId is int uid)
             await _auditoria.RegistrarAsync(uid, "Cliente", id, "Eliminar", $"Eliminó al cliente \"{cliente.Nombre}\" (doc {cliente.Documento}).", solicitanteId);
         return afectadas;
+    }
+
+    private async Task ValidarNacionalidadAsync(int? nacionalidadId)
+    {
+        if (nacionalidadId is not int id || id <= 0)
+            throw new BusinessException("Elegí la nacionalidad.");
+        if (await _nacionalidadRepo.GetByIdAsync(id) is null)
+            throw new BusinessException("La nacionalidad seleccionada no existe.");
     }
 
     public Task<Cliente?> GetByIdAsync(int id) => _clienteRepo.GetByIdAsync(id);

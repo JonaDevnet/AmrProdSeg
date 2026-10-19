@@ -12,6 +12,7 @@ import {
   SESSION_KEY,
 } from "../security/axiosInstance";
 import { login as apiLogin, logout as apiLogout } from "../api/auth";
+import { marcarActividadAhora } from "./activity";
 import type { Rol } from "../types";
 
 interface SesionUsuario {
@@ -49,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function iniciarSesion(email: string, password: string) {
     const result = await apiLogin(email, password);
     setSession(result);
+    // Reinicia la marca global: si quedó una vieja de una sesión anterior,
+    // el control de inactividad podría cerrar la sesión recién iniciada.
+    marcarActividadAhora();
     setUsuario({ nombre: result.nombre, rol: result.rol });
   }
 

@@ -30,7 +30,8 @@ public class EndosoRepository : IEndosoRepository
                     ("@Email", (object?)clienteNuevo.Email ?? DBNull.Value),
                     ("@Telefono", (object?)clienteNuevo.Telefono ?? DBNull.Value),
                     ("@Direccion", (object?)clienteNuevo.Direccion ?? DBNull.Value),
-                    ("@TipoDocumento", (object?)clienteNuevo.TipoDocumento ?? DBNull.Value));
+                    ("@TipoDocumento", (object?)clienteNuevo.TipoDocumento ?? DBNull.Value),
+                    ("@NacionalidadId", (object?)clienteNuevo.NacionalidadId ?? DBNull.Value));
 
             // Registro del endoso (guarda el titular anterior)
             await EjecutarAsync(conn, tran, "sp_Endoso_Insertar",

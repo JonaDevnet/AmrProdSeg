@@ -51,6 +51,7 @@ public static class ClienteDossierDocument
                         {
                             t.ColumnsDefinition(x => { x.RelativeColumn(); x.RelativeColumn(); });
                             Dato(t, "Documento", $"{d.TipoDocumento ?? "DNI"} {d.Documento}");
+                            Dato(t, "Nacionalidad", string.IsNullOrWhiteSpace(d.Nacionalidad) ? "—" : d.Nacionalidad!);
                             Dato(t, "Alta", d.FechaAlta.ToString("dd/MM/yyyy"));
                             Dato(t, "Email", string.IsNullOrWhiteSpace(d.Email) ? "—" : d.Email!);
                             Dato(t, "Teléfono", string.IsNullOrWhiteSpace(d.Telefono) ? "—" : d.Telefono!);

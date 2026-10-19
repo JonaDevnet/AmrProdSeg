@@ -16,19 +16,27 @@ public class EndosoService : IEndosoService
     private readonly IEndosoRepository _endosoRepo;
     private readonly IPolizaRepository _polizaRepo;
     private readonly IClienteRepository _clienteRepo;
+    private readonly INacionalidadRepository _nacionalidadRepo;
 
     public EndosoService(
         IEndosoRepository endosoRepo,
         IPolizaRepository polizaRepo,
-        IClienteRepository clienteRepo)
+        IClienteRepository clienteRepo,
+        INacionalidadRepository nacionalidadRepo)
     {
         _endosoRepo  = endosoRepo;
         _polizaRepo  = polizaRepo;
         _clienteRepo = clienteRepo;
+        _nacionalidadRepo = nacionalidadRepo;
     }
 
     public async Task<EndosoResultDto> EndosarTitularAsync(int polizaId, EndosoTitularDto dto, int? usuarioId = null)
     {
+        if (dto.NacionalidadId is not int nacionalidadId || nacionalidadId <= 0)
+            throw new BusinessException("Elegí la nacionalidad.");
+        if (await _nacionalidadRepo.GetByIdAsync(nacionalidadId) is null)
+            throw new BusinessException("La nacionalidad seleccionada no existe.");
+
         var poliza = await _polizaRepo.GetByIdAsync(polizaId)
             ?? throw new BusinessException("La póliza no existe.");
 
@@ -48,6 +56,7 @@ public class EndosoService : IEndosoService
             Telefono      = dto.Telefono,
             Direccion     = Up(dto.Direccion),
             TipoDocumento = dto.TipoDocumento,
+            NacionalidadId = dto.NacionalidadId,
         };
 
         var nuevoClienteId = await _endosoRepo.EndosarTitularAsync(

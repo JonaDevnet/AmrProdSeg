@@ -52,6 +52,30 @@ public class CobroService : ICobroService
     public Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId)
         => _cobroRepo.GetPorPolizaActualAsync(polizaId);
 
+    public async Task<List<CobroEventoDto>> GetHistorialAsync(int polizaId)
+    {
+        var eventos = await _cobroRepo.GetEventosAsync(polizaId);
+        return eventos.Select(e => new CobroEventoDto
+        {
+            Id = e.Id,
+            CobroId = e.CobroId,
+            Ciclo = e.Ciclo,
+            NumeroCuota = e.NumeroCuota,
+            Tipo = e.Tipo,
+            FechaEvento = e.FechaEvento,
+            Monto = e.Monto,
+            MetodoPagoId = e.MetodoPagoId,
+            Metodo = e.Metodo,
+            MetodoPago2Id = e.MetodoPago2Id,
+            Metodo2 = e.Metodo2,
+            MetodoPago2Monto = e.MetodoPago2Monto,
+            UsuarioId = e.UsuarioId,
+            UsuarioNombre = e.UsuarioNombre,
+            FechaRegistro = e.FechaRegistro,
+            Detalle = e.Detalle
+        }).ToList();
+    }
+
     public Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio)
         => _cobroRepo.GetPendientesMesAsync(mes, anio);
 

@@ -1,8 +1,15 @@
 import api from "../security/axiosInstance";
-import type { Cobro } from "../types";
+import type { Cobro, CobroEvento } from "../types";
 
 export async function getCobrosPorPoliza(polizaId: number, soloActual = false): Promise<Cobro[]> {
   const { data } = await api.get<Cobro[]>("/cobros", { params: { polizaId, soloActual } });
+  return data;
+}
+
+export async function getHistorialCobros(polizaId: number): Promise<CobroEvento[]> {
+  const { data } = await api.get<CobroEvento[]>("/cobros/historial", {
+    params: { polizaId },
+  });
   return data;
 }
 

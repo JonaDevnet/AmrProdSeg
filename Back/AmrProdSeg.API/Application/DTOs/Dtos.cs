@@ -5,7 +5,7 @@ public record DossierVehiculo(string Patente, string Marca, string Modelo, int A
 public record DossierPoliza(string Numero, string Estado, string Compania, string? Ramo, string? Cobertura, string? Patente,
     DateTime FechaInicio, DateTime FechaFin, decimal PrecioTotal, int CantidadCuotas, string? FormaPago);
 public record ClienteDossierData(
-    string Nombre, string Documento, string? TipoDocumento, string? Email, string? Telefono,
+    string Nombre, string Documento, string? TipoDocumento, string? Nacionalidad, string? Email, string? Telefono,
     string? Direccion, DateTime? FechaNacimiento, DateTime FechaAlta,
     List<DossierVehiculo> Vehiculos, List<DossierPoliza> Polizas);
 
@@ -178,6 +178,7 @@ public class CrearClienteDto
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }
     public DateTime? FechaNacimiento { get; set; }
+    public int? NacionalidadId { get; set; }
 }
 
 public class ActualizarClienteDto
@@ -188,6 +189,7 @@ public class ActualizarClienteDto
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }
     public DateTime? FechaNacimiento { get; set; }
+    public int? NacionalidadId { get; set; }
 }
 
 // ---------- Vehículos ----------
@@ -317,6 +319,19 @@ public class ProbarWhatsappResultDto
     public string Mensaje { get; set; } = string.Empty;
 }
 
+// ---------- Notas privadas por usuario ----------
+public class CrearNotaDto
+{
+    public string Texto { get; set; } = string.Empty;
+}
+
+public class NotaDto
+{
+    public int Id { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public DateTime FechaCreacion { get; set; }
+}
+
 // ---------- Movimientos (finanzas personales) ----------
 public class CrearMovimientoDto
 {
@@ -413,6 +428,27 @@ public class VerificacionDto
     public DateTime? ProximoVencimiento { get; set; }
 }
 
+/// <summary>Evento del historial de pagos/anulaciones de una cuota.</summary>
+public class CobroEventoDto
+{
+    public int Id { get; set; }
+    public int CobroId { get; set; }
+    public int Ciclo { get; set; }
+    public int NumeroCuota { get; set; }
+    public string Tipo { get; set; } = string.Empty;   // Pago | Anulacion
+    public DateTime FechaEvento { get; set; }
+    public decimal? Monto { get; set; }
+    public int? MetodoPagoId { get; set; }
+    public string Metodo { get; set; } = string.Empty;
+    public int? MetodoPago2Id { get; set; }
+    public string? Metodo2 { get; set; }
+    public decimal? MetodoPago2Monto { get; set; }
+    public int? UsuarioId { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public DateTime FechaRegistro { get; set; }
+    public string? Detalle { get; set; }
+}
+
 /// <summary>Datos para generar el comprobante de pago en PDF (comprobante + recibo).</summary>
 public class ComprobanteCobroDto
 {
@@ -445,6 +481,7 @@ public class AltaAseguradoDto
 
     public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
     public DateTime? FechaNacimiento { get; set; }
+    public int? NacionalidadId { get; set; }
 
     // Vehículo (opcional: solo ramos que lo requieren, p. ej. Automotor/Motovehículo)
     public string? Marca { get; set; }
@@ -487,6 +524,7 @@ public class EndosoTitularDto
     public string? Telefono { get; set; }
     public string? Direccion { get; set; }
     public string? TipoDocumento { get; set; }   // DNI | CUIL | CUIT | Pasaporte
+    public int? NacionalidadId { get; set; }
     public string? Motivo { get; set; }
 }
 
@@ -511,6 +549,11 @@ public class EndosoHistorialDto
 }
 
 public class CrearRamoDto
+{
+    public string Nombre { get; set; } = string.Empty;
+}
+
+public class CrearNacionalidadDto
 {
     public string Nombre { get; set; } = string.Empty;
 }

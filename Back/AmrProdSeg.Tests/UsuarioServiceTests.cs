@@ -1,3 +1,4 @@
+using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Exceptions;
 using AmrProdSeg.API.Application.Services;
 using AmrProdSeg.API.Domain;
@@ -14,6 +15,44 @@ public class UsuarioServiceTests
             new FakeAuthRepository { UsuarioPorId = usuarioPorId },
             new FakeResetRepository());
         return (svc, repo);
+    }
+
+    [Fact]
+    public async Task CrearAsync_EmailActivo_LanzaBusinessException()
+    {
+        var repo = new FakeUsuarioRepository();
+        var auth = new FakeAuthRepository
+        {
+            UsuarioPorEmail = new Usuario { Id = 7, Email = "user@amr.com", Activo = true }
+        };
+        var svc = new UsuarioService(repo, auth, new FakeResetRepository());
+
+        await Assert.ThrowsAsync<BusinessException>(() => svc.CrearAsync(new CrearUsuarioDto
+        {
+            Nombre = "Usuario", Email = "user@amr.com", Password = "12345678", Rol = "Productor"
+        }));
+        Assert.Equal(0, repo.ReactivarLlamadas);
+    }
+
+    [Fact]
+    public async Task CrearAsync_EmailInactivo_ReactivaElMismoUsuario()
+    {
+        var repo = new FakeUsuarioRepository();
+        var auth = new FakeAuthRepository
+        {
+            UsuarioPorEmail = new Usuario { Id = 7, Email = "user@amr.com", Activo = false, Rol = "Productor" }
+        };
+        var svc = new UsuarioService(repo, auth, new FakeResetRepository());
+
+        var id = await svc.CrearAsync(new CrearUsuarioDto
+        {
+            Nombre = "  Usuario Nuevo  ", Email = " user@amr.com ", Password = "12345678", Rol = "Admin"
+        });
+
+        Assert.Equal(7, id);
+        Assert.Equal(1, repo.ReactivarLlamadas);
+        Assert.Equal("Usuario Nuevo", repo.NombreReactivado);
+        Assert.Equal("Admin", repo.RolReactivado);
     }
 
     [Fact]

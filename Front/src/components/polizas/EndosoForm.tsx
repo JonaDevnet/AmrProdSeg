@@ -2,17 +2,20 @@ import { useState, type CSSProperties } from "react";
 import { Field, Input, Select } from "../ui/Field";
 import Button from "../ui/Button";
 import { listarClientes } from "../../api/clientes";
+import { useNacionalidades } from "../../hooks/admin";
 import type { EndosoTitularDto } from "../../api/polizas";
 
 const PROVINCIAS = ["Buenos Aires", "CABA", "Córdoba", "Santa Fe", "Mendoza", "Tucumán", "Salta", "Entre Ríos", "Otra"];
 
 interface FormState {
   idType: string; documento: string; nombre: string; apellido: string; nac: string;
+  nacionalidadId: string; nacionalidadNombre: string;
   calle: string; numero: string; piso: string; localidad: string; provincia: string;
   telefono: string; email: string; motivo: string;
 }
 const F0: FormState = {
   idType: "DNI", documento: "", nombre: "", apellido: "", nac: "",
+  nacionalidadId: "", nacionalidadNombre: "",
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   telefono: "", email: "", motivo: "",
 };
@@ -24,6 +27,7 @@ const F0: FormState = {
 export default function EndosoForm({
   onSubmit, enviando,
 }: { onSubmit: (dto: EndosoTitularDto) => Promise<void> | void; enviando: boolean }) {
+  const { data: nacionalidades = [] } = useNacionalidades();
   const [f, setF] = useState<FormState>(F0);
   const [error, setError] = useState("");
   const set = (k: keyof FormState) => (v: string) => setF((p) => ({ ...p, [k]: v }));
@@ -45,6 +49,8 @@ export default function EndosoForm({
         email: c.email ?? p.email,
         telefono: c.telefono ?? p.telefono,
         idType: c.tipoDocumento ?? p.idType,
+        nacionalidadId: c.nacionalidadId ? String(c.nacionalidadId) : p.nacionalidadId,
+        nacionalidadNombre: c.nacionalidadNombre ?? p.nacionalidadNombre,
       }));
     } catch { /* silencioso */ }
   }
@@ -53,6 +59,7 @@ export default function EndosoForm({
     setError("");
     if (f.nombre.trim().length < 2) { setError("Ingresá el nombre del nuevo titular."); return; }
     if (!/^\d{7,11}$/.test(f.documento.replace(/\D/g, ""))) { setError("Documento inválido (7 a 11 dígitos)."); return; }
+    if (!f.nacionalidadId) { setError("Elegí la nacionalidad."); return; }
     const direccion = [
       [f.calle, f.numero].filter((x) => x.trim()).join(" "),
       f.piso, f.localidad, f.provincia,
@@ -64,6 +71,7 @@ export default function EndosoForm({
       telefono: f.telefono.trim() || undefined,
       direccion: direccion || undefined,
       tipoDocumento: f.idType,
+      nacionalidadId: Number(f.nacionalidadId),
       motivo: f.motivo.trim() || undefined,
     };
     onSubmit(dto);
@@ -93,9 +101,23 @@ export default function EndosoForm({
         <Field label="Apellido"><Input style={up} value={f.apellido} placeholder="Apellido" onChange={(e) => upper("apellido")(e.target.value)} /></Field>
       </div>
 
-      <Field label="Fecha de nacimiento">
-        <Input type="date" value={f.nac} onChange={(e) => set("nac")(e.target.value)} />
-      </Field>
+      <div style={grid}>
+        <Field label="Fecha de nacimiento">
+          <Input type="date" value={f.nac} onChange={(e) => set("nac")(e.target.value)} />
+        </Field>
+        <Field label="Nacionalidad">
+          <Select
+            value={f.nacionalidadId}
+            onChange={(e) => {
+              const n = nacionalidades.find((x) => String(x.id) === e.target.value);
+              setF((p) => ({ ...p, nacionalidadId: e.target.value, nacionalidadNombre: n?.nombre ?? "" }));
+            }}
+          >
+            <option value="">Seleccionar…</option>
+            {nacionalidades.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}
+          </Select>
+        </Field>
+      </div>
 
       <Field label="Domicilio (calle)">
         <Input style={up} value={f.calle} placeholder="Av. Corrientes" onChange={(e) => upper("calle")(e.target.value)} />

@@ -219,6 +219,12 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
     } catch (e: any) { setAccionError(e?.response?.data?.error ?? "No se pudo renovar."); }
   }
 
+  const hoyIso = new Date().toISOString().slice(0, 10);
+  const periodoTerminado = hoyIso >= poliza.fechaFin.slice(0, 10);
+  const ultimaCuotaOriginal = [...cuotas]
+    .sort((a, b) => new Date(b.fechaVencimiento).getTime() - new Date(a.fechaVencimiento).getTime())[0]
+    ?.fechaVencimiento?.slice(0, 10);
+
   const totalCuotas = cuotas.reduce((a, c) => a + c.monto, 0);
   const status = cuotas.length === 0 ? null
     : todasPagas ? { k: "aldia", l: "Al día" }
@@ -321,10 +327,14 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
 
       <div style={pFoot}>
         <button style={renewBtn(todasPagas)} disabled={!todasPagas} onClick={() => { setAccionError(undefined); setRenovarOpen(true); }}>
-          {todasPagas ? "Renovar póliza" : `Faltan ${faltan} cuota${faltan === 1 ? "" : "s"} para renovar`}
+          {todasPagas ? (periodoTerminado ? "Renovar póliza" : "Refacturar póliza") : `Faltan ${faltan} cuota${faltan === 1 ? "" : "s"} para renovar`}
         </button>
         <div style={{ fontSize: 12, color: "var(--ink-500)", textAlign: "center", marginTop: 8 }}>
-          {todasPagas ? "Todas las cuotas están pagas. Podés iniciar el período siguiente." : "La renovación se habilita cuando se cobran todas las cuotas del período."}
+          {todasPagas
+            ? (periodoTerminado
+              ? "Todas las cuotas están pagas. Podés iniciar el período siguiente."
+              : "Todas las cuotas están pagas. Podés generar un nuevo ciclo de cuotas.")
+            : "La renovación se habilita cuando se cobran todas las cuotas del período."}
         </div>
       </div>
 
@@ -386,8 +396,15 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
         </div>
       )}
       {renovarOpen && (
-        <Modal titulo="Renovar póliza" onClose={() => setRenovarOpen(false)} ancho={520}>
-          <RenovarForm poliza={poliza} companias={companias as any} requiereMotivo={cuotas.some((c) => c.estado !== 1) && !esAdmin} onSubmit={confirmarRenovar} enviando={renovar.isPending || refacturar.isPending} />
+        <Modal titulo={periodoTerminado ? "Renovar póliza" : "Refacturar póliza"} onClose={() => setRenovarOpen(false)} ancho={520}>
+          <RenovarForm
+            poliza={poliza}
+            companias={companias as any}
+            ultimaCuotaOriginal={ultimaCuotaOriginal}
+            requiereMotivo={cuotas.some((c) => c.estado !== 1) && !esAdmin}
+            onSubmit={confirmarRenovar}
+            enviando={renovar.isPending || refacturar.isPending}
+          />
         </Modal>
       )}
     </div>

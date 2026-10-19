@@ -183,6 +183,7 @@ public class ReporteService : IReporteService
                 ClienteNombre = f.Str("ClienteNombre"),
                 Documento     = f.Str("Documento"),
                 TipoDocumento = f.Str("TipoDocumento"),
+                Nacionalidad  = f.Str("Nacionalidad"),
                 Email         = f.Str("Email"),
                 Telefono      = f.Str("Telefono"),
                 Direccion     = f.Str("Direccion"),

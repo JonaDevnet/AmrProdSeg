@@ -25,6 +25,8 @@ export interface Cliente {
   direccion?: string | null;
   tipoDocumento?: string | null;
   fechaNacimiento?: string | null;
+  nacionalidadId?: number | null;
+  nacionalidadNombre?: string | null;
   fechaAlta: string;
   activo: boolean;
   oficinaId?: number | null;
@@ -97,9 +99,36 @@ export interface Cobro {
   metodoPagoId?: number | null;
   metodoPago2Id?: number | null;   // segundo método (pago mixto)
   ciclo?: number;                  // ciclo de facturación (1 = original; 2,3… = refacturación)
+  cicloTipo?: string | null;       // Original | Refacturacion | ModificacionPeriodo | Renovacion
+  cicloDescripcion?: string | null;
   nroPoliza?: string | null;
   clienteNombre?: string | null;
   cobradorNombre?: string | null;   // quién registró el cobro (admin)
+}
+
+export interface Nota {
+  id: number;
+  texto: string;
+  fechaCreacion: string;
+}
+
+export interface CobroEvento {
+  id: number;
+  cobroId: number;
+  ciclo: number;
+  numeroCuota: number;
+  tipo: "Pago" | "Anulacion";
+  fechaEvento: string;
+  monto?: number | null;
+  metodoPagoId?: number | null;
+  metodo: string;
+  metodoPago2Id?: number | null;
+  metodo2?: string | null;
+  metodoPago2Monto?: number | null;
+  usuarioId?: number | null;
+  usuarioNombre?: string | null;
+  fechaRegistro: string;
+  detalle?: string | null;
 }
 
 export interface RenovacionResult {
@@ -222,6 +251,12 @@ export interface Ramo {
   activo: boolean;
 }
 
+export interface Nacionalidad {
+  id: number;
+  nombre: string;
+  activo: boolean;
+}
+
 export interface Cobertura {
   id: number;
   nombre: string;
@@ -284,6 +319,7 @@ export interface AltaAsegurado {
   direccion?: string;
   tipoDocumento?: string;
   fechaNacimiento?: string;
+  nacionalidadId?: number;
   marca?: string;
   modelo?: string;
   anio?: number;

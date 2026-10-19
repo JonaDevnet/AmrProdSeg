@@ -4,6 +4,36 @@ Todas las modificaciones relevantes de AMR Producción de Seguros.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado semántico
 (`MAJOR.MINOR.PATCH`).
 
+## [1.2.0] — 2026-10-19
+
+Versión actual. Requiere aplicar el schema (§66–§69) y rebuild de back + front (`bash actualizar.sh`).
+
+### Añadido
+- **Notas privadas por usuario**: nuevo ícono al lado izquierdo de la campanita. Cada usuario puede
+  escribir notas/recordatorios y eliminarlos; las notas se guardan en `NotasUsuario` y sólo las ve
+  su dueño (`GET/POST/DELETE /api/notas`). El Admin tampoco puede ver las de otros.
+- **Nacionalidad del cliente**: nuevo catálogo administrable (`Nacionalidades`) y campo **obligatorio**
+  en alta, edición y endoso. Se muestra en la ficha, en el resumen del alta y en el PDF/export.
+  Los clientes existentes quedan con `NULL` hasta que se editen (§66).
+- **Reactivación de usuarios**: al dar de baja un usuario y volver a crearlo con el mismo correo,
+  se reactiva la **misma fila** (mismo `UsuarioId`, conserva historial), se actualizan nombre,
+  contraseña y rol, y se revocan los refresh tokens anteriores (§67).
+- **Cuotas inmutables e historial de ciclos**: los registros de cuotas/pagos existentes no se
+  reescriben. Una modificación de período agrega un ciclo nuevo (`Modificación de período`) debajo
+  de los anteriores; las refacturaciones agregan `Refacturación` y las renovaciones se marcan como
+  `Renovación`. `/clientes/:id/cuotas` muestra cada ciclo y su historial completo de pagos/anulaciones.
+- **Historial de pagos append-only**: cada pago y cada anulación queda registrado en `CobroEventos`
+  (fecha, importe, medio y usuario), aunque la cuota vuelva a estado pendiente.
+- **Tests**: backend con **103 tests** y frontend con **21 tests**.
+
+### Corregido
+- **Cierre de sesión inmediato al iniciar sesión**: el control de inactividad usaba la marca
+  `amr_ultima_actividad` de `localStorage`, pero no la reiniciaba al autenticarse. Si la marca
+  anterior tenía más de 30 minutos, el primer login cerraba la sesión al instante (el segundo
+  funcionaba porque el cierre la borraba). Ahora la marca se reinicia al iniciar sesión.
+- **Codificación de la “ñ” en nacionalidades**: el seed quedó con `Ã±` porque `sqlcmd` leyó el
+  archivo como ANSI. Ahora el seed usa `NCHAR(241)` y los comandos de aplicación usan `-f 65001`.
+
 ## [1.1.0] — sin desplegar
 
 Gran tanda de features, mejoras y correcciones. Requiere aplicar el schema (§48–§61) y
@@ -140,5 +170,6 @@ rebuild de back + front (`bash actualizar.sh`).
 
 Versión base en producción (línea de partida del changelog).
 
+[1.2.0]: #
 [1.1.0]: #
 [1.0.0]: #

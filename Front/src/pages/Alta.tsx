@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useCompanias } from "../hooks/polizas";
-import { useRamos, useCoberturas } from "../hooks/admin";
+import { useRamos, useCoberturas, useNacionalidades } from "../hooks/admin";
 import { useCrearAlta } from "../hooks/altas";
 import { listarClientes, getCliente } from "../api/clientes";
 import { getVehiculoPorPatente } from "../api/vehiculos";
@@ -99,6 +99,7 @@ function parseDireccion(dir?: string | null) {
 
 interface Form {
   idType: string; idNumber: string; nombre: string; apellido: string; nac: string;
+  nacionalidadId: string; nacionalidadNombre: string;
   telefono: string; email: string;
   calle: string; numero: string; piso: string; localidad: string; provincia: string;
   patente: string; marca: string; modelo: string; anio: string; chasis: string; motor: string; combustion: string[];
@@ -108,6 +109,7 @@ interface Form {
 
 const FORM0: Form = {
   idType: "DNI", idNumber: "", nombre: "", apellido: "", nac: "",
+  nacionalidadId: "", nacionalidadNombre: "",
   telefono: "", email: "",
   calle: "", numero: "", piso: "", localidad: "", provincia: "",
   patente: "", marca: "", modelo: "", anio: "", chasis: "", motor: "", combustion: [],
@@ -121,6 +123,7 @@ export default function Alta() {
   const { data: companias = [] } = useCompanias();
   const { data: ramos = [] } = useRamos();
   const { data: coberturas = [] } = useCoberturas();
+  const { data: nacionalidades = [] } = useNacionalidades();
   const crear = useCrearAlta();
 
   const [form, setForm] = useState<Form>(FORM0);
@@ -159,6 +162,8 @@ export default function Alta() {
         telefono: f.telefono.trim() || (c.telefono ?? f.telefono),
         idType: f.idType || (c.tipoDocumento ?? f.idType),
         nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : f.nac),
+        nacionalidadId: f.nacionalidadId || (c.nacionalidadId ? String(c.nacionalidadId) : f.nacionalidadId),
+        nacionalidadNombre: f.nacionalidadNombre || (c.nacionalidadNombre ?? f.nacionalidadNombre),
         calle: f.calle.trim() || (dirp.calle ?? f.calle),
         numero: f.numero.trim() || (dirp.numero ?? f.numero),
         piso: f.piso.trim() || (dirp.piso ?? f.piso),
@@ -211,6 +216,8 @@ export default function Alta() {
                email: f.email.trim() || (c.email ?? ""),
                telefono: f.telefono.trim() || (c.telefono ?? ""),
                nac: f.nac || (c.fechaNacimiento ? c.fechaNacimiento.slice(0, 10) : ""),
+               nacionalidadId: f.nacionalidadId || (c.nacionalidadId ? String(c.nacionalidadId) : f.nacionalidadId),
+               nacionalidadNombre: f.nacionalidadNombre || (c.nacionalidadNombre ?? f.nacionalidadNombre),
                calle: f.calle.trim() || (dirp.calle ?? f.calle),
                numero: f.numero.trim() || (dirp.numero ?? f.numero),
                piso: f.piso.trim() || (dirp.piso ?? f.piso),
@@ -253,6 +260,7 @@ export default function Alta() {
     if (stepKey === "cliente") {
       if (form.nombre.trim().length < 2) return fail("Ingresá el nombre.");
       if (!/^\d{7,11}$/.test(form.idNumber.replace(/\D/g, ""))) return fail("Documento inválido (7 a 11 dígitos).");
+      if (!form.nacionalidadId) return fail("Elegí la nacionalidad.");
     }
     if (stepKey === "vehiculo") {
       // Sección opcional: sólo validamos si se empezó a cargar el vehículo.
@@ -307,6 +315,7 @@ export default function Alta() {
       direccion: domicilio || undefined,
       tipoDocumento: form.idType,
       fechaNacimiento: form.nac || undefined,
+      nacionalidadId: Number(form.nacionalidadId),
       companiaId,
       ramoId: Number(form.ramoId),
       fechaInicio: form.inicio,
@@ -421,6 +430,21 @@ export default function Alta() {
                   <InputBox focus={focus === "id"} onFocus={() => setFocus("id")} onBlur={() => setFocus(null)}>
                     <input className="mono" style={S.input} placeholder={form.idType === "CUIL" ? "20-12345678-9" : "27.345.123"} value={form.idNumber} onChange={(e) => set("idNumber")(e.target.value)} onBlur={autocompletarPorDni} />
                   </InputBox>
+                </Field>
+                <Sp h={16} />
+                <Field label="Nacionalidad" required>
+                  <SelectBox
+                    focus={focus === "nacId"}
+                    onFocus={() => setFocus("nacId")}
+                    onBlur={() => setFocus(null)}
+                    value={form.nacionalidadNombre}
+                    onChange={(nombre) => {
+                      const n = nacionalidades.find((x) => x.nombre === nombre);
+                      setForm((f) => ({ ...f, nacionalidadId: n ? String(n.id) : "", nacionalidadNombre: nombre }));
+                    }}
+                    placeholder="Seleccionar"
+                    options={nacionalidades.map((n) => n.nombre)}
+                  />
                 </Field>
                 <Sp h={16} />
                 <div style={grid("1fr 1fr")}>
@@ -799,6 +823,7 @@ function SummaryPanel({ form }: { form: Form }) {
       <div style={S.summaryBody}>
         <Row k="Tomador" v={fullName} />
         <Row k={form.idType} v={form.idNumber || null} mono />
+        <Row k="Nacionalidad" v={form.nacionalidadNombre || null} />
         <Row k="Teléfono" v={form.telefono || null} mono />
         <Row k="Email" v={form.email || null} />
         <Row k="Domicilio" v={dom || null} />

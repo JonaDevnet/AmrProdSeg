@@ -1,11 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCobrosPendientes, pagarCuota } from "../api/cobros";
+import { getCobrosPendientes, getHistorialCobros, pagarCuota } from "../api/cobros";
 import { getMetodosPago } from "../api/metodosPago";
 
 export function useCobrosPendientes(mes: number, anio: number) {
   return useQuery({
     queryKey: ["cobros", "pendientes", mes, anio],
     queryFn: () => getCobrosPendientes(mes, anio),
+  });
+}
+
+export function useHistorialCobros(polizaId: number, enabled = true) {
+  return useQuery({
+    queryKey: ["cobros", "historial", polizaId],
+    queryFn: () => getHistorialCobros(polizaId),
+    enabled: enabled && polizaId > 0,
   });
 }
 

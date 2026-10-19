@@ -2,6 +2,7 @@ import axios, {
   type AxiosError,
   type InternalAxiosRequestConfig,
 } from "axios";
+import { ACTIVIDAD_KEY } from "../auth/activity";
 
 // Claves de sessionStorage (el token vive sólo mientras la pestaña esté abierta)
 export const TOKEN_KEY = "amr_access_token";
@@ -31,7 +32,7 @@ export function clearSession() {
   sessionStorage.removeItem(REFRESH_KEY);
   sessionStorage.removeItem(SESSION_KEY);
   // Marca de actividad (global, compartida entre pestañas): se limpia al cerrar sesión.
-  localStorage.removeItem("amr_ultima_actividad");
+  localStorage.removeItem(ACTIVIDAD_KEY);
 }
 
 const api = axios.create({

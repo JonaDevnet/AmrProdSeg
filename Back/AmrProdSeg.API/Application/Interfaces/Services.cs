@@ -25,6 +25,7 @@ public interface ICobroService
     Task<List<Cobro>> GetPorPolizaAsync(int polizaId);
     /// <summary>Cobros del ciclo vigente (max Ciclo).</summary>
     Task<List<Cobro>> GetPorPolizaActualAsync(int polizaId);
+    Task<List<CobroEventoDto>> GetHistorialAsync(int polizaId);
     Task<List<Cobro>> GetPendientesMesAsync(int mes, int anio);
     Task PagarAsync(int id, DateTime fechaPago, int? metodoPagoId, int? usuarioId = null, int? metodoPago2Id = null, decimal? metodoPago2Monto = null);
     Task MarcarVencidosAsync();
@@ -56,6 +57,13 @@ public interface IMovimientoService
 {
     Task<int> CrearAsync(int usuarioId, CrearMovimientoDto dto);
     Task<List<Movimiento>> GetPorUsuarioAsync(int usuarioId, DateTime? desde, DateTime? hasta);
+    Task EliminarAsync(int id, int usuarioId);
+}
+
+public interface INotaService
+{
+    Task<int> CrearAsync(int usuarioId, CrearNotaDto dto);
+    Task<List<NotaDto>> GetAsync(int usuarioId);
     Task EliminarAsync(int id, int usuarioId);
 }
 
@@ -135,6 +143,13 @@ public interface ICoberturaService
 {
     Task<int> CrearAsync(CrearCoberturaDto dto);
     Task<List<Cobertura>> GetAllAsync();
+    Task EliminarAsync(int id);
+}
+
+public interface INacionalidadService
+{
+    Task<int> CrearAsync(CrearNacionalidadDto dto);
+    Task<List<Nacionalidad>> GetAllAsync();
     Task EliminarAsync(int id);
 }
 

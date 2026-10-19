@@ -19,13 +19,15 @@ public class AltaServiceTests
             new FakeCompaniaRepository { PorId = compania },
             new FakePdfService(),
             new FakeAvisoRepository(),
-            new FakeNotificacionPusher());
+            new FakeNotificacionPusher(),
+            new FakeNacionalidadRepository());
         return (svc, alta);
     }
 
     private static AltaAseguradoDto Dto() => new()
     {
         ClienteNombre = "juan perez", Documento = "30111222", Email = "Juan@Mail.com",
+        NacionalidadId = 1,
         CompaniaId = 1, FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddMonths(3),
         PrecioTotal = 90000, CantidadCuotas = 3,
         Patente = "ab123cd", Marca = "toyota", Modelo = "corolla", Anio = 2021,
@@ -102,7 +104,8 @@ public class AltaServiceTests
             new FakeCompaniaRepository { PorId = new Compania { Id = 1 } },
             new FakePdfService(),
             aviso,
-            new FakeNotificacionPusher());
+            new FakeNotificacionPusher(),
+            new FakeNacionalidadRepository());
 
         await svc.RegistrarAsync(Dto(), usuarioId: 7);
 

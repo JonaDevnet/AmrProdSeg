@@ -23,6 +23,10 @@ public class CrearClienteValidator : AbstractValidator<CrearClienteDto>
         RuleFor(x => x.Email)
             .EmailAddress().WithMessage("El email no tiene un formato válido.")
             .When(x => !string.IsNullOrEmpty(x.Email));
+
+        RuleFor(x => x.NacionalidadId)
+            .NotNull().WithMessage("Elegí la nacionalidad.")
+            .GreaterThan(0).WithMessage("Elegí la nacionalidad.");
     }
 }
 
@@ -42,6 +46,10 @@ public class EndosoTitularValidator : AbstractValidator<EndosoTitularDto>
 
         RuleFor(x => x.Email)
             .EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
+
+        RuleFor(x => x.NacionalidadId)
+            .NotNull().WithMessage("Elegí la nacionalidad.")
+            .GreaterThan(0).WithMessage("Elegí la nacionalidad.");
     }
 }
 
@@ -56,6 +64,10 @@ public class ActualizarClienteValidator : AbstractValidator<ActualizarClienteDto
         RuleFor(x => x.Email)
             .EmailAddress()
             .When(x => !string.IsNullOrEmpty(x.Email));
+
+        RuleFor(x => x.NacionalidadId)
+            .NotNull().WithMessage("Elegí la nacionalidad.")
+            .GreaterThan(0).WithMessage("Elegí la nacionalidad.");
     }
 }
 
@@ -115,6 +127,10 @@ public class AltaAseguradoValidator : AbstractValidator<AltaAseguradoDto>
             .WithMessage("El documento debe contener solo dígitos (7 a 11).");
         RuleFor(x => x.Email).EmailAddress().When(x => !string.IsNullOrEmpty(x.Email));
 
+        RuleFor(x => x.NacionalidadId)
+            .NotNull().WithMessage("Elegí la nacionalidad.")
+            .GreaterThan(0).WithMessage("Elegí la nacionalidad.");
+
         // Vehículo (opcional: sólo si el ramo lo requiere → se valida cuando hay patente)
         RuleFor(x => x.Marca).NotEmpty().MaximumLength(60).When(x => !string.IsNullOrWhiteSpace(x.Patente));
         RuleFor(x => x.Modelo).NotEmpty().MaximumLength(60).When(x => !string.IsNullOrWhiteSpace(x.Patente));
@@ -151,6 +167,26 @@ public class CrearCompaniaValidator : AbstractValidator<CrearCompaniaDto>
     public CrearCompaniaValidator()
     {
         RuleFor(x => x.Nombre).NotEmpty().MaximumLength(100);
+    }
+}
+
+public class CrearNacionalidadValidator : AbstractValidator<CrearNacionalidadDto>
+{
+    public CrearNacionalidadValidator()
+    {
+        RuleFor(x => x.Nombre)
+            .NotEmpty().WithMessage("El nombre de la nacionalidad es obligatorio.")
+            .MaximumLength(80);
+    }
+}
+
+public class CrearNotaValidator : AbstractValidator<CrearNotaDto>
+{
+    public CrearNotaValidator()
+    {
+        RuleFor(x => x.Texto)
+            .NotEmpty().WithMessage("Escribí una nota.")
+            .MaximumLength(1000).WithMessage("La nota no puede superar los 1000 caracteres.");
     }
 }
 

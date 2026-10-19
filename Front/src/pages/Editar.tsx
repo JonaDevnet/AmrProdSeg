@@ -81,7 +81,7 @@ export default function Editar() {
     setError(undefined); setGuardando(true);
     const limpio = (s?: string) => (s && s.trim() !== "" ? s.trim() : undefined);
     try {
-      const res = await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion), fechaNacimiento: limpio(v.fechaNacimiento) });
+      const res = await actualizarCliente(cliente.id, { nombre: v.nombre.trim(), email: limpio(v.email), telefono: limpio(v.telefono), direccion: limpio(v.direccion), fechaNacimiento: limpio(v.fechaNacimiento), nacionalidadId: v.nacionalidadId });
       setSaved(true);
       setSolicitada(res?.solicitada === true);   // Productor → quedó pendiente de aprobación del Admin
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
@@ -236,17 +236,9 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? "");
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
-  // Se edita el precio POR CUOTA; el total se recalcula como cuota × cantidad.
-  const [precioCuota, setPrecioCuota] = useState(
-    String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
-  const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
   const qc = useQueryClient();
-
-  // Modelo "Inicio de póliza": la 1ª cuota vence 1 mes después del inicio y las
-  // siguientes +1 mes cada una. Se DERIVA del inicio (no se edita a mano).
-  const primeraCuota = sumarMesesEditar(fechaInicio, 1);
 
   async function guardar() {
     setError(undefined); setGuardando(true);
@@ -254,13 +246,13 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
       const res = await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
         fechaInicio, fechaFin,
-        precioTotal: Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100,
-        cantidadCuotas: Number(cantidadCuotas),
+        // El plan de cuotas generado es inmutable: se envían los valores actuales.
+        precioTotal: poliza.precioTotal,
+        cantidadCuotas: poliza.cantidadCuotas,
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
-        primerVencimiento: primeraCuota,
       });
-      // Al cambiar vigencia/cantidad de cuotas se regeneran los cobros: refrescar Cobranzas.
+      // La vigencia puede cambiar, pero las cuotas ya generadas no se tocan.
       qc.invalidateQueries({ queryKey: ["cobros"] });
       onSaved(res?.solicitada === true);
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
@@ -282,20 +274,9 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Field>
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
-        <Field label="Cantidad de cuotas"><Input type="number" value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
-      </div>
-      {Number(precioCuota) > 0 && Number(cantidadCuotas) > 0 && (
-        <div style={{ margin: "-6px 0 14px", fontSize: 12.5, color: "var(--ink-500)" }}>
-          Total de la póliza: <strong>{formatMoneda(Math.round(Number(precioCuota) * Number(cantidadCuotas) * 100) / 100)}</strong> ({cantidadCuotas} cuotas)
-        </div>
-      )}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
-      </div>
+      <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "-6px 0 12px" }}>
-        Las cuotas se generan desde el <strong>inicio</strong>: la 1ª vence el <strong>{primeraCuota.split("-").reverse().join("/")}</strong> (inicio + 1 mes) y las siguientes +1 mes cada una. Al cambiar el inicio se re-fechan <strong>todas</strong> las cuotas; en las pagadas solo cambia la fecha de vencimiento (no el cobro).
+        Las cuotas ya generadas no se modifican. Si cambiás el período, se agrega un ciclo nuevo debajo de los anteriores; para cambios de precio o cantidad de cuotas usá <strong>Refacturar</strong> o <strong>Renovar</strong>.
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>
@@ -321,10 +302,3 @@ function lookupWrap(f: boolean): CSSProperties {
 const ctxPanel: CSSProperties = { background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 16, boxShadow: "var(--shadow-sm)", overflow: "hidden", position: "sticky", top: 84 };
 const ctxHead: CSSProperties = { padding: "16px 18px", background: "linear-gradient(180deg, var(--navy-950), var(--navy-800))", color: "white" };
 const linkBtn: CSSProperties = { border: 0, background: "transparent", color: "var(--blue-600)", cursor: "pointer", fontSize: 13.5, fontWeight: 500, padding: 0 };
-
-/** Suma meses a una fecha ISO (YYYY-MM-DD), en UTC (mes calendario, mismo día). */
-function sumarMesesEditar(iso: string, meses: number): string {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCMonth(d.getUTCMonth() + meses);
-  return d.toISOString().slice(0, 10);
-}

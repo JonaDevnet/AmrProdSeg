@@ -27,6 +27,22 @@ public class AuthRepository : IAuthRepository
         return MapUsuario(reader);
     }
 
+    public async Task<Usuario?> GetUsuarioByEmailInclInactivoAsync(string email)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Usuario_GetByEmailInclInactivo", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@Email", email);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync()) return null;
+        return MapUsuario(reader);
+    }
+
     public async Task<Usuario?> GetUsuarioByIdAsync(int id)
     {
         using var conn = _factory.Create();

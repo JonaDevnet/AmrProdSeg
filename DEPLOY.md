@@ -2,6 +2,7 @@
 
 Stack: **SQL Server + API (.NET 10) + Frontend (nginx)** en Docker, detrás del
 **Traefik existente** del VPS (host-mode, HTTPS automático con Let's Encrypt).
+**Versión a desplegar:** 1.2.0.
 Dominio: **amrprodseg.com**.
 
 ## Requisitos previos
@@ -35,7 +36,7 @@ Dominio: **amrprodseg.com**.
 4. **Cargar la base** (esperar ~30 s a que SQL Server arranque la primera vez)
    ```bash
    source .env
-   docker exec -i amr-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C < AmrProdSeg_Schema.sql
+   docker exec -i amr-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -f 65001 < AmrProdSeg_Schema.sql
    docker exec -i amr-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C < AmrProdSeg_Seed.sql
    ```
 

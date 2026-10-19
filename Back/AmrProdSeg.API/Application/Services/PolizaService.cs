@@ -161,6 +161,15 @@ public class PolizaService : IPolizaService
         var poliza = await _polizaRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Póliza no encontrada.");
 
+        // Las cuotas ya generadas son inmutables. Los cambios de plan (precio o
+        // cantidad de cuotas) se hacen con Refacturar o Renovar, nunca editando la póliza.
+        if (dto.PrecioTotal != poliza.PrecioTotal || dto.CantidadCuotas != poliza.CantidadCuotas)
+            throw new BusinessException(
+                "Las cuotas ya generadas no se modifican. Para cambiar el precio o la cantidad de cuotas, usá Refacturar o Renovar.");
+
+        var fechaInicioAnterior = poliza.FechaInicio;
+        var fechaFinAnterior = poliza.FechaFin;
+
         var companiaNueva = await _companiaRepo.GetByIdAsync(dto.CompaniaId)
             ?? throw new BusinessException($"La compañía {dto.CompaniaId} no existe.");
 
@@ -197,11 +206,38 @@ public class PolizaService : IPolizaService
         poliza.Cobertura      = dto.Cobertura;
         await _polizaRepo.ActualizarAsync(poliza);
 
-        // Regenera las cuotas AÚN NO cobradas según el nuevo precio, cantidad y vencimiento de
-        // la 1ª cuota (agrega/quita cuotas y recalcula montos y vencimientos). Las ya pagadas
-        // conservan su monto y vencimiento (lo realmente cobrado), para que los reportes no cambien.
-        await _cobroRepo.RegenerarPendientesAsync(id, dto.PrecioTotal, dto.CantidadCuotas,
-            dto.PrimerVencimiento ?? dto.FechaInicio.AddMonths(1));
+        // Si cambió el período, se agrega un ciclo NUEVO debajo de los existentes.
+        // Las cuotas de ciclos anteriores no se modifican ni se borran.
+        var cambioPeriodo = fechaInicioAnterior.Date != dto.FechaInicio.Date
+                         || fechaFinAnterior.Date != dto.FechaFin.Date;
+        if (cambioPeriodo)
+        {
+            var descripcion = $"Modificación de período: {fechaInicioAnterior:dd/MM/yyyy} – {fechaFinAnterior:dd/MM/yyyy} → {dto.FechaInicio:dd/MM/yyyy} – {dto.FechaFin:dd/MM/yyyy}";
+
+            // Si cambia el inicio, el nuevo plan arranca desde el nuevo inicio + 1 mes.
+            // Si solo cambia el fin, continúa después de la última cuota existente para
+            // no superponer fechas con ciclos anteriores.
+            DateTime primerVencimiento;
+            if (dto.PrimerVencimiento is DateTime pv)
+            {
+                primerVencimiento = pv;
+            }
+            else if (dto.FechaInicio.Date != fechaInicioAnterior.Date)
+            {
+                primerVencimiento = dto.FechaInicio.AddMonths(1);
+            }
+            else
+            {
+                var cuotasExistentes = await _cobroRepo.GetPorPolizaAsync(id);
+                var ultima = cuotasExistentes.Count > 0
+                    ? cuotasExistentes.Max(c => c.FechaVencimiento)
+                    : dto.FechaInicio;
+                primerVencimiento = ultima.AddMonths(1);
+            }
+
+            await _cobroRepo.AgregarModificacionPeriodoAsync(
+                id, poliza.PrecioTotal, poliza.CantidadCuotas, primerVencimiento, descripcion, usuarioId);
+        }
 
         if (usuarioId is int uid)
             await _auditoria.RegistrarAsync(uid, "Poliza", id, "Editar", AuditoriaDetalle.ConMotivo($"{ident} — {detalle}", motivo), solicitanteId);
@@ -246,7 +282,7 @@ public class PolizaService : IPolizaService
 
         var primerVenc = dto.PrimerVencimiento ?? DateTime.Today;
         await _cobroRepo.AgregarCicloAsync(id, dto.PrecioTotal, dto.CantidadCuotas, primerVenc,
-            dto.PrimaOG, dto.Cobertura, null);
+            dto.PrimaOG, dto.Cobertura, null, usuarioId);
 
         if (usuarioId is int uid)
             await _auditoria.RegistrarAsync(uid, "Poliza", id, "Refacturar", $"Refacturó la póliza {poliza.Numero} ({dto.CantidadCuotas} cuotas).");

@@ -25,6 +25,7 @@ export interface CarteraExportRow {
   clienteNombre: string;
   documento: string;
   tipoDocumento: string;
+  nacionalidad: string;
   email: string;
   telefono: string;
   direccion: string;

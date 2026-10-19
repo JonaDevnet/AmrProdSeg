@@ -4,6 +4,7 @@ import {
   useMetodosPagoAdmin, useCrearMetodoPago, useEliminarMetodoPago,
   useRamos, useCrearRamo, useEliminarRamo,
   useCoberturas, useCrearCobertura, useEliminarCobertura,
+  useNacionalidades, useCrearNacionalidad, useEliminarNacionalidad,
 } from "../hooks/admin";
 import Button from "../components/ui/Button";
 import PageHeader from "../components/ui/PageHeader";
@@ -13,12 +14,13 @@ import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 export default function Companias() {
   return (
     <div>
-      <PageHeader titulo="Compañías y métodos de pago" subtitulo="Catálogos compartidos. Sólo el administrador puede agregar." />
+      <PageHeader titulo="Compañías y catálogos" subtitulo="Compañías, métodos de pago, ramos, coberturas y nacionalidades. Sólo el administrador puede agregar." />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, alignItems: "start" }}>
         <Companias_ />
         <MetodosPago_ />
         <Ramos_ />
         <Coberturas_ />
+        <Nacionalidades_ />
       </div>
     </div>
   );
@@ -214,6 +216,50 @@ function Coberturas_() {
                 <li key={c.id} style={li}>
                   <span style={{ fontWeight: 500 }}>{c.nombre}</span>
                   <BtnDel onClick={() => eliminar.mutate(c.id)} titulo={`Eliminar ${c.nombre}`} />
+                </li>
+              ))}
+            </ul>
+          )}
+      </div>
+    </div>
+  );
+}
+
+function Nacionalidades_() {
+  const lista = useNacionalidades();
+  const crear = useCrearNacionalidad();
+  const eliminar = useEliminarNacionalidad();
+  const [nombre, setNombre] = useState("");
+  const [error, setError] = useState<string>();
+
+  async function agregar() {
+    setError(undefined);
+    if (nombre.trim().length < 2) return setError("Ingresá una nacionalidad.");
+    try {
+      await crear.mutateAsync(nombre.trim());
+      setNombre("");
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? "No se pudo crear la nacionalidad.");
+    }
+  }
+
+  return (
+    <div style={card}>
+      <h2 style={titulo}>Nacionalidades</h2>
+      <div style={{ fontSize: 12.5, color: "var(--ink-500)", margin: "-8px 0 12px" }}>Opciones obligatorias al cargar o editar un cliente.</div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nueva nacionalidad (Argentina…)" />
+        <Button onClick={agregar} disabled={crear.isPending} style={{ flexShrink: 0 }}>Agregar</Button>
+      </div>
+      {error && <div style={errBox}>{error}</div>}
+      <div style={{ marginTop: 12 }}>
+        {lista.isLoading ? <Cargando /> : lista.isError ? <ErrorState /> :
+          !lista.data || lista.data.length === 0 ? <VacioState mensaje="Sin nacionalidades." /> : (
+            <ul style={ul}>
+              {lista.data.map((n) => (
+                <li key={n.id} style={li}>
+                  <span style={{ fontWeight: 500 }}>{n.nombre}</span>
+                  <BtnDel onClick={() => eliminar.mutate(n.id)} titulo={`Eliminar ${n.nombre}`} />
                 </li>
               ))}
             </ul>

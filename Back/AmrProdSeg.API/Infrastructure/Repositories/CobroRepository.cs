@@ -140,24 +140,8 @@ public class CobroRepository : ICobroRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task RegenerarPendientesAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento)
-    {
-        using var conn = _factory.Create();
-        await conn.OpenAsync();
-
-        using var cmd = new SqlCommand("sp_Cobro_RegenerarPendientes", conn)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
-        cmd.Parameters.AddWithValue("@PolizaId",          polizaId);
-        cmd.Parameters.AddWithValue("@PrecioTotal",       precioTotal);
-        cmd.Parameters.AddWithValue("@CantidadCuotas",    cantidadCuotas);
-        cmd.Parameters.AddWithValue("@PrimerVencimiento", primerVencimiento.Date);
-        await cmd.ExecuteNonQueryAsync();
-    }
-
     public async Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
-        decimal? primaOG, string? cobertura, string? formaPago)
+        decimal? primaOG, string? cobertura, string? formaPago, int? usuarioId = null)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
@@ -173,7 +157,65 @@ public class CobroRepository : ICobroRepository
         cmd.Parameters.AddWithValue("@PrimaOG",           (object?)primaOG ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Cobertura",         (object?)cobertura ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@FormaPago",         (object?)formaPago ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@UsuarioId",         (object?)usuarioId ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
+        DateTime primerVencimiento, string descripcion, int? usuarioId = null)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Poliza_ModificarPeriodo", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId",          polizaId);
+        cmd.Parameters.AddWithValue("@PrecioTotal",       precioTotal);
+        cmd.Parameters.AddWithValue("@CantidadCuotas",    cantidadCuotas);
+        cmd.Parameters.AddWithValue("@PrimerVencimiento", primerVencimiento.Date);
+        cmd.Parameters.AddWithValue("@Descripcion",       descripcion);
+        cmd.Parameters.AddWithValue("@UsuarioId",         (object?)usuarioId ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<List<CobroEvento>> GetEventosAsync(int polizaId)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_CobroEventos_GetPorPoliza", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId", polizaId);
+
+        var lista = new List<CobroEvento>();
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            lista.Add(new CobroEvento
+            {
+                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                CobroId = reader.GetInt32(reader.GetOrdinal("CobroId")),
+                Ciclo = reader.GetInt32(reader.GetOrdinal("Ciclo")),
+                NumeroCuota = reader.GetInt32(reader.GetOrdinal("NumeroCuota")),
+                Tipo = reader.GetString(reader.GetOrdinal("Tipo")),
+                FechaEvento = reader.GetDateTime(reader.GetOrdinal("FechaEvento")),
+                Monto = reader.IsDBNull(reader.GetOrdinal("Monto")) ? null : reader.GetDecimal(reader.GetOrdinal("Monto")),
+                MetodoPagoId = reader.IsDBNull(reader.GetOrdinal("MetodoPagoId")) ? null : reader.GetInt32(reader.GetOrdinal("MetodoPagoId")),
+                Metodo = reader.IsDBNull(reader.GetOrdinal("Metodo")) ? "Sin especificar" : reader.GetString(reader.GetOrdinal("Metodo")),
+                MetodoPago2Id = reader.IsDBNull(reader.GetOrdinal("MetodoPago2Id")) ? null : reader.GetInt32(reader.GetOrdinal("MetodoPago2Id")),
+                Metodo2 = reader.IsDBNull(reader.GetOrdinal("Metodo2")) ? null : reader.GetString(reader.GetOrdinal("Metodo2")),
+                MetodoPago2Monto = reader.IsDBNull(reader.GetOrdinal("MetodoPago2Monto")) ? null : reader.GetDecimal(reader.GetOrdinal("MetodoPago2Monto")),
+                UsuarioId = reader.IsDBNull(reader.GetOrdinal("UsuarioId")) ? null : reader.GetInt32(reader.GetOrdinal("UsuarioId")),
+                UsuarioNombre = reader.IsDBNull(reader.GetOrdinal("UsuarioNombre")) ? null : reader.GetString(reader.GetOrdinal("UsuarioNombre")),
+                FechaRegistro = reader.GetDateTime(reader.GetOrdinal("FechaRegistro")),
+                Detalle = reader.IsDBNull(reader.GetOrdinal("Detalle")) ? null : reader.GetString(reader.GetOrdinal("Detalle")),
+            });
+        }
+        return lista;
     }
 
     private static async Task<List<Cobro>> LeerCobrosAsync(SqlCommand cmd)
@@ -217,6 +259,12 @@ public class CobroRepository : ICobroRepository
                            : null,
         Ciclo            = TieneCol(reader, "Ciclo") && !reader.IsDBNull(reader.GetOrdinal("Ciclo"))
                            ? reader.GetInt32(reader.GetOrdinal("Ciclo"))
-                           : 1
+                           : 1,
+        CicloTipo        = TieneCol(reader, "CicloTipo") && !reader.IsDBNull(reader.GetOrdinal("CicloTipo"))
+                           ? reader.GetString(reader.GetOrdinal("CicloTipo"))
+                           : null,
+        CicloDescripcion = TieneCol(reader, "CicloDescripcion") && !reader.IsDBNull(reader.GetOrdinal("CicloDescripcion"))
+                           ? reader.GetString(reader.GetOrdinal("CicloDescripcion"))
+                           : null
     };
 }

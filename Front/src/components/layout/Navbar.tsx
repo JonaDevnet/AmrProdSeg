@@ -8,6 +8,7 @@ import {
   IconChevronD, IconEdit, IconCar, IconFile, IconMail, IconBan, IconEye, IconDownload,
 } from "../Icons";
 import CambiarPasswordModal from "../usuarios/CambiarPasswordModal";
+import NotasUsuario from "../NotasUsuario";
 import NotificacionesBell from "../NotificacionesBell";
 import SearchModal from "../SearchModal";
 import { useRealtimeNotificaciones } from "../../hooks/useRealtimeNotificaciones";
@@ -135,6 +136,7 @@ export default function Navbar() {
             <span className="mono" style={{ ...kbd, flexShrink: 0 }}>⌘K</span>
           </button>
 
+          <NotasUsuario />
           <NotificacionesBell />
 
           {/* Avatar + menú */}
@@ -156,7 +158,7 @@ export default function Navbar() {
                       onClick={() => { setUserOpen(false); navigate("/usuarios"); }} />
                   )}
                   {esAdmin && (
-                    <DropItem icon={<IconBuilding size={15} />} titulo="Compañías y métodos" sub="Catálogos del sistema"
+                    <DropItem icon={<IconBuilding size={15} />} titulo="Compañías y catálogos" sub="Catálogos del sistema"
                       onClick={() => { setUserOpen(false); navigate("/companias"); }} />
                   )}
                   {esAdmin && (
@@ -193,6 +195,7 @@ export default function Navbar() {
               <button style={iconBtn} onClick={() => setBuscar(true)} title="Buscar" aria-label="Buscar">
                 <IconSearch size={20} />
               </button>
+              <NotasUsuario />
               <NotificacionesBell />
               <button style={iconBtn} onClick={() => setMenuOpen((o) => !o)} aria-label="Menú" aria-expanded={menuOpen}>
                 {menuOpen
@@ -236,7 +239,7 @@ export default function Navbar() {
               {esAdmin && (<>
                 <div style={drawerLabel}>Administración</div>
                 <button style={drawerLink(false)} onClick={() => irA("/usuarios")}><IconUsers size={16} />Vendedores</button>
-                <button style={drawerLink(false)} onClick={() => irA("/companias")}><IconBuilding size={16} />Compañías y métodos</button>
+                <button style={drawerLink(false)} onClick={() => irA("/companias")}><IconBuilding size={16} />Compañías y catálogos</button>
                 <button style={drawerLink(false)} onClick={() => irA("/registro")}><IconBan size={16} />Registro de movimientos</button>
                 <button style={drawerLink(false)} onClick={() => irA("/configuracion")}><IconMail size={16} />Configuración de envío</button>
               </>)}

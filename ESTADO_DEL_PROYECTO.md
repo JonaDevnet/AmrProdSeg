@@ -3,6 +3,8 @@
 Sistema de gestión de pólizas para **AMR Producción de Seguros**: clientes, vehículos,
 pólizas multi-ramo, cobranzas, renovaciones, bajas, reportes y comprobantes en PDF.
 
+> **Versión actual:** 1.2.0 — 19/10/2026
+>
 > Documento de estado: qué está **implementado y verificado**, y qué **queda pendiente**.
 
 ---
@@ -33,7 +35,7 @@ ESTADO_DEL_PROYECTO.md       # este documento
 
 ```bash
 # Base de datos (en orden)
-sqlcmd -S "localhost\SQLEXPRESS" -E -i AmrProdSeg_Schema.sql
+sqlcmd -S "localhost\SQLEXPRESS" -E -f 65001 -i AmrProdSeg_Schema.sql
 sqlcmd -S "localhost\SQLEXPRESS" -E -i AmrProdSeg_Seed.sql
 
 # Backend
@@ -52,12 +54,12 @@ cd Front && npm install && npm run dev                         # http://localhos
 ### Autenticación y usuarios
 - Login JWT, **refresh con rotación**, logout. Autorización por **roles** (Admin/Productor) en API y rutas del front.
 - **Recuperación de contraseña con autorización del Admin**: el vendedor la solicita → el Admin la autoriza → el vendedor define su nueva contraseña.
-- Gestión de **usuarios/vendedores** (alta con hash BCrypt — solo Admin) y **cambio de contraseña propia**.
+- Gestión de **usuarios/vendedores** (alta con hash BCrypt — solo Admin) y **cambio de contraseña propia**. Al recrear un usuario dado de baja con el mismo correo se **reactiva la misma cuenta**, conservando su historial.
 
 ### Clientes (Cartera)
 - Listado **paginado** con búsqueda (nombre/documento), alta y edición.
 - **Corrección de documento** (solo Admin) registrada en **auditoría**.
-- **Ficha del cliente**: datos + vehículos (alta/edición) + pólizas asociadas.
+- **Ficha del cliente**: datos + vehículos (alta/edición) + pólizas asociadas. Incluye **nacionalidad obligatoria** desde catálogo (también en alta, endoso y PDF).
 
 ### Vehículos
 - Alta/edición desde la ficha; consulta por cliente y **por patente**.
@@ -65,7 +67,7 @@ cd Front && npm install && npm run dev                         # http://localhos
 ### Pólizas
 - Listado con **filtros** (estado, cliente) + **paginación** + **ramo** + cliente + patente.
 - Detalle con **plan de cuotas**, **comprobante PDF**, **cancelar**, **renovar**, **pagar cuotas**.
-- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia, prima, cuotas.
+- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia y prima OG. Las cuotas ya generadas son **inmutables**. Si cambia el período se agrega un ciclo nuevo (`Modificación de período`) y las cuotas nuevas se muestran debajo de las anteriores; para otros cambios de plan se usa Refacturar o Renovar.
 
 ### Multi-ramo (catálogo gestionado solo por Admin)
 - Catálogo **Ramos** (Automotor, Motovehículo, Hogar, Vida, Comercio, ART) — alta solo Admin, lectura para todos.
@@ -117,6 +119,7 @@ cd Front && npm install && npm run dev                         # http://localhos
 - **Tipo de documento** (Cliente), **combustión** (Vehículo) y **forma de pago** (Póliza) se capturan y **persisten** (columnas nuevas + SPs).
 
 ### Búsqueda global y navegación
+- **Notas privadas por usuario**: ícono al lado de la campanita, alta y eliminación de notas/recordatorios. Cada usuario solo ve las suyas.
 - **Búsqueda global ⌘K** (clientes, vehículos, pólizas) con navegación directa.
 - **Campanita** con pólizas próximas a vencer (30 días).
 - **Navbar navy** fiel: Cartera · Pólizas · Nueva póliza · Editar ▾ · Cobranzas · Bajas · Reportes + buscador + avatar-menú (Admin: Vendedores / Compañías-Ramos-Métodos).
@@ -149,17 +152,19 @@ PUT   /api/clientes/{id}/documento     (Admin, auditado)
 GET   /api/vehiculos?clienteId | /por-patente   POST/PUT /api/vehiculos
 GET   /api/polizas?clienteId&estado&page   GET/PUT /api/polizas/{id}
 POST  /api/polizas/{id}/renovar | PUT /{id}/cancelar | GET /{id}/pdf
-GET   /api/cobros?polizaId | /pendientes   PUT /api/cobros/{id}/pagar
+GET   /api/cobros?polizaId | /pendientes | /historial?polizaId   PUT /api/cobros/{id}/pagar
 POST  /api/cobros/{id}/comprobante/enviar                   # email | whatsapp
 POST  /api/cobros/{id}/anular                               # Admin revierte / Productor solicita
 GET   /api/anulaciones/pendientes  POST /…/{id}/aprobar|rechazar (Admin)
 POST  /api/altas                                            # alta transaccional (Nº E/T)
 PUT   /api/polizas/{id}/numero                              # asignar Nº definitivo
 GET   /api/ramos     POST /api/ramos     DELETE /api/ramos/{id}        (Admin)
+GET   /api/nacionalidades POST/DELETE /api/nacionalidades[/{id}]       (Admin)
 GET   /api/companias POST /api/companias DELETE /api/companias/{id}    (Admin)
 GET   /api/metodos-pago POST/DELETE /api/metodos-pago[/{id}]           (Admin)
 GET   /api/bajas     POST /api/bajas    POST /api/bajas/{id}/aprobar|rechazar (Admin)
 GET   /api/movimientos POST /api/movimientos DELETE /api/movimientos/{id}  # finanzas personales (privado)
+GET   /api/notas     POST /api/notas     DELETE /api/notas/{id}          # notas privadas por usuario
 GET   /api/usuarios  POST /api/usuarios (Admin)  PUT /api/usuarios/password
 GET   /api/usuarios/solicitudes-reset  POST /…/{id}/autorizar (Admin)
 POST  /api/notificaciones/ejecutar     (Admin)             # dispara el job a demanda
@@ -181,4 +186,4 @@ GET   /health
 
 ---
 
-*Última actualización: anulación de pago, eliminación de catálogos, póliza E/T + Nº definitivo, prima OG, rendición con diferencia, solicitante en bajas, finanzas personales, Reportes de 3 tabs, dots de cuotas en Cobranzas y tests de frontend (Vitest/RTL).*
+*Última actualización — versión 1.2.0: notas privadas por usuario, nacionalidad obligatoria con catálogo, reactivación de usuarios, cuotas inmutables con historial de ciclos, historial append-only de pagos/anulaciones, corrección del cierre inmediato de sesión y tests de backend/frontend.*
