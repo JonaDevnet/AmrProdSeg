@@ -20,6 +20,8 @@ public interface IPolizaRepository
     Task<List<Poliza>> BuscarAsync(string termino, int page, int pageSize);
     Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
     Task ActualizarAsync(Poliza p);
+    /// <summary>Actualiza la póliza y agrega el ciclo de modificación de período en una sola transacción.</summary>
+    Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null);
     Task<int> AsignarNumeroAsync(int id, string numero);
 }
 
@@ -39,9 +41,6 @@ public interface ICobroRepository
     /// </summary>
     Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
         decimal? primaOG, string? cobertura, string? formaPago, int? usuarioId = null);
-    /// <summary>Agrega un ciclo nuevo por modificación de período, sin tocar los ciclos anteriores.</summary>
-    Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
-        DateTime primerVencimiento, string descripcion, int? usuarioId = null);
     /// <summary>Historial append-only de pagos/anulaciones de la póliza.</summary>
     Task<List<CobroEvento>> GetEventosAsync(int polizaId);
 }

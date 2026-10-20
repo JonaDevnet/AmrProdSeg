@@ -67,7 +67,7 @@ cd Front && npm install && npm run dev                         # http://localhos
 ### Pólizas
 - Listado con **filtros** (estado, cliente) + **paginación** + **ramo** + cliente + patente.
 - Detalle con **plan de cuotas**, **comprobante PDF**, **cancelar**, **renovar**, **pagar cuotas**.
-- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia y prima OG. Las cuotas ya generadas son **inmutables**. Si cambia el período se agrega un ciclo nuevo (`Modificación de período`) y las cuotas nuevas se muestran debajo de las anteriores; para otros cambios de plan se usa Refacturar o Renovar.
+- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia y prima OG. Las cuotas ya generadas son **inmutables**. Si cambia el período se agrega un ciclo nuevo (`Modificación de período`) en una **transacción única** y las cuotas nuevas se muestran debajo de las anteriores; para otros cambios de plan se usa Refacturar o Renovar.
 
 ### Multi-ramo (catálogo gestionado solo por Admin)
 - Catálogo **Ramos** (Automotor, Motovehículo, Hogar, Vida, Comercio, ART) — alta solo Admin, lectura para todos.
@@ -127,6 +127,8 @@ cd Front && npm install && npm run dev                         # http://localhos
 ### Seguridad y operación
 - Rate limiting, headers de seguridad, manejo de excepciones (sin stack traces al cliente),
   **healthcheck `/health`**, HTTPS forzado en producción, Serilog (consola + archivo).
+- **Bloqueo geográfico desactivado temporalmente** (el middleware se conserva para reactivarlo).
+  Todas las requests de la API registran la **IP real** en los logs, excepto `/health`.
 - **Tests xUnit** de reglas de negocio (pago duplicado, renovación inválida, unicidad, etc.).
 
 ---

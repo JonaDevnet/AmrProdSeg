@@ -173,7 +173,14 @@ export function useEliminarCobertura() {
 
 /* -------- Nacionalidades -------- */
 export function useNacionalidades() {
-  return useQuery({ queryKey: ["nacionalidades"], queryFn: getNacionalidades, staleTime: 5 * 60 * 1000 });
+  return useQuery({
+    queryKey: ["nacionalidades"],
+    queryFn: getNacionalidades,
+    // Catálogo pequeño: se refresca al montar y reintenta si la API falló.
+    staleTime: 0,
+    retry: 2,
+    refetchOnMount: "always",
+  });
 }
 
 export function useCrearNacionalidad() {

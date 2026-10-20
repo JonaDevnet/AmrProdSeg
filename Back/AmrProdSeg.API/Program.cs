@@ -313,7 +313,9 @@ app.UseForwardedHeaders();            // 0. IP/esquema reales detrás de Traefik
 app.UseExceptionHandlingMiddleware(); // captura excepciones de toda la cadena
 app.UseRequestLogging();              // 0b. Registra solicitudes con error (4xx/5xx) → errors-.log
 app.UseIpRateLimiting();              // 1. Rate limiting (usa la IP real del cliente)
-app.UseGeoBlocking();                 // 1b. Bloqueo geográfico (solo Argentina)
+// app.UseGeoBlocking();              // 1b. DESACTIVADO TEMPORALMENTE: el middleware se conserva
+                                        // para poder reactivarlo cuando se resuelva el acceso móvil.
+                                        // Las IPs se siguen registrando en RequestLoggingMiddleware.
 // El HTTPS lo termina Traefik en el borde; dentro del contenedor el tráfico es HTTP.
 // Se puede desactivar la redirección con UseHttpsRedirection=false (ver docker-compose).
 if (!app.Environment.IsDevelopment() && builder.Configuration.GetValue("UseHttpsRedirection", true))

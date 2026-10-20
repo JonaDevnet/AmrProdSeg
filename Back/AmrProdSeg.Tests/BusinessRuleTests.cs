@@ -134,11 +134,14 @@ public class PolizaServiceTests
             PrecioTotal = 50000, CantidadCuotas = 6
         });
 
-        Assert.Equal(1, cobroRepo.AgregarModificacionPeriodoLlamadas);
-        Assert.Equal(new DateTime(2026, 3, 1), cobroRepo.UltimoModificacionVencimiento);
-        Assert.Contains("Modificación de período", cobroRepo.UltimaModificacionDescripcion);
-        Assert.Equal(50000m, cobroRepo.UltimaModificacionPrecio);
-        Assert.Equal(6, cobroRepo.UltimaModificacionCuotas);
+        Assert.Equal(1, polizaRepo.ModificacionPeriodoLlamadas);
+        Assert.Equal(0, polizaRepo.ActualizarLlamadas);
+        Assert.Equal(new DateTime(2026, 3, 1), polizaRepo.UltimoPrimerVencimiento);
+        Assert.Contains("Modificación de período", polizaRepo.UltimaDescripcionModificacion);
+        Assert.Equal(50000m, polizaRepo.UltimaPolizaModificada!.PrecioTotal);
+        Assert.Equal(6, polizaRepo.UltimaPolizaModificada.CantidadCuotas);
+        Assert.Equal(new DateTime(2026, 2, 1), polizaRepo.UltimaPolizaModificada.FechaInicio);
+        Assert.Equal(new DateTime(2026, 8, 1), polizaRepo.UltimaPolizaModificada.FechaFin);
     }
 
     [Fact]
@@ -171,7 +174,7 @@ public class PolizaServiceTests
             PrecioTotal = 50000, CantidadCuotas = 2
         });
 
-        Assert.Equal(new DateTime(2026, 3, 21), cobroRepo.UltimoModificacionVencimiento);
+        Assert.Equal(new DateTime(2026, 3, 21), polizaRepo.UltimoPrimerVencimiento);
     }
 
     [Fact]
@@ -197,7 +200,8 @@ public class PolizaServiceTests
             PrecioTotal = 50000, CantidadCuotas = 6
         });
 
-        Assert.Equal(0, cobroRepo.AgregarModificacionPeriodoLlamadas);
+        Assert.Equal(0, polizaRepo.ModificacionPeriodoLlamadas);
+        Assert.Equal(1, polizaRepo.ActualizarLlamadas);
     }
 
     [Fact]

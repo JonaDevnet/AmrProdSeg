@@ -123,7 +123,14 @@ export default function Alta() {
   const { data: companias = [] } = useCompanias();
   const { data: ramos = [] } = useRamos();
   const { data: coberturas = [] } = useCoberturas();
-  const { data: nacionalidades = [] } = useNacionalidades();
+  const {
+    data: nacionalidades = [],
+    isLoading: cargandoNacionalidades,
+    isError: errorNacionalidades,
+    isFetching: reintentandoNacionalidades,
+    refetch: reintentarNacionalidades,
+  } = useNacionalidades();
+  const sinNacionalidades = !cargandoNacionalidades && (errorNacionalidades || nacionalidades.length === 0);
   const crear = useCrearAlta();
 
   const [form, setForm] = useState<Form>(FORM0);
@@ -442,10 +449,29 @@ export default function Alta() {
                       const n = nacionalidades.find((x) => x.nombre === nombre);
                       setForm((f) => ({ ...f, nacionalidadId: n ? String(n.id) : "", nacionalidadNombre: nombre }));
                     }}
-                    placeholder="Seleccionar"
+                    placeholder={cargandoNacionalidades ? "Cargando nacionalidades…" : "Seleccionar"}
                     options={nacionalidades.map((n) => n.nombre)}
+                    disabled={cargandoNacionalidades || sinNacionalidades}
                   />
                 </Field>
+                {cargandoNacionalidades && (
+                  <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--ink-500)" }}>
+                    Cargando nacionalidades…
+                  </div>
+                )}
+                {sinNacionalidades && (
+                  <div style={{ marginTop: 6, padding: "9px 12px", background: "var(--bad-100)", border: "1px solid var(--bad-200)", borderRadius: 8, fontSize: 12.5, color: "var(--bad-700)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <span>No se pudieron cargar las nacionalidades.</span>
+                    <button
+                      type="button"
+                      onClick={() => void reintentarNacionalidades()}
+                      disabled={reintentandoNacionalidades}
+                      style={{ flexShrink: 0, height: 28, padding: "0 10px", borderRadius: 7, border: 0, background: "var(--bad-700)", color: "white", fontSize: 12, fontWeight: 600, cursor: reintentandoNacionalidades ? "default" : "pointer", opacity: reintentandoNacionalidades ? 0.7 : 1 }}
+                    >
+                      {reintentandoNacionalidades ? "Reintentando…" : "Reintentar"}
+                    </button>
+                  </div>
+                )}
                 <Sp h={16} />
                 <div style={grid("1fr 1fr")}>
                   <Field label="Nombre" required>
@@ -745,20 +771,51 @@ function Field({ label, required, hint, children }: { label: string; required?: 
 function InputBox({ focus, onFocus, onBlur, children }: { focus: boolean; onFocus: () => void; onBlur: () => void; children: ReactNode }) {
   return <div style={inputWrap(focus)} onFocus={onFocus} onBlur={onBlur}>{children}</div>;
 }
-function SelectBox({ focus, onFocus, onBlur, value, onChange, placeholder, options, renderOption }: {
+function SelectBox({ focus, onFocus, onBlur, value, onChange, placeholder, options, renderOption, disabled = false }: {
   focus: boolean; onFocus: () => void; onBlur: () => void; value: string; onChange: (v: string) => void;
-  placeholder?: string; options: string[]; renderOption?: (o: string) => ReactNode;
+  placeholder?: string; options: string[]; renderOption?: (o: string) => ReactNode; disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState<{
+    top: number | null;
+    bottom: number | null;
+    left: number;
+    width: number;
+    maxHeight: number;
+  }>({ top: 0, bottom: null, left: 0, width: 0, maxHeight: 280 });
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
   // El menú se renderiza en un portal (position:fixed) para que no lo recorte la card.
+  // Se limita al viewport: en pantallas chicas no se sale por la derecha ni por abajo.
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 6, left: r.left, width: r.width });
+    const margen = 8;
+    const width = Math.min(r.width, window.innerWidth - margen * 2);
+    const left = Math.min(
+      Math.max(r.left, margen),
+      Math.max(margen, window.innerWidth - width - margen),
+    );
+    const espacioAbajo = window.innerHeight - r.bottom - 12;
+    const espacioArriba = r.top - 12;
+    const abrirArriba = espacioAbajo < 180 && espacioArriba > espacioAbajo;
+    const maxHeight = Math.max(
+      120,
+      Math.min(280, abrirArriba ? espacioArriba : espacioAbajo),
+    );
+
+    setPos({
+      top: abrirArriba ? null : r.bottom + 6,
+      bottom: abrirArriba ? window.innerHeight - r.top + 6 : null,
+      left,
+      width,
+      maxHeight,
+    });
   }, [open]);
 
   useEffect(() => {
@@ -783,22 +840,52 @@ function SelectBox({ focus, onFocus, onBlur, value, onChange, placeholder, optio
 
   return (
     <div style={{ position: "relative" }}>
-      <div ref={triggerRef} style={inputWrap(focus || open)} onClick={() => setOpen((o) => !o)} onFocus={onFocus} onBlur={onBlur} tabIndex={0}>
+      <div
+        ref={triggerRef}
+        style={{
+          ...inputWrap(focus || open),
+          opacity: disabled ? 0.62 : 1,
+          cursor: disabled ? "not-allowed" : undefined,
+        }}
+        onClick={() => { if (!disabled) setOpen((o) => !o); }}
+        onFocus={disabled ? undefined : onFocus}
+        onBlur={disabled ? undefined : onBlur}
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+      >
         <div style={{ flex: 1, fontSize: 14, color: value ? "var(--ink-900)" : "var(--ink-400)" }}>
           {value ? (renderOption ? renderOption(value) : value) : (placeholder || "Seleccionar")}
         </div>
         <IconChevD size={15} style={{ color: "var(--ink-400)", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </div>
       {open && createPortal(
-        <div ref={menuRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "var(--shadow-lg)", padding: 4, zIndex: 1000, maxHeight: 280, overflowY: "auto" }}>
+        <div ref={menuRef} style={{
+          position: "fixed",
+          top: pos.top ?? undefined,
+          bottom: pos.bottom ?? undefined,
+          left: pos.left,
+          width: pos.width,
+          maxHeight: pos.maxHeight,
+          boxSizing: "border-box",
+          overflowY: "auto",
+          overflowX: "hidden",
+          background: "var(--paper)",
+          border: "1px solid var(--line)",
+          borderRadius: 10,
+          boxShadow: "var(--shadow-lg)",
+          padding: 4,
+          zIndex: 1000,
+        }}>
           {options.length === 0 && <div style={{ padding: "9px 12px", fontSize: 13, color: "var(--ink-400)" }}>Sin opciones</div>}
           {options.map((o) => (
             <div key={o} onClick={() => { onChange(o); setOpen(false); }}
-              style={{ padding: "9px 12px", borderRadius: 7, cursor: "pointer", fontSize: 14, color: "var(--ink-900)", display: "flex", alignItems: "center", justifyContent: "space-between", background: value === o ? "var(--blue-100)" : "transparent" }}
+              style={{ padding: "9px 12px", borderRadius: 7, cursor: "pointer", fontSize: 14, color: "var(--ink-900)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, minWidth: 0, background: value === o ? "var(--blue-100)" : "transparent" }}
               onMouseEnter={(e) => { if (value !== o) e.currentTarget.style.background = "var(--blue-50)"; }}
               onMouseLeave={(e) => { if (value !== o) e.currentTarget.style.background = "transparent"; }}>
-              <span>{renderOption ? renderOption(o) : o}</span>
-              {value === o && <IconCheck size={14} style={{ color: "var(--blue-600)" }} />}
+              <span style={{ minWidth: 0, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                {renderOption ? renderOption(o) : o}
+              </span>
+              {value === o && <IconCheck size={14} style={{ color: "var(--blue-600)", flexShrink: 0 }} />}
             </div>
           ))}
         </div>,

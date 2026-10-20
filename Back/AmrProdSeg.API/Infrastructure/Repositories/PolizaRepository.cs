@@ -114,6 +114,33 @@ public class PolizaRepository : IPolizaRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Poliza_ActualizarConModificacionPeriodo", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId",          p.Id);
+        cmd.Parameters.AddWithValue("@CompaniaId",        p.CompaniaId);
+        cmd.Parameters.AddWithValue("@RamoId",            (object?)p.RamoId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaInicio",       p.FechaInicio);
+        cmd.Parameters.AddWithValue("@FechaFin",          p.FechaFin);
+        cmd.Parameters.AddWithValue("@PrecioTotal",       p.PrecioTotal);
+        cmd.Parameters.AddWithValue("@CantidadCuotas",    p.CantidadCuotas);
+        cmd.Parameters.AddWithValue("@FormaPago",         (object?)p.FormaPago ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@PrimaOG",           (object?)p.PrimaOG ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Cobertura",         (object?)p.Cobertura ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@PrimerVencimiento", primerVencimiento.Date);
+        cmd.Parameters.AddWithValue("@Descripcion",       descripcion);
+        cmd.Parameters.AddWithValue("@UsuarioId",         (object?)usuarioId ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    }
+
     public async Task<int> AsignarNumeroAsync(int id, string numero)
     {
         using var conn = _factory.Create();

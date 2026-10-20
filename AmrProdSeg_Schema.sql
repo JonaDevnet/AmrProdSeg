@@ -4800,3 +4800,77 @@ BEGIN
 END
 GO
 
+/* =============================================================================
+   §70 — Actualización de póliza + modificación de período en UNA transacción.
+   Evita que la póliza quede con fechas nuevas si falla la creación del ciclo.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_ActualizarConModificacionPeriodo
+    @PolizaId INT,
+    @CompaniaId INT,
+    @RamoId INT = NULL,
+    @FechaInicio DATE,
+    @FechaFin DATE,
+    @PrecioTotal DECIMAL(18,2),
+    @CantidadCuotas INT,
+    @FormaPago VARCHAR(40) = NULL,
+    @PrimaOG DECIMAL(18,2) = NULL,
+    @Cobertura NVARCHAR(100) = NULL,
+    @PrimerVencimiento DATE,
+    @Descripcion NVARCHAR(300),
+    @UsuarioId INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Polizas WHERE Id = @PolizaId)
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(0 AS INT) AS Ciclo;
+            RETURN;
+        END
+
+        UPDATE Polizas
+        SET CompaniaId = @CompaniaId,
+            RamoId = @RamoId,
+            FechaInicio = @FechaInicio,
+            FechaFin = @FechaFin,
+            PrecioTotal = @PrecioTotal,
+            CantidadCuotas = @CantidadCuotas,
+            FormaPago = COALESCE(@FormaPago, FormaPago),
+            PrimaOG = COALESCE(@PrimaOG, PrimaOG),
+            Cobertura = COALESCE(@Cobertura, Cobertura)
+        WHERE Id = @PolizaId;
+
+        DECLARE @ultimoCiclo INT = ISNULL((SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId), 0);
+        DECLARE @nuevoCiclo  INT = @ultimoCiclo + 1;
+        DECLARE @base        DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+        DECLARE @ultima      DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+        INSERT INTO CobrosCiclos
+            (PolizaId, Ciclo, Tipo, Descripcion, PrecioTotal, CantidadCuotas, PrimerVencimiento, CreadoPor, FechaCreacion)
+        VALUES (@PolizaId, @nuevoCiclo, 'ModificacionPeriodo', @Descripcion,
+                @PrecioTotal, @CantidadCuotas, @PrimerVencimiento, @UsuarioId, GETUTCDATE());
+
+        DECLARE @i INT = 1;
+        WHILE @i <= @CantidadCuotas
+        BEGIN
+            INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, Ciclo)
+            VALUES (@PolizaId, @i, DATEADD(MONTH, @i - 1, @PrimerVencimiento),
+                    CASE WHEN @i = @CantidadCuotas THEN @ultima ELSE @base END, 0, @nuevoCiclo);
+            SET @i = @i + 1;
+        END
+
+        COMMIT TRANSACTION;
+        SELECT CAST(@nuevoCiclo AS INT) AS Ciclo;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+

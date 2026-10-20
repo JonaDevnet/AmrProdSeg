@@ -161,25 +161,6 @@ public class CobroRepository : ICobroRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public async Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
-        DateTime primerVencimiento, string descripcion, int? usuarioId = null)
-    {
-        using var conn = _factory.Create();
-        await conn.OpenAsync();
-
-        using var cmd = new SqlCommand("sp_Poliza_ModificarPeriodo", conn)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
-        cmd.Parameters.AddWithValue("@PolizaId",          polizaId);
-        cmd.Parameters.AddWithValue("@PrecioTotal",       precioTotal);
-        cmd.Parameters.AddWithValue("@CantidadCuotas",    cantidadCuotas);
-        cmd.Parameters.AddWithValue("@PrimerVencimiento", primerVencimiento.Date);
-        cmd.Parameters.AddWithValue("@Descripcion",       descripcion);
-        cmd.Parameters.AddWithValue("@UsuarioId",         (object?)usuarioId ?? DBNull.Value);
-        await cmd.ExecuteNonQueryAsync();
-    }
-
     public async Task<List<CobroEvento>> GetEventosAsync(int polizaId)
     {
         using var conn = _factory.Create();

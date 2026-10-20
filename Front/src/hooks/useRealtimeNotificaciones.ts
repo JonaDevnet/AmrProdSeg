@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import { HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
 import { useAuth } from "../auth/AuthContext";
 import { getToken } from "../security/axiosInstance";
 
@@ -30,10 +30,19 @@ export function useRealtimeNotificaciones() {
       qc.invalidateQueries({ queryKey: ["solicitudes-cambio"] });
     });
 
-    conn.start().catch(() => {
+    const inicio = conn.start().catch(() => {
       // Silencioso a propósito: el refresco de respaldo cubre la actualización.
     });
 
-    return () => { void conn.stop(); };
+    return () => {
+      // No cortar la negociación: esperar a que start() termine y recién ahí
+      // detener. Evita el error "The connection was stopped during negotiation"
+      // que aparece en StrictMode/HMR al desmontar el componente.
+      void inicio.finally(() => {
+        if (conn.state !== HubConnectionState.Disconnected) {
+          void conn.stop().catch(() => { /* la sesión ya se está cerrando */ });
+        }
+      });
+    };
   }, [autenticado, qc]);
 }

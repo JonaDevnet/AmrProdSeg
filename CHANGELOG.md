@@ -6,7 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
 
 ## [1.2.0] — 2026-10-19
 
-Versión actual. Requiere aplicar el schema (§66–§69) y rebuild de back + front (`bash actualizar.sh`).
+Versión actual. Requiere aplicar el schema (§66–§70) y rebuild de back + front (`bash actualizar.sh`).
 
 ### Añadido
 - **Notas privadas por usuario**: nuevo ícono al lado izquierdo de la campanita. Cada usuario puede
@@ -26,13 +26,31 @@ Versión actual. Requiere aplicar el schema (§66–§69) y rebuild de back + fr
   (fecha, importe, medio y usuario), aunque la cuota vuelva a estado pendiente.
 - **Tests**: backend con **103 tests** y frontend con **21 tests**.
 
+### Cambiado
+- **Bloqueo geográfico desactivado temporalmente**: `UseGeoBlocking()` quedó comentado en el
+  pipeline para permitir el acceso desde celulares con IP mal clasificada. El middleware y su
+  configuración se conservan para reactivarlo. `RequestLoggingMiddleware` ahora registra
+  **todas las requests** con IP real, método, ruta, status, usuario, duración y user-agent
+  (se omite `/health` para no generar ruido).
+
 ### Corregido
+- **Modificación de período transaccional**: actualizar la póliza y crear el ciclo de cuotas ahora
+  ocurre en un único SP/transacción (`sp_Poliza_ActualizarConModificacionPeriodo`). Si falla la
+  creación de cuotas, se revierte también el cambio de fechas de la póliza (§70).
+- **Catálogo de nacionalidades**: `/alta` muestra estados de carga, error y un botón **Reintentar**
+  si la consulta falla o vuelve vacía. El selector se deshabilita mientras no haya opciones.
 - **Cierre de sesión inmediato al iniciar sesión**: el control de inactividad usaba la marca
   `amr_ultima_actividad` de `localStorage`, pero no la reiniciaba al autenticarse. Si la marca
   anterior tenía más de 30 minutos, el primer login cerraba la sesión al instante (el segundo
   funcionaba porque el cierre la borraba). Ahora la marca se reinicia al iniciar sesión.
 - **Codificación de la “ñ” en nacionalidades**: el seed quedó con `Ã±` porque `sqlcmd` leyó el
   archivo como ANSI. Ahora el seed usa `NCHAR(241)` y los comandos de aplicación usan `-f 65001`.
+- **SignalR: “connection was stopped during negotiation”**: al desmontarse el componente
+  (StrictMode/HMR/logout) se llamaba a `stop()` mientras `start()` seguía negociando. Ahora el
+  cierre espera a que termine el inicio de la conexión y recién ahí la detiene.
+- **Desplegables del alta en pantallas chicas**: el menú de `SelectBox` ahora se limita al ancho
+  del viewport, abre hacia arriba si no hay espacio abajo y ajusta su altura máxima. También usa
+  `border-box` y envuelve textos largos para que no se salga ni quede descuadrado.
 
 ## [1.1.0] — sin desplegar
 

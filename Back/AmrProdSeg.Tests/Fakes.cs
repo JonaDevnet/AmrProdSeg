@@ -33,7 +33,12 @@ public class FakePolizaRepository : IPolizaRepository
     public Poliza? PolizaPorId;
     public Poliza? PolizaActivaPorVehiculo;
     public int InsertarLlamadas;
+    public int ActualizarLlamadas;
+    public int ModificacionPeriodoLlamadas;
     public EstadoPoliza? UltimoEstadoCambiado;
+    public Poliza? UltimaPolizaModificada;
+    public DateTime? UltimoPrimerVencimiento;
+    public string? UltimaDescripcionModificacion;
 
     public Task<Poliza?> GetByIdAsync(int id) => Task.FromResult(PolizaPorId);
     public Task<Poliza?> GetByTokenAsync(Guid token) => Task.FromResult(PolizaPorId);
@@ -43,7 +48,15 @@ public class FakePolizaRepository : IPolizaRepository
     public Task<List<Poliza>> BuscarAsync(string termino, int page, int pageSize) => Task.FromResult(new List<Poliza>());
     public Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
         => Task.FromResult((new List<Poliza>(), 0));
-    public Task ActualizarAsync(Poliza p) => Task.CompletedTask;
+    public Task ActualizarAsync(Poliza p) { ActualizarLlamadas++; return Task.CompletedTask; }
+    public Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null)
+    {
+        ModificacionPeriodoLlamadas++;
+        UltimaPolizaModificada = p;
+        UltimoPrimerVencimiento = primerVencimiento;
+        UltimaDescripcionModificacion = descripcion;
+        return Task.FromResult(1);
+    }
     public Task<int> AsignarNumeroAsync(int id, string numero) => Task.FromResult(1);
 }
 
@@ -53,11 +66,6 @@ public class FakeCobroRepository : ICobroRepository
     public int MarcarPagadoLlamadas;
     public List<Cobro> Cuotas = new();
     public int AgregarCicloLlamadas;
-    public int AgregarModificacionPeriodoLlamadas;
-    public decimal? UltimaModificacionPrecio;
-    public int? UltimaModificacionCuotas;
-    public DateTime? UltimoModificacionVencimiento;
-    public string? UltimaModificacionDescripcion;
     public List<CobroEvento> Eventos = new();
 
     public Task InsertarLoteAsync(IEnumerable<Cobro> cobros) => Task.CompletedTask;
@@ -70,17 +78,6 @@ public class FakeCobroRepository : ICobroRepository
     public Task AgregarCicloAsync(int polizaId, decimal precioTotal, int cantidadCuotas, DateTime primerVencimiento,
         decimal? primaOG, string? cobertura, string? formaPago, int? usuarioId = null)
     { AgregarCicloLlamadas++; return Task.CompletedTask; }
-
-    public Task AgregarModificacionPeriodoAsync(int polizaId, decimal precioTotal, int cantidadCuotas,
-        DateTime primerVencimiento, string descripcion, int? usuarioId = null)
-    {
-        AgregarModificacionPeriodoLlamadas++;
-        UltimaModificacionPrecio = precioTotal;
-        UltimaModificacionCuotas = cantidadCuotas;
-        UltimoModificacionVencimiento = primerVencimiento;
-        UltimaModificacionDescripcion = descripcion;
-        return Task.CompletedTask;
-    }
 
     public Task<List<CobroEvento>> GetEventosAsync(int polizaId) => Task.FromResult(Eventos);
 }

@@ -204,12 +204,12 @@ public class PolizaService : IPolizaService
         poliza.FormaPago      = dto.FormaPago;
         poliza.PrimaOG        = dto.PrimaOG;
         poliza.Cobertura      = dto.Cobertura;
-        await _polizaRepo.ActualizarAsync(poliza);
 
         // Si cambió el período, se agrega un ciclo NUEVO debajo de los existentes.
         // Las cuotas de ciclos anteriores no se modifican ni se borran.
         var cambioPeriodo = fechaInicioAnterior.Date != dto.FechaInicio.Date
                          || fechaFinAnterior.Date != dto.FechaFin.Date;
+
         if (cambioPeriodo)
         {
             var descripcion = $"Modificación de período: {fechaInicioAnterior:dd/MM/yyyy} – {fechaFinAnterior:dd/MM/yyyy} → {dto.FechaInicio:dd/MM/yyyy} – {dto.FechaFin:dd/MM/yyyy}";
@@ -235,8 +235,13 @@ public class PolizaService : IPolizaService
                 primerVencimiento = ultima.AddMonths(1);
             }
 
-            await _cobroRepo.AgregarModificacionPeriodoAsync(
-                id, poliza.PrecioTotal, poliza.CantidadCuotas, primerVencimiento, descripcion, usuarioId);
+            // Póliza + ciclo + cuotas en una sola transacción.
+            await _polizaRepo.ActualizarConModificacionPeriodoAsync(
+                poliza, primerVencimiento, descripcion, usuarioId);
+        }
+        else
+        {
+            await _polizaRepo.ActualizarAsync(poliza);
         }
 
         if (usuarioId is int uid)

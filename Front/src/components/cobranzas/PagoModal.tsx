@@ -23,7 +23,6 @@ interface Props {
 export default function PagoModal({ cuota, tituloContexto, onClose, onPagado }: Props) {
   const metodos = useMetodosPago();
   const pagar = usePagarCuota();
-  const [fechaPago, setFechaPago] = useState(hoyISO());
   const [metodoPagoId, setMetodoPagoId] = useState<string>("");
   const [conSegundo, setConSegundo] = useState(false);
   const [metodoPago2Id, setMetodoPago2Id] = useState<string>("");
@@ -46,7 +45,8 @@ export default function PagoModal({ cuota, tituloContexto, onClose, onPagado }: 
     try {
       await pagar.mutateAsync({
         id: cuota.id,
-        fechaPago,
+        // La fecha de cobro es siempre el día en que se confirma el pago.
+        fechaPago: hoyISO(),
         metodoPagoId: Number(metodoPagoId),
         metodoPago2Id: usaSegundo ? Number(metodoPago2Id) : undefined,
         metodoPago2Monto: usaSegundo ? monto2Num : undefined,
@@ -84,7 +84,7 @@ export default function PagoModal({ cuota, tituloContexto, onClose, onPagado }: 
       )}
 
       <Field label="Fecha de pago">
-        <Input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} />
+        <Input type="date" value={hoyISO()} disabled />
       </Field>
 
       <Field label="Método de pago *">

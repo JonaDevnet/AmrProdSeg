@@ -5,10 +5,11 @@ using System.Security.Claims;
 namespace AmrProdSeg.API.Security.Middlewares;
 
 /// <summary>
-/// Registra las solicitudes que terminan en error (status ≥ 400): método, ruta,
-/// status, IP real (ya resuelta por ForwardedHeaders), usuario autenticado (si aplica),
-/// duración y user-agent. Nivel Warning → cae en logs/errors-*.log.
-/// Las solicitudes 2xx/3xx no se loguean acá (el tráfico/IP se ve en los access logs de Traefik).
+/// Registra TODAS las solicitudes de la API con su IP real (ya resuelta por ForwardedHeaders):
+/// método, ruta, status, usuario autenticado (si aplica), duración y user-agent.
+/// - 2xx/3xx → Information (logs/amrprodseg-*.log)
+/// - 4xx/5xx → Warning (además cae en logs/errors-*.log)
+/// Se omite /health para no llenar los logs con los chequeos de Traefik/monitoreo.
 /// Debe ir después de UseExceptionHandlingMiddleware() para ver el status final de la cadena.
 /// </summary>
 public class RequestLoggingMiddleware
@@ -34,11 +35,15 @@ public class RequestLoggingMiddleware
         finally
         {
             sw.Stop();
-            var status = context.Response.StatusCode;
-            if (status >= 400)
+
+            // El healthcheck se consulta muy seguido; no ensuciamos los logs con él.
+            if (!context.Request.Path.StartsWithSegments("/health"))
             {
-                _logger.LogWarning(
-                    "Request {Status} {Method} {Path} {StatusText} | IP {Ip} | Usuario {Usuario} | {DuracionMs} ms | UA {UserAgent}",
+                var status = context.Response.StatusCode;
+                var mensaje =
+                    "Request {Status} {Method} {Path} {StatusText} | IP {Ip} | Usuario {Usuario} | {DuracionMs} ms | UA {UserAgent}";
+                object[] args =
+                {
                     status,
                     context.Request.Method,
                     context.Request.Path,
@@ -50,7 +55,13 @@ public class RequestLoggingMiddleware
                           ?? context.User.Identity.Name ?? "?"
                         : "anonimo",
                     sw.ElapsedMilliseconds,
-                    context.Request.Headers.UserAgent.ToString());
+                    context.Request.Headers.UserAgent.ToString()
+                };
+
+                if (status >= 400)
+                    _logger.LogWarning(mensaje, args);
+                else
+                    _logger.LogInformation(mensaje, args);
             }
         }
     }
@@ -61,6 +72,9 @@ public class RequestLoggingMiddleware
 
     private static string ReasonPhrase(int status) => status switch
     {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
         400 => "Bad Request",
         401 => "Unauthorized",
         403 => "Forbidden",
