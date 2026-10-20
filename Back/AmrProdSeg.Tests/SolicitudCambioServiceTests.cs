@@ -147,6 +147,7 @@ public class FakePolizaService : IPolizaService
         => Task.FromResult(new PagedResult<PolizaDto>());
     public Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null) => Task.CompletedTask;
     public Task RefacturarAsync(int id, RenovarPolizaDto dto, int? usuarioId = null) => Task.CompletedTask;
+    public Task EliminarCicloAsync(int polizaId, int ciclo, int? usuarioId = null) => Task.CompletedTask;
     public Task<bool> TieneCuotasImpagasAsync(int polizaId) => Task.FromResult(false);
     public Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null) => Task.CompletedTask;
     public Task CancelarAsync(int id, int? usuarioId = null) => Task.CompletedTask;

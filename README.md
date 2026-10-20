@@ -63,7 +63,7 @@ El dev server **proxea `/api` → `http://localhost:5207`**, así que ambos debe
 
 - **Cartera de clientes**: búsqueda, paginación, alta/edición, **nacionalidad obligatoria desde catálogo**, corrección de documento (Admin, auditada).
 - **Vehículos**: alta/edición desde la ficha del cliente.
-- **Pólizas**: listado con filtros, detalle, plan de cuotas, comprobante PDF, cancelación. Las cuotas ya generadas son **inmutables**: los cambios de período agregan un ciclo nuevo debajo (Modificación de período) y el resto de cambios de plan se hacen con **Refacturar** o **Renovar**.
+- **Pólizas**: listado con filtros, detalle, plan de cuotas, comprobante PDF, cancelación. Las cuotas ya generadas son **inmutables**: editar la vigencia no las modifica y los cambios de plan se hacen con **Refacturar** o **Renovar**. El SuperAdmin puede eliminar un ciclo sin pagos escribiendo `Eliminar`; queda registrado en la auditoría.
 - **Cobranzas**: cuotas pendientes con **dots de progreso** por póliza, registro de pago con **método de pago** e **historial completo de pagos/anulaciones**,
   **comprobante** (imprimir + enviar por Email/WhatsApp), **anulación** de pago (Admin directo / Productor con aprobación) y **renovación**.
 - **Alta de asegurado**: wizard de 3 pasos (cliente + vehículo + póliza) en **una transacción**. Emite Nº **E/T**

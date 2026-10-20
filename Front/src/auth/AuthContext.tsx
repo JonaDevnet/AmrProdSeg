@@ -24,6 +24,7 @@ interface AuthContextValue {
   usuario: SesionUsuario | null;
   autenticado: boolean;
   esAdmin: boolean;
+  esSuperAdmin: boolean;
   iniciarSesion: (email: string, password: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
 }
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     usuario,
     autenticado: usuario !== null,
     esAdmin: usuario?.rol === "Admin" || usuario?.rol === "SuperAdmin",
+    esSuperAdmin: usuario?.rol === "SuperAdmin",
     iniciarSesion,
     cerrarSesion,
   };

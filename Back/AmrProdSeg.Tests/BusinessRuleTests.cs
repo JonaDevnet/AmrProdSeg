@@ -112,15 +112,15 @@ public class PolizaServiceTests
     }
 
     [Fact]
-    public async Task ActualizarAsync_CambiaPeriodo_AgregaCicloNuevo()
+    public async Task ActualizarAsync_CambiaPeriodo_NoAgregaCicloNiTocaCuotas()
     {
         var polizaRepo = new FakePolizaRepository
         {
             PolizaPorId = new Poliza
             {
                 Id = 1, Numero = "E/T-1", CompaniaId = 1,
-                FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 6, 1),
-                PrecioTotal = 50000, CantidadCuotas = 6
+                FechaInicio = new DateTime(2026, 7, 21), FechaFin = new DateTime(2026, 10, 21),
+                PrecioTotal = 99000, CantidadCuotas = 3
             }
         };
         var cobroRepo = new FakeCobroRepository();
@@ -130,38 +130,37 @@ public class PolizaServiceTests
         await svc.ActualizarAsync(1, new ActualizarPolizaDto
         {
             CompaniaId = 1,
-            FechaInicio = new DateTime(2026, 2, 1), FechaFin = new DateTime(2026, 8, 1),
-            PrecioTotal = 50000, CantidadCuotas = 6
+            FechaInicio = new DateTime(2026, 7, 21), FechaFin = new DateTime(2027, 7, 21),
+            PrecioTotal = 99000, CantidadCuotas = 3
         });
 
-        Assert.Equal(1, polizaRepo.ModificacionPeriodoLlamadas);
-        Assert.Equal(0, polizaRepo.ActualizarLlamadas);
-        Assert.Equal(new DateTime(2026, 3, 1), polizaRepo.UltimoPrimerVencimiento);
-        Assert.Contains("Modificación de período", polizaRepo.UltimaDescripcionModificacion);
-        Assert.Equal(50000m, polizaRepo.UltimaPolizaModificada!.PrecioTotal);
-        Assert.Equal(6, polizaRepo.UltimaPolizaModificada.CantidadCuotas);
-        Assert.Equal(new DateTime(2026, 2, 1), polizaRepo.UltimaPolizaModificada.FechaInicio);
-        Assert.Equal(new DateTime(2026, 8, 1), polizaRepo.UltimaPolizaModificada.FechaFin);
+        Assert.Equal(1, polizaRepo.ActualizarLlamadas);
+        Assert.Equal(0, polizaRepo.ActualizarConPlanLlamadas);
+        Assert.Equal(0, polizaRepo.ModificacionPeriodoLlamadas);
+        Assert.Equal(0, cobroRepo.AgregarCicloLlamadas);
+        Assert.Equal(new DateTime(2026, 7, 21), polizaRepo.UltimaPolizaActualizada!.FechaInicio);
+        Assert.Equal(new DateTime(2027, 7, 21), polizaRepo.UltimaPolizaActualizada.FechaFin);
     }
 
     [Fact]
-    public async Task ActualizarAsync_SoloCambiaFin_ContinuaDesdeLaUltimaCuota()
+    public async Task ActualizarAsync_SoloCambiaFin_NoAgregaCiclo()
     {
         var polizaRepo = new FakePolizaRepository
         {
             PolizaPorId = new Poliza
             {
                 Id = 1, Numero = "E/T-1", CompaniaId = 1,
-                FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 3, 1),
-                PrecioTotal = 50000, CantidadCuotas = 2
+                FechaInicio = new DateTime(2026, 7, 21), FechaFin = new DateTime(2026, 10, 21),
+                PrecioTotal = 99000, CantidadCuotas = 3
             }
         };
         var cobroRepo = new FakeCobroRepository
         {
             Cuotas =
             {
-                new Cobro { Id = 1, PolizaId = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 1, 21) },
-                new Cobro { Id = 2, PolizaId = 1, NumeroCuota = 2, FechaVencimiento = new DateTime(2026, 2, 21) }
+                new Cobro { Id = 1, PolizaId = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 11, 21) },
+                new Cobro { Id = 2, PolizaId = 1, NumeroCuota = 2, FechaVencimiento = new DateTime(2026, 12, 21) },
+                new Cobro { Id = 3, PolizaId = 1, NumeroCuota = 3, FechaVencimiento = new DateTime(2027, 1, 21) }
             }
         };
         var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
@@ -170,11 +169,15 @@ public class PolizaServiceTests
         await svc.ActualizarAsync(1, new ActualizarPolizaDto
         {
             CompaniaId = 1,
-            FechaInicio = new DateTime(2026, 1, 1), FechaFin = new DateTime(2026, 7, 1),
-            PrecioTotal = 50000, CantidadCuotas = 2
+            FechaInicio = new DateTime(2026, 7, 21), FechaFin = new DateTime(2027, 7, 21),
+            PrecioTotal = 99000, CantidadCuotas = 3
         });
 
-        Assert.Equal(new DateTime(2026, 3, 21), polizaRepo.UltimoPrimerVencimiento);
+        Assert.Equal(1, polizaRepo.ActualizarLlamadas);
+        Assert.Equal(0, polizaRepo.ActualizarConPlanLlamadas);
+        Assert.Equal(0, polizaRepo.ModificacionPeriodoLlamadas);
+        Assert.Equal(0, cobroRepo.AgregarCicloLlamadas);
+        Assert.Equal(new DateTime(2027, 7, 21), polizaRepo.UltimaPolizaActualizada!.FechaFin);
     }
 
     [Fact]
@@ -205,11 +208,34 @@ public class PolizaServiceTests
     }
 
     [Fact]
-    public async Task ActualizarAsync_CambiaPrecioOCuotas_LanzaBusinessException()
+    public async Task ActualizarAsync_CambiaPrecioOCuotas_ActualizaPlan()
     {
         var polizaRepo = new FakePolizaRepository
         {
             PolizaPorId = new Poliza { Id = 1, Numero = "E/T-1", CompaniaId = 1, PrecioTotal = 50000, CantidadCuotas = 6 }
+        };
+        var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await svc.ActualizarAsync(1, new ActualizarPolizaDto
+        {
+            CompaniaId = 1, FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddMonths(6),
+            PrecioTotal = 60000, CantidadCuotas = 3
+        });
+
+        Assert.Equal(1, polizaRepo.ActualizarConPlanLlamadas);
+        Assert.Equal(0, polizaRepo.ActualizarLlamadas);
+        Assert.Equal(60000m, polizaRepo.UltimaPolizaActualizada!.PrecioTotal);
+        Assert.Equal(3, polizaRepo.UltimaPolizaActualizada.CantidadCuotas);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_CantidadMenorAPagadas_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "E/T-1", CompaniaId = 1, PrecioTotal = 50000, CantidadCuotas = 6 },
+            ActualizarConPlanResultado = -1
         };
         var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
             new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
@@ -219,6 +245,9 @@ public class PolizaServiceTests
             CompaniaId = 1, FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddMonths(6),
             PrecioTotal = 60000, CantidadCuotas = 3
         }));
+
+        Assert.Equal(1, polizaRepo.ActualizarConPlanLlamadas);
+        Assert.Equal(0, polizaRepo.ActualizarLlamadas);
     }
 
     [Fact]
@@ -251,6 +280,109 @@ public class PolizaServiceTests
         await svc.RefacturarAsync(1, new RenovarPolizaDto { CantidadCuotas = 3, PrecioTotal = 30000, PrimerVencimiento = DateTime.Today.AddMonths(1) });
 
         Assert.Equal(1, cobroRepo.AgregarCicloLlamadas);
+    }
+
+    [Fact]
+    public async Task EliminarCicloAsync_Ok_EliminaYRegistraAuditoria()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "8223677" }
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { Id = 1, PolizaId = 1, Ciclo = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 11, 21), Monto = 33000m },
+                new Cobro { Id = 2, PolizaId = 1, Ciclo = 2, NumeroCuota = 1, FechaVencimiento = new DateTime(2027, 2, 21), Monto = 33000m, CicloTipo = "ModificacionPeriodo", CicloDescripcion = "Modificación de período" },
+                new Cobro { Id = 3, PolizaId = 1, Ciclo = 2, NumeroCuota = 2, FechaVencimiento = new DateTime(2027, 3, 21), Monto = 33000m, CicloTipo = "ModificacionPeriodo" }
+            }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await svc.EliminarCicloAsync(1, 2, usuarioId: 9);
+
+        Assert.Equal(1, polizaRepo.EliminarCicloLlamadas);
+        Assert.Equal(1, polizaRepo.UltimaPolizaCicloEliminado);
+        Assert.Equal(2, polizaRepo.UltimoCicloEliminado);
+
+        var r = Assert.Single(auditoria.Registros);
+        Assert.Equal("EliminarCiclo", r.accion);
+        Assert.Equal("Poliza", r.entidad);
+        Assert.Equal(1, r.registroId);
+        Assert.Contains("Ciclo 2", r.detalle);
+        Assert.Contains("21/02/2027", r.detalle);
+        Assert.Contains("Cuotas impagas eliminadas", r.detalle);
+    }
+
+    [Fact]
+    public async Task EliminarCicloAsync_ConCuotaPagada_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository { PolizaPorId = new Poliza { Id = 1, Numero = "P-1" } };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { PolizaId = 1, Ciclo = 1, NumeroCuota = 1, Estado = EstadoCobro.Pagado },
+                new Cobro { PolizaId = 1, Ciclo = 2, NumeroCuota = 1, Estado = EstadoCobro.Pagado }
+            }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await Assert.ThrowsAsync<BusinessException>(() => svc.EliminarCicloAsync(1, 2, 9));
+
+        Assert.Equal(0, polizaRepo.EliminarCicloLlamadas);
+        Assert.Empty(auditoria.Registros);
+    }
+
+    [Fact]
+    public async Task EliminarCicloAsync_CicloOriginal_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository { PolizaPorId = new Poliza { Id = 1, Numero = "P-1" } };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { PolizaId = 1, Ciclo = 1, NumeroCuota = 1 },
+                new Cobro { PolizaId = 1, Ciclo = 2, NumeroCuota = 1 }
+            }
+        };
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        var ex = await Assert.ThrowsAsync<BusinessException>(() => svc.EliminarCicloAsync(1, 1, 9));
+
+        Assert.Contains("original", ex.Message);
+        Assert.Equal(0, polizaRepo.EliminarCicloLlamadas);
+    }
+
+    [Fact]
+    public async Task EliminarCicloAsync_ResultadoNegativo_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "P-1" },
+            EliminarCicloResultado = -3
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { PolizaId = 1, Ciclo = 1, NumeroCuota = 1 },
+                new Cobro { PolizaId = 1, Ciclo = 2, NumeroCuota = 1 }
+            }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(), new FakeRamoRepository(),
+            new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await Assert.ThrowsAsync<BusinessException>(() => svc.EliminarCicloAsync(1, 2, 9));
+
+        Assert.Empty(auditoria.Registros);
     }
 
     [Fact]

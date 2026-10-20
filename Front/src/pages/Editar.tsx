@@ -236,19 +236,36 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
   const [cobertura, setCobertura] = useState(poliza.cobertura ?? "");
   const [fechaInicio, setFechaInicio] = useState(poliza.fechaInicio.slice(0, 10));
   const [fechaFin, setFechaFin] = useState(poliza.fechaFin.slice(0, 10));
+  const [precioCuota, setPrecioCuota] = useState(String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100));
+  const [cantidadCuotas, setCantidadCuotas] = useState(String(poliza.cantidadCuotas));
   const [primaOG, setPrimaOG] = useState(poliza.primaOG != null ? String(poliza.primaOG) : "");
   const [guardando, setGuardando] = useState(false);
   const qc = useQueryClient();
+  const totalPlan = Math.round((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0) * 100) / 100;
 
   async function guardar() {
-    setError(undefined); setGuardando(true);
+    setError(undefined);
+    const nCuotas = Number(cantidadCuotas);
+    const precio = Number(precioCuota);
+    if (!Number.isInteger(nCuotas) || nCuotas < 1 || nCuotas > 24) {
+      setError("La cantidad de cuotas debe estar entre 1 y 24.");
+      return;
+    }
+    if (!Number.isFinite(precio) || precio <= 0) {
+      setError("El precio por cuota debe ser mayor a 0.");
+      return;
+    }
+    setGuardando(true);
+    // Si no se tocó el plan, se envían los valores originales exactos para no
+    // disparar una actualización de cuotas por diferencias de redondeo.
+    const cambioPlan = nCuotas !== poliza.cantidadCuotas
+      || Math.abs(precio * nCuotas - poliza.precioTotal) > 0.01;
     try {
       const res = await actualizarPoliza(poliza.id, {
         companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
         fechaInicio, fechaFin,
-        // El plan de cuotas generado es inmutable: se envían los valores actuales.
-        precioTotal: poliza.precioTotal,
-        cantidadCuotas: poliza.cantidadCuotas,
+        precioTotal: cambioPlan ? Math.round(precio * nCuotas * 100) / 100 : poliza.precioTotal,
+        cantidadCuotas: cambioPlan ? nCuotas : poliza.cantidadCuotas,
         primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
         cobertura: cobertura || undefined,
       });
@@ -274,9 +291,18 @@ function CoberturaForm({ poliza, onSaved, setError }: { poliza: Poliza; onSaved:
         <Field label="Fecha inicio"><Input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Field>
         <Field label="Fecha fin"><Input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Field>
       </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+        <Field label="Precio por cuota"><Input type="number" step="0.01" value={precioCuota} onChange={(e) => setPrecioCuota(e.target.value)} /></Field>
+        <Field label="Cantidad de cuotas"><Input type="number" min={1} max={24} value={cantidadCuotas} onChange={(e) => setCantidadCuotas(e.target.value)} /></Field>
+      </div>
+      {totalPlan > 0 && (
+        <div style={{ margin: "-6px 0 10px", fontSize: 12.5, color: "var(--ink-500)" }}>
+          Total del plan: <strong>{formatMoneda(totalPlan)}</strong> ({cantidadCuotas} cuotas)
+        </div>
+      )}
       <Field label="Prima OG (interna)"><Input type="number" step="0.01" value={primaOG} onChange={(e) => setPrimaOG(e.target.value)} placeholder="Prima real de la compañía" /></Field>
       <div style={{ fontSize: 12, color: "var(--ink-500)", margin: "-6px 0 12px" }}>
-        Las cuotas ya generadas no se modifican. Si cambiás el período, se agrega un ciclo nuevo debajo de los anteriores; para cambios de precio o cantidad de cuotas usá <strong>Refacturar</strong> o <strong>Renovar</strong>.
+        Al cambiar la cantidad o el precio se actualizan las cuotas impagas. Las pagadas no se tocan y las fechas de las cuotas existentes se conservan.
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
         <Button onClick={guardar} disabled={guardando}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>

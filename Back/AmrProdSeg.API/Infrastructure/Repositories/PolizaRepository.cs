@@ -114,6 +114,30 @@ public class PolizaRepository : IPolizaRepository
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<int> ActualizarConPlanAsync(Poliza p)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Poliza_ActualizarConPlan", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@Id",             p.Id);
+        cmd.Parameters.AddWithValue("@CompaniaId",     p.CompaniaId);
+        cmd.Parameters.AddWithValue("@RamoId",         (object?)p.RamoId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@FechaInicio",    p.FechaInicio);
+        cmd.Parameters.AddWithValue("@FechaFin",       p.FechaFin);
+        cmd.Parameters.AddWithValue("@PrecioTotal",    p.PrecioTotal);
+        cmd.Parameters.AddWithValue("@CantidadCuotas", p.CantidadCuotas);
+        cmd.Parameters.AddWithValue("@FormaPago",      (object?)p.FormaPago ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@PrimaOG",        (object?)p.PrimaOG ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@Cobertura",      (object?)p.Cobertura ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    }
+
     public async Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null)
     {
         using var conn = _factory.Create();
@@ -149,6 +173,17 @@ public class PolizaRepository : IPolizaRepository
         cmd.Parameters.AddWithValue("@Id", id);
         cmd.Parameters.AddWithValue("@Numero", numero);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
+    }
+
+    public async Task<int> EliminarCicloAsync(int polizaId, int ciclo)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+        using var cmd = new SqlCommand("sp_Poliza_EliminarCiclo", conn) { CommandType = CommandType.StoredProcedure };
+        cmd.Parameters.AddWithValue("@PolizaId", polizaId);
+        cmd.Parameters.AddWithValue("@Ciclo", ciclo);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
     }
 
     public async Task CambiarEstadoAsync(int id, EstadoPoliza estado)

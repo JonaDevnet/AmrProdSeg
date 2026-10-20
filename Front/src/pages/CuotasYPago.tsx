@@ -1,10 +1,12 @@
 import { useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCliente, usePolizasPorCliente, useVehiculosPorCliente } from "../hooks/clientes";
-import { useCobrosPorPoliza } from "../hooks/polizas";
+import { useCobrosPorPoliza, useEliminarCicloPoliza } from "../hooks/polizas";
 import { useHistorialCobros } from "../hooks/cobranzas";
 import { imprimirComprobante } from "../api/cobros";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
+import Modal from "../components/ui/Modal";
+import { useAuth } from "../auth/AuthContext";
 import { formatFecha, formatMoneda } from "../utils/format";
 import { IconArrowLeft, IconFile } from "../components/Icons";
 import type { Cobro } from "../types";
@@ -23,6 +25,7 @@ export default function CuotasYPago() {
   const clienteId = Number(id);
   const navigate = useNavigate();
 
+  const { esSuperAdmin } = useAuth();
   const { data: cliente } = useCliente(clienteId);
   const polizas = usePolizasPorCliente(clienteId);
   const vehiculos = useVehiculosPorCliente(clienteId);
@@ -36,6 +39,37 @@ export default function CuotasYPago() {
   const cuotas = cobros.data ?? [];
   const historial = useHistorialCobros(selId ?? 0);
 
+  // Eliminación de ciclos (sólo SuperAdmin; confirmación escribiendo "Eliminar").
+  const eliminarCiclo = useEliminarCicloPoliza(selId ?? 0);
+  const [cicloAEliminar, setCicloAEliminar] = useState<number | null>(null);
+  const [confirmacion, setConfirmacion] = useState("");
+  const [errorEliminar, setErrorEliminar] = useState<string>();
+
+  function abrirEliminar(ciclo: number) {
+    setCicloAEliminar(ciclo);
+    setConfirmacion("");
+    setErrorEliminar(undefined);
+  }
+  function cerrarEliminar() {
+    if (eliminarCiclo.isPending) return;
+    setCicloAEliminar(null);
+    setConfirmacion("");
+    setErrorEliminar(undefined);
+  }
+  async function confirmarEliminar() {
+    if (cicloAEliminar == null || confirmacion.trim() !== "Eliminar") return;
+    setErrorEliminar(undefined);
+    try {
+      await eliminarCiclo.mutateAsync(cicloAEliminar);
+      // Cierre directo: al volver de la mutación isPending todavía puede ser true.
+      setCicloAEliminar(null);
+      setConfirmacion("");
+      setErrorEliminar(undefined);
+    } catch (e: any) {
+      setErrorEliminar(e?.response?.data?.error ?? "No se pudo eliminar el ciclo.");
+    }
+  }
+
   // Agrupa las cuotas por ciclo (1 = original; 2,3… = refacturación).
   const porCiclo = new Map<number, Cobro[]>();
   cuotas.forEach((c) => {
@@ -44,6 +78,7 @@ export default function CuotasYPago() {
     porCiclo.get(k)!.push(c);
   });
   const grupos = [...porCiclo.entries()].sort((a, b) => a[0] - b[0]);
+  const filasEliminar = cicloAEliminar != null ? grupos.find(([c]) => c === cicloAEliminar)?.[1] ?? [] : [];
 
   const patenteDe = (vehiculoId?: number | null, patente?: string | null) =>
     patente ?? vehiculos.data?.find((v) => v.id === vehiculoId)?.patente ?? "—";
@@ -65,7 +100,7 @@ export default function CuotasYPago() {
         {cliente?.nombre ?? "Cliente"} · seleccioná una póliza para ver sus cuotas.
       </p>
       <div style={{ margin: "-8px 0 18px", padding: "10px 14px", background: "var(--blue-50)", border: "1px solid var(--line)", borderRadius: 9, fontSize: 13, color: "var(--ink-700)" }}>
-        Los registros de cuotas ya generados no se modifican. Si cambiás el período de la póliza, las cuotas nuevas se agregan como un ciclo aparte; para otros cambios de plan usá <strong>Refacturar</strong> o <strong>Renovar</strong>.
+        Las cuotas ya generadas no se modifican al editar la póliza. Para cambiar el plan de pago usá <strong>Refacturar</strong> o <strong>Renovar</strong>.{esSuperAdmin ? " Como SuperAdmin podés eliminar un ciclo sin pagos con la confirmación correspondiente." : ""}
       </div>
 
       {lista.length === 0 ? (
@@ -116,8 +151,15 @@ export default function CuotasYPago() {
                 {idx > 0 && (
                   <div style={{ margin: "6px 0 10px", height: 1, background: "var(--line)" }} />
                 )}
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--navy-900)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
-                  Ciclo {ciclo} · {tipoCicloLabel(tipo)}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--navy-900)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    Ciclo {ciclo} · {tipoCicloLabel(tipo)}
+                  </div>
+                  {esSuperAdmin && ciclo > 1 && grupos.length > 1 && !filas.some((c) => c.estado === 1) && (
+                    <button onClick={() => abrirEliminar(ciclo)} style={deleteCycleBtn}>
+                      Eliminar ciclo
+                    </button>
+                  )}
                 </div>
                 {descripcion && (
                   <div style={{ fontSize: 12.5, color: "var(--ink-500)", marginBottom: 4 }}>{descripcion}</div>
@@ -214,6 +256,63 @@ export default function CuotasYPago() {
           )}
         </>
       )}
+
+      {cicloAEliminar != null && (
+        <Modal titulo={`Eliminar Ciclo ${cicloAEliminar}`} onClose={cerrarEliminar} ancho={540}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 9, background: "var(--bad-100)", border: "1px solid var(--bad-200)", color: "var(--bad-700)", fontSize: 13 }}>
+              Esta acción elimina definitivamente las cuotas del ciclo y queda registrada en Movimientos.
+              No revierte las fechas de vigencia de la póliza.
+            </div>
+
+            {filasEliminar.length > 0 && (
+              <div style={{ fontSize: 13, color: "var(--ink-700)" }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                  {tipoCicloLabel(filasEliminar[0]?.cicloTipo)}
+                  {filasEliminar[0]?.cicloDescripcion ? ` · ${filasEliminar[0].cicloDescripcion}` : ""}
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {[...filasEliminar].sort((a, b) => a.numeroCuota - b.numeroCuota).map((c) => (
+                    <li key={c.id}>
+                      Cuota {c.numeroCuota}: vence {formatFecha(c.fechaVencimiento)} · {formatMoneda(c.monto)} · {estadoCuota(c).label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, marginBottom: 6 }}>
+                Escribí <strong>Eliminar</strong> para confirmar
+              </label>
+              <input
+                value={confirmacion}
+                onChange={(e) => setConfirmacion(e.target.value)}
+                placeholder="Eliminar"
+                autoFocus
+                style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 9, border: "1.5px solid var(--line)", fontSize: 14, outline: "none" }}
+              />
+            </div>
+
+            {errorEliminar && (
+              <div style={{ padding: "10px 12px", borderRadius: 8, background: "var(--bad-100)", color: "var(--bad-700)", fontSize: 13 }}>
+                {errorEliminar}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button onClick={cerrarEliminar} disabled={eliminarCiclo.isPending} style={cancelBtn}>Cancelar</button>
+              <button
+                onClick={confirmarEliminar}
+                disabled={confirmacion.trim() !== "Eliminar" || eliminarCiclo.isPending}
+                style={{ ...dangerBtn, opacity: confirmacion.trim() === "Eliminar" && !eliminarCiclo.isPending ? 1 : 0.55 }}
+              >
+                {eliminarCiclo.isPending ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -232,3 +331,6 @@ const backBtn: CSSProperties = { display: "inline-flex", alignItems: "center", g
 const th: CSSProperties = { textAlign: "left", padding: "11px 16px", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-500)", background: "var(--canvas)", whiteSpace: "nowrap" };
 const td: CSSProperties = { padding: "12px 16px", fontSize: 13.5, color: "var(--ink-900)" };
 const printBtn: CSSProperties = { height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" };
+const deleteCycleBtn: CSSProperties = { height: 28, padding: "0 10px", borderRadius: 7, border: "1px solid var(--bad-200)", background: "var(--bad-100)", color: "var(--bad-700)", fontSize: 11.5, fontWeight: 600, cursor: "pointer", textTransform: "none", letterSpacing: 0 };
+const cancelBtn: CSSProperties = { height: 40, padding: "0 16px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-700)", fontSize: 13.5, fontWeight: 600, cursor: "pointer" };
+const dangerBtn: CSSProperties = { height: 40, padding: "0 16px", borderRadius: 9, border: 0, background: "var(--bad-600)", color: "white", fontSize: 13.5, fontWeight: 600, cursor: "pointer" };

@@ -70,7 +70,7 @@ export default function Registro() {
         <div style={{ fontSize: 12.5, color: "var(--ink-500)", marginBottom: 8 }}>Inicio · Registro de movimientos</div>
         <h1 style={{ margin: 0, fontSize: 30, letterSpacing: "-0.025em", fontWeight: 600, color: "var(--ink-900)" }}>Registro de movimientos</h1>
         <p style={{ margin: "6px 0 0", color: "var(--ink-500)", fontSize: 14.5 }}>
-          Pólizas eliminadas y cuotas anuladas, con quién las solicitó y quién las autorizó.
+          Pólizas eliminadas, cuotas anuladas y ciclos de cuotas eliminados, con quién los solicitó y quién los autorizó.
         </p>
       </div>
 

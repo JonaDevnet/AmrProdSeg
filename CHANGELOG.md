@@ -4,6 +4,20 @@ Todas las modificaciones relevantes de AMR Producción de Seguros.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado semántico
 (`MAJOR.MINOR.PATCH`).
 
+## [Sin publicar]
+
+### Corregido
+- **Editar la vigencia ya no genera cuotas**: antes, cualquier cambio de fecha de inicio/fin creaba
+  un ciclo nuevo (`Modificación de período`) con cuotas duplicadas y fechas corridas; al revertir
+  la edición se agregaba otro ciclo más y las fechas seguían avanzando. Ahora `PUT /polizas/{id}`
+  sólo actualiza los datos y la vigencia. Los cambios de plan se hacen con Refacturar o Renovar.
+
+### Añadido
+- **Eliminación de ciclos de cuotas (SuperAdmin)**: desde `/clientes/:id/cuotas` se puede eliminar
+  un ciclo que no tenga pagos, escribiendo `Eliminar` para confirmar. El backend valida que no sea
+  el ciclo original, el único ciclo ni un ciclo con pagos/historial, y registra el ciclo eliminado
+  (con el detalle de sus cuotas) en la auditoría de movimientos (`EliminarCiclo`).
+
 ## [1.2.0] — 2026-10-19
 
 Versión actual. Requiere aplicar el schema (§66–§70) y rebuild de back + front (`bash actualizar.sh`).

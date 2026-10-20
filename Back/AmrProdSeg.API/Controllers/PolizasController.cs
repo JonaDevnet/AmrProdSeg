@@ -159,6 +159,15 @@ public class PolizasController : ControllerBase
         return File(bytes, "application/pdf", $"poliza-{id}.pdf");
     }
 
+    /// <summary>Elimina un ciclo de cuotas. Sólo SuperAdmin; queda registrado en movimientos.</summary>
+    [HttpDelete("{id:int}/ciclos/{ciclo:int}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> EliminarCiclo(int id, int ciclo)
+    {
+        await _service.EliminarCicloAsync(id, ciclo, UsuarioActualId());
+        return Ok(new { mensaje = $"Ciclo {ciclo} eliminado." });
+    }
+
     /// <summary>Elimina la póliza y todo su registro (cuotas y vehículo si queda huérfano; conserva el cliente).
     /// El Admin la ejecuta en el acto; el Productor deja una solicitud pendiente de autorización.</summary>
     [HttpPost("{id:int}/eliminar")]

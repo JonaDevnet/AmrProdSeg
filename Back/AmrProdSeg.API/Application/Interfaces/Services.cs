@@ -15,6 +15,8 @@ public interface IPolizaService
     Task CancelarAsync(int id, int? usuarioId = null);
     /// <summary>Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (sin historial).</summary>
     Task RefacturarAsync(int id, RenovarPolizaDto dto, int? usuarioId = null);
+    /// <summary>Elimina un ciclo de cuotas (sólo SuperAdmin) y lo registra en la auditoría.</summary>
+    Task EliminarCicloAsync(int polizaId, int ciclo, int? usuarioId = null);
     /// <summary>True si la póliza tiene alguna cuota sin pagar (Pendiente o Vencida).</summary>
     Task<bool> TieneCuotasImpagasAsync(int polizaId);
     Task<byte[]> GenerarPdfAsync(int id);

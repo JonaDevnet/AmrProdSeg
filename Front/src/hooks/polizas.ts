@@ -77,6 +77,18 @@ export function useRefacturarPoliza(id: number) {
   });
 }
 
+export function useEliminarCicloPoliza(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ciclo: number) => polizasApi.eliminarCicloPoliza(id, ciclo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+      qc.invalidateQueries({ queryKey: ["cobros"] });
+    },
+  });
+}
+
 export function useEndosos(id: number) {
   return useQuery({
     queryKey: ["poliza", id, "endosos"],

@@ -20,9 +20,13 @@ public interface IPolizaRepository
     Task<List<Poliza>> BuscarAsync(string termino, int page, int pageSize);
     Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
     Task ActualizarAsync(Poliza p);
+    /// <summary>Actualiza la póliza y el plan de cuotas impagas en una sola transacción (sin re-fechar las existentes).</summary>
+    Task<int> ActualizarConPlanAsync(Poliza p);
     /// <summary>Actualiza la póliza y agrega el ciclo de modificación de período en una sola transacción.</summary>
     Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null);
     Task<int> AsignarNumeroAsync(int id, string numero);
+    /// <summary>Elimina un ciclo de cuotas y sus metadatos. Devuelve 1 si lo eliminó o un código de error negativo.</summary>
+    Task<int> EliminarCicloAsync(int polizaId, int ciclo);
 }
 
 public interface ICobroRepository

@@ -34,11 +34,18 @@ public class FakePolizaRepository : IPolizaRepository
     public Poliza? PolizaActivaPorVehiculo;
     public int InsertarLlamadas;
     public int ActualizarLlamadas;
+    public int ActualizarConPlanLlamadas;
+    public int ActualizarConPlanResultado = 1;
     public int ModificacionPeriodoLlamadas;
     public EstadoPoliza? UltimoEstadoCambiado;
     public Poliza? UltimaPolizaModificada;
+    public Poliza? UltimaPolizaActualizada;
     public DateTime? UltimoPrimerVencimiento;
     public string? UltimaDescripcionModificacion;
+    public int EliminarCicloLlamadas;
+    public int EliminarCicloResultado = 1;
+    public int? UltimoCicloEliminado;
+    public int? UltimaPolizaCicloEliminado;
 
     public Task<Poliza?> GetByIdAsync(int id) => Task.FromResult(PolizaPorId);
     public Task<Poliza?> GetByTokenAsync(Guid token) => Task.FromResult(PolizaPorId);
@@ -48,7 +55,14 @@ public class FakePolizaRepository : IPolizaRepository
     public Task<List<Poliza>> BuscarAsync(string termino, int page, int pageSize) => Task.FromResult(new List<Poliza>());
     public Task<(List<Poliza> Items, int Total)> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
         => Task.FromResult((new List<Poliza>(), 0));
-    public Task ActualizarAsync(Poliza p) { ActualizarLlamadas++; return Task.CompletedTask; }
+    public Task ActualizarAsync(Poliza p) { ActualizarLlamadas++; UltimaPolizaActualizada = p; return Task.CompletedTask; }
+
+    public Task<int> ActualizarConPlanAsync(Poliza p)
+    {
+        ActualizarConPlanLlamadas++;
+        UltimaPolizaActualizada = p;
+        return Task.FromResult(ActualizarConPlanResultado);
+    }
     public Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null)
     {
         ModificacionPeriodoLlamadas++;
@@ -58,6 +72,14 @@ public class FakePolizaRepository : IPolizaRepository
         return Task.FromResult(1);
     }
     public Task<int> AsignarNumeroAsync(int id, string numero) => Task.FromResult(1);
+
+    public Task<int> EliminarCicloAsync(int polizaId, int ciclo)
+    {
+        EliminarCicloLlamadas++;
+        UltimaPolizaCicloEliminado = polizaId;
+        UltimoCicloEliminado = ciclo;
+        return Task.FromResult(EliminarCicloResultado);
+    }
 }
 
 public class FakeCobroRepository : ICobroRepository

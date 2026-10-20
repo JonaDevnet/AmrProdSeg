@@ -1,3 +1,4 @@
+using System.Globalization;
 using AmrProdSeg.API.Application.DTOs;
 using AmrProdSeg.API.Application.Exceptions;
 using AmrProdSeg.API.Application.Interfaces;
@@ -161,11 +162,15 @@ public class PolizaService : IPolizaService
         var poliza = await _polizaRepo.GetByIdAsync(id)
             ?? throw new NotFoundException("Póliza no encontrada.");
 
-        // Las cuotas ya generadas son inmutables. Los cambios de plan (precio o
-        // cantidad de cuotas) se hacen con Refacturar o Renovar, nunca editando la póliza.
-        if (dto.PrecioTotal != poliza.PrecioTotal || dto.CantidadCuotas != poliza.CantidadCuotas)
-            throw new BusinessException(
-                "Las cuotas ya generadas no se modifican. Para cambiar el precio o la cantidad de cuotas, usá Refacturar o Renovar.");
+        if (dto.CantidadCuotas is < 1 or > 24)
+            throw new BusinessException("La cantidad de cuotas debe estar entre 1 y 24.");
+        if (dto.PrecioTotal <= 0)
+            throw new BusinessException("El precio total debe ser mayor a 0.");
+
+        // Si cambia el plan (precio o cantidad de cuotas), se actualizan las cuotas impagas.
+        // Si sólo cambia la vigencia o los datos, las cuotas quedan intactas.
+        var cambioPlan = dto.PrecioTotal != poliza.PrecioTotal
+                      || dto.CantidadCuotas != poliza.CantidadCuotas;
 
         var fechaInicioAnterior = poliza.FechaInicio;
         var fechaFinAnterior = poliza.FechaFin;
@@ -205,42 +210,26 @@ public class PolizaService : IPolizaService
         poliza.PrimaOG        = dto.PrimaOG;
         poliza.Cobertura      = dto.Cobertura;
 
-        // Si cambió el período, se agrega un ciclo NUEVO debajo de los existentes.
-        // Las cuotas de ciclos anteriores no se modifican ni se borran.
-        var cambioPeriodo = fechaInicioAnterior.Date != dto.FechaInicio.Date
-                         || fechaFinAnterior.Date != dto.FechaFin.Date;
-
-        if (cambioPeriodo)
+        if (cambioPlan)
         {
-            var descripcion = $"Modificación de período: {fechaInicioAnterior:dd/MM/yyyy} – {fechaFinAnterior:dd/MM/yyyy} → {dto.FechaInicio:dd/MM/yyyy} – {dto.FechaFin:dd/MM/yyyy}";
-
-            // Si cambia el inicio, el nuevo plan arranca desde el nuevo inicio + 1 mes.
-            // Si solo cambia el fin, continúa después de la última cuota existente para
-            // no superponer fechas con ciclos anteriores.
-            DateTime primerVencimiento;
-            if (dto.PrimerVencimiento is DateTime pv)
+            // Póliza + cuotas impagas en una sola transacción. No se re-fecha ninguna
+            // cuota existente: se ajustan importes, se agregan al final o se quitan las últimas.
+            var resultado = await _polizaRepo.ActualizarConPlanAsync(poliza);
+            switch (resultado)
             {
-                primerVencimiento = pv;
+                case 1:
+                    break;
+                case -1:
+                    throw new BusinessException("La cantidad de cuotas no puede ser menor a la cantidad de cuotas ya pagadas.");
+                case -2:
+                    throw new BusinessException("No se puede quitar una cuota que tiene historial de pagos o anulaciones.");
+                default:
+                    throw new NotFoundException("Póliza no encontrada.");
             }
-            else if (dto.FechaInicio.Date != fechaInicioAnterior.Date)
-            {
-                primerVencimiento = dto.FechaInicio.AddMonths(1);
-            }
-            else
-            {
-                var cuotasExistentes = await _cobroRepo.GetPorPolizaAsync(id);
-                var ultima = cuotasExistentes.Count > 0
-                    ? cuotasExistentes.Max(c => c.FechaVencimiento)
-                    : dto.FechaInicio;
-                primerVencimiento = ultima.AddMonths(1);
-            }
-
-            // Póliza + ciclo + cuotas en una sola transacción.
-            await _polizaRepo.ActualizarConModificacionPeriodoAsync(
-                poliza, primerVencimiento, descripcion, usuarioId);
         }
         else
         {
+            // Editar sólo datos/vigencia: las cuotas ya generadas no se tocan.
             await _polizaRepo.ActualizarAsync(poliza);
         }
 
@@ -291,6 +280,62 @@ public class PolizaService : IPolizaService
 
         if (usuarioId is int uid)
             await _auditoria.RegistrarAsync(uid, "Poliza", id, "Refacturar", $"Refacturó la póliza {poliza.Numero} ({dto.CantidadCuotas} cuotas).");
+    }
+
+    /// <summary>
+    /// Elimina un ciclo de cuotas de la póliza (sólo SuperAdmin, validado en el controller).
+    /// No se permite borrar el ciclo original, el único ciclo vigente, ni un ciclo con pagos
+    /// o historial. La operación queda registrada en la auditoría de movimientos.
+    /// </summary>
+    public async Task EliminarCicloAsync(int polizaId, int ciclo, int? usuarioId = null)
+    {
+        var poliza = await _polizaRepo.GetByIdAsync(polizaId)
+            ?? throw new NotFoundException("Póliza no encontrada.");
+
+        var todas = await _cobroRepo.GetPorPolizaAsync(polizaId);
+        var cuotas = todas.Where(c => c.Ciclo == ciclo).OrderBy(c => c.NumeroCuota).ToList();
+
+        if (cuotas.Count == 0)
+            throw new BusinessException($"El ciclo {ciclo} no existe en la póliza.");
+        if (ciclo == 1)
+            throw new BusinessException("No se puede eliminar el ciclo original de la póliza.");
+        if (todas.Select(c => c.Ciclo).Distinct().Count() <= 1)
+            throw new BusinessException("No se puede eliminar el único ciclo de la póliza.");
+        if (cuotas.Any(c => c.Estado == EstadoCobro.Pagado))
+            throw new BusinessException("No se puede eliminar un ciclo con cuotas pagadas.");
+        if ((await _cobroRepo.GetEventosAsync(polizaId)).Any(e => e.Ciclo == ciclo))
+            throw new BusinessException("No se puede eliminar un ciclo con historial de pagos o anulaciones.");
+
+        var resultado = await _polizaRepo.EliminarCicloAsync(polizaId, ciclo);
+        switch (resultado)
+        {
+            case 1:
+                break;
+            case -2:
+                throw new BusinessException("No se puede eliminar el ciclo original de la póliza.");
+            case -3:
+                throw new BusinessException("No se puede eliminar un ciclo con cuotas pagadas o con historial de pagos/anulaciones.");
+            case -4:
+                throw new BusinessException("No se puede eliminar el único ciclo de la póliza.");
+            default:
+                throw new BusinessException($"El ciclo {ciclo} no existe en la póliza.");
+        }
+
+        if (usuarioId is int uid)
+        {
+            var tipo = cuotas[0].CicloTipo ?? "Cuotas";
+            var descripcion = string.IsNullOrWhiteSpace(cuotas[0].CicloDescripcion)
+                ? ""
+                : $" — {cuotas[0].CicloDescripcion}";
+            var ar = CultureInfo.GetCultureInfo("es-AR");
+            var total = cuotas.Sum(c => c.Monto).ToString("N2", ar);
+            var detalleCuotas = string.Join("; ", cuotas.Select(c =>
+                $"{c.NumeroCuota}:{c.FechaVencimiento:dd/MM/yyyy} {c.Monto.ToString("N2", ar)}"));
+
+            await _auditoria.RegistrarAsync(uid, "Poliza", polizaId, "EliminarCiclo",
+                $"Póliza {poliza.Numero} — Eliminó el Ciclo {ciclo} ({tipo}){descripcion}. " +
+                $"Plan: {cuotas.Count} cuota(s) por {total}. Cuotas impagas eliminadas: {detalleCuotas}.");
+        }
     }
 
     /// <summary>True si el ciclo vigente de la póliza tiene alguna cuota sin pagar (Pendiente o Vencida).</summary>

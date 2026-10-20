@@ -4874,3 +4874,213 @@ BEGIN
 END
 GO
 
+/* =============================================================================
+   §71 — Eliminación manual de un ciclo de cuotas (sólo SuperAdmin).
+   Borra las cuotas y los metadatos del ciclo dentro de una transacción.
+   No permite borrar el ciclo original, el único ciclo de la póliza ni un ciclo
+   con pagos/historial. Si se borra el ciclo vigente, la póliza vuelve al plan
+   del ciclo anterior (precio y cantidad de cuotas).
+   Devuelve: 1 = eliminado; -1 = no existe; -2 = ciclo original;
+             -3 = tiene pagos/historial; -4 = es el único ciclo.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_EliminarCiclo
+    @PolizaId INT,
+    @Ciclo    INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Se valida contra Cobros (no contra CobrosCiclos) para poder limpiar también
+        -- ciclos históricos a los que les falte la fila de metadatos.
+        IF NOT EXISTS (SELECT 1 FROM Cobros WHERE PolizaId = @PolizaId AND Ciclo = @Ciclo)
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-1 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        IF @Ciclo = 1
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-2 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        IF (SELECT COUNT(DISTINCT Ciclo) FROM Cobros WHERE PolizaId = @PolizaId) <= 1
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-4 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        IF EXISTS (SELECT 1 FROM Cobros WHERE PolizaId = @PolizaId AND Ciclo = @Ciclo AND Estado = 1)
+           OR EXISTS (SELECT 1 FROM CobroEventos e
+                      INNER JOIN Cobros c ON c.Id = e.CobroId
+                      WHERE c.PolizaId = @PolizaId AND c.Ciclo = @Ciclo)
+           OR EXISTS (SELECT 1 FROM AnulacionesCobro a
+                      INNER JOIN Cobros c ON c.Id = a.CobroId
+                      WHERE c.PolizaId = @PolizaId AND c.Ciclo = @Ciclo)
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-3 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        DELETE FROM Cobros WHERE PolizaId = @PolizaId AND Ciclo = @Ciclo;
+        DELETE FROM CobrosCiclos WHERE PolizaId = @PolizaId AND Ciclo = @Ciclo;
+
+        -- Si se eliminó el ciclo vigente, la póliza vuelve al plan del ciclo anterior.
+        DECLARE @nuevoMax INT = (SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId);
+        IF @nuevoMax IS NOT NULL AND @Ciclo > @nuevoMax
+        BEGIN
+            UPDATE p
+            SET PrecioTotal    = cc.PrecioTotal,
+                CantidadCuotas = cc.CantidadCuotas
+            FROM Polizas p
+            INNER JOIN CobrosCiclos cc ON cc.PolizaId = p.Id AND cc.Ciclo = @nuevoMax
+            WHERE p.Id = @PolizaId;
+        END
+
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Resultado;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+/* =============================================================================
+   §72 — Actualización de póliza + plan de cuotas en UNA transacción.
+   Se usa cuando desde "Editar póliza" se cambia el precio o la cantidad de
+   cuotas. A diferencia de la vieja regeneración, NO re-fecha las cuotas
+   existentes: conserva sus vencimientos y sólo ajusta importes, agrega cuotas
+   nuevas al final o elimina las últimas impagas. Las cuotas pagadas no se tocan.
+   Devuelve: 1 = ok; 0 = póliza inexistente; -1 = cantidad menor a las pagadas;
+             -2 = se intentó quitar una cuota con historial de pagos/anulaciones.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_ActualizarConPlan
+    @Id INT,
+    @CompaniaId INT,
+    @RamoId INT = NULL,
+    @FechaInicio DATE,
+    @FechaFin DATE,
+    @PrecioTotal DECIMAL(18,2),
+    @CantidadCuotas INT,
+    @FormaPago VARCHAR(40) = NULL,
+    @PrimaOG DECIMAL(18,2) = NULL,
+    @Cobertura NVARCHAR(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @CantidadCuotas IS NULL OR @CantidadCuotas <= 0 RETURN;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Polizas WHERE Id = @Id)
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(0 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        DECLARE @ciclo INT = ISNULL((SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @Id), 1);
+        DECLARE @maxPag INT = ISNULL((SELECT MAX(NumeroCuota) FROM Cobros
+                                      WHERE PolizaId = @Id AND Ciclo = @ciclo AND Estado = 1), 0);
+
+        IF @CantidadCuotas < @maxPag
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-1 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        -- No se puede eliminar una cuota impaga que tenga historial de pagos/anulaciones.
+        IF EXISTS (
+            SELECT 1 FROM Cobros c
+            WHERE c.PolizaId = @Id AND c.Ciclo = @ciclo AND c.Estado <> 1
+              AND c.NumeroCuota > @CantidadCuotas
+              AND (EXISTS (SELECT 1 FROM CobroEventos e WHERE e.CobroId = c.Id)
+                OR EXISTS (SELECT 1 FROM AnulacionesCobro a WHERE a.CobroId = c.Id))
+        )
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(-2 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        UPDATE Polizas
+        SET CompaniaId = @CompaniaId,
+            RamoId = @RamoId,
+            FechaInicio = @FechaInicio,
+            FechaFin = @FechaFin,
+            PrecioTotal = @PrecioTotal,
+            CantidadCuotas = @CantidadCuotas,
+            FormaPago = COALESCE(@FormaPago, FormaPago),
+            PrimaOG = COALESCE(@PrimaOG, PrimaOG),
+            Cobertura = COALESCE(@Cobertura, Cobertura)
+        WHERE Id = @Id;
+
+        DECLARE @base DECIMAL(18,2) = ROUND(@PrecioTotal / @CantidadCuotas, 2);
+        DECLARE @ultima DECIMAL(18,2) = @PrecioTotal - @base * (@CantidadCuotas - 1);
+
+        -- Importes de las cuotas impagas que se mantienen.
+        UPDATE Cobros
+        SET Monto = CASE WHEN NumeroCuota = @CantidadCuotas THEN @ultima ELSE @base END
+        WHERE PolizaId = @Id AND Ciclo = @ciclo AND Estado <> 1
+          AND NumeroCuota <= @CantidadCuotas;
+
+        -- Eliminar las cuotas impagas que sobran.
+        DELETE FROM Cobros
+        WHERE PolizaId = @Id AND Ciclo = @ciclo AND Estado <> 1
+          AND NumeroCuota > @CantidadCuotas
+          AND Id NOT IN (SELECT CobroId FROM AnulacionesCobro);
+
+        -- Agregar las cuotas faltantes después de la última existente.
+        DECLARE @maxNum INT = ISNULL((SELECT MAX(NumeroCuota) FROM Cobros
+                                      WHERE PolizaId = @Id AND Ciclo = @ciclo), 0);
+        DECLARE @fechaBase DATE = (SELECT MAX(FechaVencimiento) FROM Cobros
+                                   WHERE PolizaId = @Id AND Ciclo = @ciclo);
+        IF @fechaBase IS NULL SET @fechaBase = @FechaInicio;
+
+        DECLARE @i INT = @maxNum + 1;
+        WHILE @i <= @CantidadCuotas
+        BEGIN
+            SET @fechaBase = DATEADD(MONTH, 1, @fechaBase);
+            INSERT INTO Cobros (PolizaId, NumeroCuota, FechaVencimiento, Monto, Estado, Ciclo)
+            VALUES (@Id, @i, @fechaBase,
+                    CASE WHEN @i = @CantidadCuotas THEN @ultima ELSE @base END, 0, @ciclo);
+            SET @i = @i + 1;
+        END
+
+        -- El ciclo vigente refleja el nuevo plan.
+        UPDATE CobrosCiclos
+        SET PrecioTotal = @PrecioTotal, CantidadCuotas = @CantidadCuotas
+        WHERE PolizaId = @Id AND Ciclo = @ciclo;
+
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Resultado;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+/* =============================================================================
+   §73 — Reparación de textos guardados con mojibake (UTF-8 leído como ANSI).
+   Corrige descripciones históricas de ciclos y evita que se sigan mostrando
+   "RefacturaciÃ³n de pÃ³liza", "ModificaciÃ³n de perÃ­odo", etc.
+   ============================================================================= */
+UPDATE CobrosCiclos
+SET Descripcion = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+        Descripcion, N'Ã³', N'ó'), N'Ã¡', N'á'), N'Ã©', N'é'), N'Ã­', N'í'), N'Ãº', N'ú'), N'Ã±', N'ñ'),
+        N'Ã“', N'Ó'), N'Ã‘', N'Ñ'), N'Ã‰', N'É'), N'Ãš', N'Ú')
+WHERE Descripcion LIKE N'%Ã%';
+GO
+

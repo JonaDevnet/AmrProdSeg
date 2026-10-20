@@ -69,6 +69,11 @@ export async function asignarNumeroPoliza(id: number, numero: string): Promise<v
   await api.put(`/polizas/${id}/numero`, { numero });
 }
 
+/** Elimina un ciclo de cuotas. Sólo SuperAdmin; el backend valida y audita. */
+export async function eliminarCicloPoliza(id: number, ciclo: number): Promise<void> {
+  await api.delete(`/polizas/${id}/ciclos/${ciclo}`);
+}
+
 export async function descargarPolizaPdf(id: number): Promise<Blob> {
   const resp = await api.get(`/polizas/${id}/pdf`, { responseType: "blob" });
   return resp.data as Blob;

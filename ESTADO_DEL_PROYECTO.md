@@ -67,7 +67,8 @@ cd Front && npm install && npm run dev                         # http://localhos
 ### Pólizas
 - Listado con **filtros** (estado, cliente) + **paginación** + **ramo** + cliente + patente.
 - Detalle con **plan de cuotas**, **comprobante PDF**, **cancelar**, **renovar**, **pagar cuotas**.
-- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia y prima OG. Las cuotas ya generadas son **inmutables**. Si cambia el período se agrega un ciclo nuevo (`Modificación de período`) en una **transacción única** y las cuotas nuevas se muestran debajo de las anteriores; para otros cambios de plan se usa Refacturar o Renovar.
+- **Editar cobertura** (`PUT /polizas/{id}`): compañía, ramo, vigencia y prima OG. Las cuotas ya generadas son **inmutables**: editar la vigencia **no crea ni modifica cuotas**. Los cambios de plan de pago se hacen con Refacturar o Renovar.
+- **Eliminación de ciclos de cuotas** (solo SuperAdmin): desde `/clientes/:id/cuotas` se puede eliminar un ciclo sin pagos escribiendo `Eliminar` para confirmar. No se permite borrar el ciclo original, el único ciclo ni ciclos con pagos/historial; la operación queda registrada en **Auditoría** (`EliminarCiclo`) con el detalle de las cuotas eliminadas.
 
 ### Multi-ramo (catálogo gestionado solo por Admin)
 - Catálogo **Ramos** (Automotor, Motovehículo, Hogar, Vida, Comercio, ART) — alta solo Admin, lectura para todos.
