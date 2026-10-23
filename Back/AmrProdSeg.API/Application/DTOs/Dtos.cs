@@ -115,6 +115,12 @@ public class AsignarNumeroDto
     public string Numero { get; set; } = string.Empty;
 }
 
+/// <summary>Cambia el inicio de cuota del ciclo actual (no modifica la vigencia de la póliza).</summary>
+public class EditarInicioCuotaDto
+{
+    public DateTime InicioCuota { get; set; }
+}
+
 public class RenovarPolizaDto
 {
     public string? Numero { get; set; }      // número de la póliza renovada (por defecto, el de la original)

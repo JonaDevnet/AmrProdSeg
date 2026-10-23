@@ -69,6 +69,16 @@ export async function asignarNumeroPoliza(id: number, numero: string): Promise<v
   await api.put(`/polizas/${id}/numero`, { numero });
 }
 
+export interface EditarInicioCuotaDto {
+  inicioCuota: string;
+}
+
+/** Cambia el inicio de cuota del ciclo actual (no modifica la vigencia de la póliza). */
+export async function editarInicioCuota(id: number, dto: EditarInicioCuotaDto): Promise<CambioResultDto> {
+  const { data } = await api.put<CambioResultDto>(`/polizas/${id}/inicio-cuota`, dto);
+  return data ?? {};
+}
+
 /** Elimina un ciclo de cuotas. Sólo SuperAdmin; el backend valida y audita. */
 export async function eliminarCicloPoliza(id: number, ciclo: number): Promise<void> {
   await api.delete(`/polizas/${id}/ciclos/${ciclo}`);

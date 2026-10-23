@@ -11,6 +11,8 @@ public interface IPolizaService
     Task<PolizaDto?> GetActivaPorPatenteAsync(string patente);
     Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null);
     Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null);
+    /// <summary>Cambia el inicio de cuota del ciclo actual; no toca la vigencia de la póliza.</summary>
+    Task EditarInicioCuotaAsync(int id, DateTime inicioCuota, int? usuarioId = null, int? solicitanteId = null, string? motivo = null);
     Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null);
     Task CancelarAsync(int id, int? usuarioId = null);
     /// <summary>Refacturación: agrega un nuevo ciclo de cuotas a la MISMA póliza (sin historial).</summary>

@@ -165,6 +165,24 @@ public class PolizaRepository : IPolizaRepository
         return result is null or DBNull ? 0 : Convert.ToInt32(result);
     }
 
+    public async Task<int> EditarInicioCuotaAsync(int polizaId, DateTime inicioCuota, string descripcion, int? usuarioId = null)
+    {
+        using var conn = _factory.Create();
+        await conn.OpenAsync();
+
+        using var cmd = new SqlCommand("sp_Poliza_EditarInicioCuota", conn)
+        {
+            CommandType = CommandType.StoredProcedure
+        };
+        cmd.Parameters.AddWithValue("@PolizaId",    polizaId);
+        cmd.Parameters.AddWithValue("@InicioCuota", inicioCuota.Date);
+        cmd.Parameters.AddWithValue("@Descripcion", descripcion);
+        cmd.Parameters.AddWithValue("@UsuarioId",   (object?)usuarioId ?? DBNull.Value);
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
+    }
+
     public async Task<int> AsignarNumeroAsync(int id, string numero)
     {
         using var conn = _factory.Create();

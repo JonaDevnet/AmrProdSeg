@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -11,7 +11,7 @@ import {
   useActualizarVehiculo,
 } from "../hooks/clientes";
 import { useAuth } from "../auth/AuthContext";
-import { useCompanias, useCobrosPorPoliza } from "../hooks/polizas";
+import { useCompanias, useCobrosPorPoliza, useEditarInicioCuota } from "../hooks/polizas";
 import { useRamos, useCoberturas } from "../hooks/admin";
 import { actualizarPoliza, asignarNumeroPoliza } from "../api/polizas";
 import { Field, Input, Select } from "../components/ui/Field";
@@ -471,6 +471,16 @@ function sumarMeses(iso: string, meses: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Suma meses conservando el día y ajustando al último día del mes destino
+// (misma regla que DATEADD(MONTH, ...) de SQL Server).
+function sumarMesesSeguro(iso: string, meses: number): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  const base = new Date(Date.UTC(y, m - 1 + meses, 1));
+  const ultimoDia = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)).getUTCDate();
+  base.setUTCDate(Math.min(d, ultimoDia));
+  return base.toISOString().slice(0, 10);
+}
+
 function mesesEntre(desde: string, hasta: string): number {
   const a = new Date(desde + "T00:00:00Z"), b = new Date(hasta + "T00:00:00Z");
   let m = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
@@ -501,9 +511,25 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string>();
 
+  const editarInicio = useEditarInicioCuota(poliza.id);
+  const cobrosActual = useCobrosPorPoliza(poliza.id, true);
+  const [inicioCuota, setInicioCuota] = useState("");
+  const [inicioCuotaOriginal, setInicioCuotaOriginal] = useState("");
+
+  useEffect(() => {
+    if (inicioCuotaOriginal) return;
+    const cuotas = cobrosActual.data ?? [];
+    if (cuotas.length === 0) return;
+    const primera = [...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota)[0];
+    const inicio = sumarMesesSeguro(primera.fechaVencimiento.slice(0, 10), -1);
+    setInicioCuota(inicio);
+    setInicioCuotaOriginal(inicio);
+  }, [cobrosActual.data, inicioCuotaOriginal]);
+
   // "Período de cuotas" ↔ cantidad: Mensual=1, Bimestral=2, Trimestral=3.
   const periodoCuotas = Object.entries(PLAN_CUOTAS).find(([, n]) => n === Number(cantidadCuotas))?.[0] ?? "";
   const totalPlan = Math.round((Number(precioCuota) || 0) * (Number(cantidadCuotas) || 0) * 100) / 100;
+  const precioCuotaInicial = String(Math.round((poliza.precioTotal / Math.max(1, poliza.cantidadCuotas)) * 100) / 100);
 
   // Al cambiar el inicio se re-calcula la fecha fin según el período elegido.
   function cambiarInicio(v: string) {
@@ -529,23 +555,45 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
       setError("El precio por cuota debe ser mayor a 0.");
       return;
     }
-    setGuardando(true);
-    // Si no se tocó el plan, se envían los valores originales exactos para no
-    // disparar una actualización de cuotas por diferencias de redondeo.
+
+    // Plan: se compara contra el valor inicial, no contra precioTotal, para no
+    // disparar cambios por diferencias de redondeo al abrir el modal.
     const cambioPlan = nCuotas !== poliza.cantidadCuotas
-      || Math.abs(precio * nCuotas - poliza.precioTotal) > 0.01;
+      || Number(precioCuota) !== Number(precioCuotaInicial);
+    const cambioInicioCuota = !!inicioCuota && !!inicioCuotaOriginal && inicioCuota !== inicioCuotaOriginal;
+    const cambioDatos = numero.trim() !== poliza.numero
+      || Number(companiaId) !== poliza.companiaId
+      || (ramoId ? Number(ramoId) : null) !== (poliza.ramoId ?? null)
+      || (cobertura.trim() || null) !== ((poliza.cobertura ?? vehiculo?.tipoCobertura ?? "").trim() || null)
+      || fechaInicio !== poliza.fechaInicio.slice(0, 10)
+      || fechaFin !== poliza.fechaFin.slice(0, 10)
+      || cambioPlan
+      || (primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : null) !== (poliza.primaOG ?? null);
+
+    if (!cambioInicioCuota && !cambioDatos) {
+      onSaved();
+      return;
+    }
+
+    setGuardando(true);
     try {
-      await actualizarPoliza(poliza.id, {
-        companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
-        fechaInicio, fechaFin,
-        precioTotal: cambioPlan ? Math.round(precio * nCuotas * 100) / 100 : poliza.precioTotal,
-        cantidadCuotas: cambioPlan ? nCuotas : poliza.cantidadCuotas,
-        primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
-        cobertura: cobertura || undefined,
-      });
-      // El número se cambia por su endpoint propio (valida que no esté en uso por una póliza viva).
-      if (numero.trim() && numero.trim() !== poliza.numero) {
-        await asignarNumeroPoliza(poliza.id, numero.trim());
+      // El inicio de cuota se guarda por su endpoint propio: no toca la vigencia.
+      if (cambioInicioCuota) {
+        await editarInicio.mutateAsync({ inicioCuota });
+      }
+      if (cambioDatos) {
+        await actualizarPoliza(poliza.id, {
+          companiaId: Number(companiaId), ramoId: ramoId ? Number(ramoId) : undefined,
+          fechaInicio, fechaFin,
+          precioTotal: cambioPlan ? Math.round(precio * nCuotas * 100) / 100 : poliza.precioTotal,
+          cantidadCuotas: cambioPlan ? nCuotas : poliza.cantidadCuotas,
+          primaOG: primaOG.trim() ? Number(primaOG.replace(/[^\d.]/g, "")) : undefined,
+          cobertura: cobertura || undefined,
+        });
+        // El número se cambia por su endpoint propio (valida que no esté en uso por una póliza viva).
+        if (numero.trim() && numero.trim() !== poliza.numero) {
+          await asignarNumeroPoliza(poliza.id, numero.trim());
+        }
       }
       onSaved();
     } catch (e: any) { setError(e?.response?.data?.error ?? "No se pudo guardar."); } finally { setGuardando(false); }
@@ -602,6 +650,25 @@ function PolizaEditModal({ poliza, vehiculo, onClose, onSaved }: { poliza: Poliz
         <div style={{ fontSize: 12.5, color: "var(--ink-500)", margin: "2px 0 6px" }}>
           Total del plan: <strong>{formatMoneda(totalPlan)}</strong> ({cantidadCuotas} cuotas)
         </div>
+      )}
+      {poliza.estado === "Activa" && (
+        <>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-500)", margin: "6px 0 2px" }}>Inicio de cuota (ciclo actual)</div>
+          <Field label="Inicio de cuota">
+            <Input
+              type="date"
+              value={inicioCuota}
+              onChange={(e) => setInicioCuota(e.target.value)}
+              disabled={cobrosActual.isLoading || !inicioCuotaOriginal}
+            />
+            <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--ink-500)" }}>
+              {inicioCuota
+                ? `La primera cuota del ciclo vence el ${formatFecha(sumarMesesSeguro(inicioCuota, 1))}. `
+                : ""}
+              Las cuotas pagadas conservan su fecha de pago; solo cambia su vencimiento.
+            </div>
+          </Field>
+        </>
       )}
       <div style={{ fontSize: 12, color: "var(--ink-500)", marginTop: 6 }}>
         Al cambiar la cantidad o el precio se actualizan las cuotas impagas. Las cuotas pagadas no se tocan y las fechas de las cuotas existentes se conservan.

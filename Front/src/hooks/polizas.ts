@@ -77,8 +77,19 @@ export function useRefacturarPoliza(id: number) {
   });
 }
 
-export function useEliminarCicloPoliza(id: number) {
+export function useEditarInicioCuota(id: number) {
   const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: polizasApi.EditarInicioCuotaDto) => polizasApi.editarInicioCuota(id, dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["poliza", id] });
+      qc.invalidateQueries({ queryKey: ["polizas"] });
+      qc.invalidateQueries({ queryKey: ["cobros"] });
+    },
+  });
+}
+
+export function useEliminarCicloPoliza(id: number) {  const qc = useQueryClient();
   return useMutation({
     mutationFn: (ciclo: number) => polizasApi.eliminarCicloPoliza(id, ciclo),
     onSuccess: () => {

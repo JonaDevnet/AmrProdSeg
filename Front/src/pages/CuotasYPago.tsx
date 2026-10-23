@@ -322,6 +322,7 @@ function tipoCicloLabel(tipo?: string | null) {
     case "Original": return "Original";
     case "Refacturacion": return "Refacturación";
     case "ModificacionPeriodo": return "Modificación de período";
+    case "EdicionCuotas": return "Cuotas editadas";
     case "Renovacion": return "Renovación";
     default: return "Cuotas";
   }

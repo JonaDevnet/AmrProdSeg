@@ -75,6 +75,29 @@ public class PolizasController : ControllerBase
         return Ok(new CambioResultDto { Solicitada = true, Mensaje = sid == 0 ? "Ya hay una solicitud de edición pendiente para esta póliza." : "Solicitud de edición enviada. Queda pendiente de autorización del administrador." });
     }
 
+    /// <summary>
+    /// Cambia el inicio de cuota del ciclo actual (no modifica la vigencia de la póliza).
+    /// Admin lo aplica en el acto; Productor deja una solicitud pendiente.
+    /// </summary>
+    [HttpPut("{id:int}/inicio-cuota")]
+    public async Task<IActionResult> EditarInicioCuota(int id, [FromBody] EditarInicioCuotaDto dto)
+    {
+        var uid = UsuarioActualId();
+        if (EsAdmin())
+        {
+            await _service.EditarInicioCuotaAsync(id, dto.InicioCuota, uid);
+            return Ok(new CambioResultDto { Aplicada = true, Mensaje = "Inicio de cuota actualizado." });
+        }
+        var sid = await _solicitudes.SolicitarAsync("Poliza", id, "EditarInicioCuota", JsonSerializer.Serialize(dto), null, uid);
+        return Ok(new CambioResultDto
+        {
+            Solicitada = true,
+            Mensaje = sid == 0
+                ? "Ya hay una solicitud de edición de inicio de cuota pendiente para esta póliza."
+                : "Solicitud enviada. Queda pendiente de autorización del administrador."
+        });
+    }
+
     /// <summary>Asigna el número definitivo a una póliza en trámite (E/T).</summary>
     [HttpPut("{id:int}/numero")]
     public async Task<IActionResult> AsignarNumero(int id, [FromBody] AsignarNumeroDto dto)

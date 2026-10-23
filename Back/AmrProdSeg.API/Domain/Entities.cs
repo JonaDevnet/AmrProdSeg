@@ -185,7 +185,7 @@ public class Cobro
     public int? MetodoPago2Id { get; set; }   // segundo método (opcional, ej. parte efectivo + parte transferencia)
     public decimal? MetodoPago2Monto { get; set; }   // cuánto se pagó con el 2° método (el resto va al principal)
     public int Ciclo { get; set; } = 1;               // ciclo de facturación (1 = original; 2,3… = refacturación)
-    public string? CicloTipo { get; set; }             // Original | Refacturacion | ModificacionPeriodo | Renovacion
+    public string? CicloTipo { get; set; }             // Original | Refacturacion | ModificacionPeriodo | EdicionCuotas | Renovacion
     public string? CicloDescripcion { get; set; }
 
     // Campos de sólo lectura para listados (provienen de JOINs, no se persisten)

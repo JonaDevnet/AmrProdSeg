@@ -99,7 +99,7 @@ export interface Cobro {
   metodoPagoId?: number | null;
   metodoPago2Id?: number | null;   // segundo método (pago mixto)
   ciclo?: number;                  // ciclo de facturación (1 = original; 2,3… = refacturación)
-  cicloTipo?: string | null;       // Original | Refacturacion | ModificacionPeriodo | Renovacion
+  cicloTipo?: string | null;       // Original | Refacturacion | ModificacionPeriodo | EdicionCuotas | Renovacion
   cicloDescripcion?: string | null;
   nroPoliza?: string | null;
   clienteNombre?: string | null;

@@ -13,6 +13,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
   sólo actualiza los datos y la vigencia. Los cambios de plan se hacen con Refacturar o Renovar.
 
 ### Añadido
+- **Edición del inicio de cuota**: desde la ficha del cliente (`/clientes/:id` → Pólizas → editar)
+  se puede cambiar el inicio del ciclo actual. No modifica la vigencia de la póliza: desplaza los
+  vencimientos (cuota 1 = inicio + 1 mes, mismo día, mes +1), conserva la fecha de pago de las
+  cuotas pagadas y marca el ciclo como `EdicionCuotas`. Admin lo aplica en el acto; Productor deja
+  una solicitud pendiente. Cada cambio queda en la auditoría de movimientos (`EditarInicioCuota`).
 - **Eliminación de ciclos de cuotas (SuperAdmin)**: desde `/clientes/:id/cuotas` se puede eliminar
   un ciclo que no tenga pagos, escribiendo `Eliminar` para confirmar. El backend valida que no sea
   el ciclo original, el único ciclo ni un ciclo con pagos/historial, y registra el ciclo eliminado

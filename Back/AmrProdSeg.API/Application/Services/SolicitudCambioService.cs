@@ -93,6 +93,11 @@ public class SolicitudCambioService : ISolicitudCambioService
                          ?? throw new BusinessException("Datos de edición inválidos.");
                 await _polizas.ActualizarAsync(s.EntidadId, dp, adminId, s.SolicitanteId, s.Motivo);
                 break;
+            case ("Poliza", "EditarInicioCuota"):
+                var di = JsonSerializer.Deserialize<EditarInicioCuotaDto>(s.PayloadJson ?? "{}", JsonOpts)
+                         ?? throw new BusinessException("Datos de inicio de cuota inválidos.");
+                await _polizas.EditarInicioCuotaAsync(s.EntidadId, di.InicioCuota, adminId, s.SolicitanteId, s.Motivo);
+                break;
             case ("Poliza", "Renovar"):
                 var dr = JsonSerializer.Deserialize<RenovarPolizaDto>(s.PayloadJson ?? "{}", JsonOpts)
                          ?? throw new BusinessException("Datos de renovación inválidos.");

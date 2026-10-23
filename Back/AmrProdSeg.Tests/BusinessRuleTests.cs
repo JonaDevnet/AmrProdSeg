@@ -386,6 +386,105 @@ public class PolizaServiceTests
     }
 
     [Fact]
+    public async Task EditarInicioCuotaAsync_Ok_DesplazaYRegistraAuditoria()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza
+            {
+                Id = 1, Numero = "P-1", Patente = "AB123CD", Estado = EstadoPoliza.Activa
+            }
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { Id = 1, PolizaId = 1, Ciclo = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 11, 23) },
+                new Cobro { Id = 2, PolizaId = 1, Ciclo = 1, NumeroCuota = 2, FechaVencimiento = new DateTime(2026, 12, 23) }
+            }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await svc.EditarInicioCuotaAsync(1, new DateTime(2026, 10, 24), usuarioId: 9);
+
+        Assert.Equal(1, polizaRepo.EditarInicioCuotaLlamadas);
+        Assert.Equal(1, polizaRepo.UltimaPolizaInicioCuotaId);
+        Assert.Equal(new DateTime(2026, 10, 24), polizaRepo.UltimoInicioCuota);
+        Assert.Contains("Inicio de cuota", polizaRepo.UltimaDescripcionInicioCuota);
+        Assert.Contains("24/10/2026", polizaRepo.UltimaDescripcionInicioCuota);
+        Assert.Contains("24/11/2026", polizaRepo.UltimaDescripcionInicioCuota);
+
+        var r = Assert.Single(auditoria.Registros);
+        Assert.Equal("EditarInicioCuota", r.accion);
+        Assert.Equal("Poliza", r.entidad);
+        Assert.Equal(1, r.registroId);
+        Assert.Equal(9, r.usuarioId);
+        Assert.Contains("Inicio de cuota", r.detalle);
+    }
+
+    [Fact]
+    public async Task EditarInicioCuotaAsync_MismaFecha_NoHaceNada()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "P-1", Estado = EstadoPoliza.Activa }
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas =
+            {
+                new Cobro { Id = 1, PolizaId = 1, Ciclo = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 11, 23) }
+            }
+        };
+        var auditoria = new FakeAuditoriaMovimientoService();
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), auditoria);
+
+        await svc.EditarInicioCuotaAsync(1, new DateTime(2026, 10, 23), usuarioId: 9);
+
+        Assert.Equal(0, polizaRepo.EditarInicioCuotaLlamadas);
+        Assert.Empty(auditoria.Registros);
+    }
+
+    [Fact]
+    public async Task EditarInicioCuotaAsync_PolizaNoActiva_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "P-1", Estado = EstadoPoliza.Cancelada }
+        };
+        var cobroRepo = new FakeCobroRepository
+        {
+            Cuotas = { new Cobro { Id = 1, PolizaId = 1, Ciclo = 1, NumeroCuota = 1, FechaVencimiento = new DateTime(2026, 11, 23) } }
+        };
+        var svc = new PolizaService(polizaRepo, cobroRepo, new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await Assert.ThrowsAsync<BusinessException>(
+            () => svc.EditarInicioCuotaAsync(1, new DateTime(2026, 10, 23), usuarioId: 9));
+
+        Assert.Equal(0, polizaRepo.EditarInicioCuotaLlamadas);
+    }
+
+    [Fact]
+    public async Task EditarInicioCuotaAsync_SinCuotas_LanzaBusinessException()
+    {
+        var polizaRepo = new FakePolizaRepository
+        {
+            PolizaPorId = new Poliza { Id = 1, Numero = "P-1", Estado = EstadoPoliza.Activa }
+        };
+        var svc = new PolizaService(polizaRepo, new FakeCobroRepository(), new FakeCompaniaRepository(),
+            new FakeRamoRepository(), new FakeVehiculoRepository(), new FakePdfService(), new FakeAuditoriaMovimientoService());
+
+        await Assert.ThrowsAsync<BusinessException>(
+            () => svc.EditarInicioCuotaAsync(1, new DateTime(2026, 10, 23), usuarioId: 9));
+
+        Assert.Equal(0, polizaRepo.EditarInicioCuotaLlamadas);
+    }
+
+    [Fact]
     public async Task TieneCuotasImpagasAsync_DetectaImpagas()
     {
         var cobroRepo = new FakeCobroRepository

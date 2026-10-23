@@ -4432,7 +4432,7 @@ BEGIN
         Id               INT PRIMARY KEY IDENTITY,
         PolizaId         INT NOT NULL,
         Ciclo            INT NOT NULL,
-        Tipo             VARCHAR(30) NOT NULL,   -- Original | Refacturacion | ModificacionPeriodo | Renovacion
+        Tipo             VARCHAR(30) NOT NULL,   -- Original | Refacturacion | ModificacionPeriodo | EdicionCuotas | Renovacion
         Descripcion      NVARCHAR(300) NULL,
         PrecioTotal      DECIMAL(18,2) NOT NULL,
         CantidadCuotas   INT NOT NULL,
@@ -5107,3 +5107,67 @@ SET Descripcion = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLAC
 WHERE Descripcion LIKE N'%Ã%';
 GO
 
+/* =============================================================================
+   §74 — Edición del inicio de cuota del ciclo actual.
+   No modifica el período de la póliza. Desplaza los vencimientos de TODAS las
+   cuotas del ciclo vigente (mismo día, mes +N): cuota 1 = inicio + 1 mes.
+   Las cuotas pagadas conservan su FechaPago; sólo cambia su FechaVencimiento.
+   El ciclo vigente queda marcado como "EdicionCuotas" en CobrosCiclos.
+   Devuelve: 1 = ok; 0 = póliza o ciclo inexistente.
+   ============================================================================= */
+CREATE OR ALTER PROCEDURE sp_Poliza_EditarInicioCuota
+    @PolizaId        INT,
+    @InicioCuota     DATE,
+    @Descripcion     NVARCHAR(300),
+    @UsuarioId       INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Polizas WHERE Id = @PolizaId)
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(0 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        DECLARE @ciclo INT = (SELECT MAX(Ciclo) FROM Cobros WHERE PolizaId = @PolizaId);
+        IF @ciclo IS NULL
+        BEGIN
+            ROLLBACK TRANSACTION;
+            SELECT CAST(0 AS INT) AS Resultado;
+            RETURN;
+        END
+
+        -- La numeración de cuotas puede ser global (ej. 4,5,6), reiniciar en 1 o
+        -- tener huecos. Se usa la posición dentro del ciclo para que la 1ª cuota
+        -- del ciclo sea inicio + 1 mes, la 2ª +2 meses, etc.
+        ;WITH Ordenadas AS (
+            SELECT Id,
+                   ROW_NUMBER() OVER (ORDER BY NumeroCuota) AS Posicion
+            FROM Cobros
+            WHERE PolizaId = @PolizaId AND Ciclo = @ciclo
+        )
+        UPDATE c
+        SET FechaVencimiento = DATEADD(MONTH, o.Posicion, @InicioCuota)
+        FROM Cobros c
+        INNER JOIN Ordenadas o ON o.Id = c.Id;
+
+        -- PrimerVencimiento guarda el vencimiento real de la cuota 1 (inicio + 1 mes).
+        UPDATE CobrosCiclos
+        SET Tipo             = 'EdicionCuotas',
+            Descripcion      = @Descripcion,
+            PrimerVencimiento = DATEADD(MONTH, 1, @InicioCuota)
+        WHERE PolizaId = @PolizaId AND Ciclo = @ciclo;
+
+        COMMIT TRANSACTION;
+        SELECT CAST(1 AS INT) AS Resultado;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO

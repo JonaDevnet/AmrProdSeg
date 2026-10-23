@@ -63,6 +63,30 @@ public class SolicitudCambioServiceTests
         Assert.Equal("corregir teléfono", clientes.UltimoMotivo);
     }
 
+    [Fact]
+    public async Task Aprobar_EdicionInicioCuota_PasaSolicitanteYMotivo()
+    {
+        var repo = new FakeSolicitudCambioRepository
+        {
+            PorId = new SolicitudCambio
+            {
+                Id = 1, Tipo = "Poliza", EntidadId = 99, Accion = "EditarInicioCuota",
+                Estado = 0, PayloadJson = "{\"inicioCuota\":\"2026-10-23T00:00:00\"}",
+                SolicitanteId = 5, Motivo = "ajustar vencimientos",
+            },
+        };
+        var polizas = new FakePolizaService();
+        var svc = new SolicitudCambioService(repo, new FakeClienteService(), polizas, new FakeNotificacionPusher());
+
+        await svc.AprobarAsync(1, adminId: 9);
+
+        Assert.Equal(new DateTime(2026, 10, 23), polizas.UltimoInicioCuota);
+        Assert.Equal(9, polizas.UltimoInicioCuotaUsuarioId);
+        Assert.Equal(5, polizas.UltimoInicioCuotaSolicitanteId);
+        Assert.Equal("ajustar vencimientos", polizas.UltimoInicioCuotaMotivo);
+        Assert.Equal(1, repo.AprobarLlamado);
+    }
+
     private static SolicitudCambio SolicitudPendiente(string tipo, string accion)
         => new()
         {
@@ -137,6 +161,11 @@ public class FakeClienteService : IClienteService
 /// <summary>Fake de IPolizaService (no se usa en estos casos de prueba).</summary>
 public class FakePolizaService : IPolizaService
 {
+    public DateTime? UltimoInicioCuota;
+    public int? UltimoInicioCuotaUsuarioId;
+    public int? UltimoInicioCuotaSolicitanteId;
+    public string? UltimoInicioCuotaMotivo;
+
     public Task<PolizaDto> CrearAsync(CrearPolizaDto dto, int? usuarioId = null)
         => Task.FromResult(new PolizaDto());
     public Task<RenovacionResultDto> RenovarAsync(int polizaOrigenId, RenovarPolizaDto dto, int? usuarioId = null)
@@ -146,6 +175,14 @@ public class FakePolizaService : IPolizaService
     public Task<PagedResult<PolizaDto>> ListarAsync(int? clienteId, int? estado, int page, int pageSize, int? usuarioId = null, bool esAdmin = false, string? termino = null, string? campo = null)
         => Task.FromResult(new PagedResult<PolizaDto>());
     public Task ActualizarAsync(int id, ActualizarPolizaDto dto, int? usuarioId = null, int? solicitanteId = null, string? motivo = null) => Task.CompletedTask;
+    public Task EditarInicioCuotaAsync(int id, DateTime inicioCuota, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
+    {
+        UltimoInicioCuota = inicioCuota;
+        UltimoInicioCuotaUsuarioId = usuarioId;
+        UltimoInicioCuotaSolicitanteId = solicitanteId;
+        UltimoInicioCuotaMotivo = motivo;
+        return Task.CompletedTask;
+    }
     public Task RefacturarAsync(int id, RenovarPolizaDto dto, int? usuarioId = null) => Task.CompletedTask;
     public Task EliminarCicloAsync(int polizaId, int ciclo, int? usuarioId = null) => Task.CompletedTask;
     public Task<bool> TieneCuotasImpagasAsync(int polizaId) => Task.FromResult(false);

@@ -37,6 +37,11 @@ public class FakePolizaRepository : IPolizaRepository
     public int ActualizarConPlanLlamadas;
     public int ActualizarConPlanResultado = 1;
     public int ModificacionPeriodoLlamadas;
+    public int EditarInicioCuotaLlamadas;
+    public int EditarInicioCuotaResultado = 1;
+    public int? UltimaPolizaInicioCuotaId;
+    public DateTime? UltimoInicioCuota;
+    public string? UltimaDescripcionInicioCuota;
     public EstadoPoliza? UltimoEstadoCambiado;
     public Poliza? UltimaPolizaModificada;
     public Poliza? UltimaPolizaActualizada;
@@ -70,6 +75,14 @@ public class FakePolizaRepository : IPolizaRepository
         UltimoPrimerVencimiento = primerVencimiento;
         UltimaDescripcionModificacion = descripcion;
         return Task.FromResult(1);
+    }
+    public Task<int> EditarInicioCuotaAsync(int polizaId, DateTime inicioCuota, string descripcion, int? usuarioId = null)
+    {
+        EditarInicioCuotaLlamadas++;
+        UltimaPolizaInicioCuotaId = polizaId;
+        UltimoInicioCuota = inicioCuota;
+        UltimaDescripcionInicioCuota = descripcion;
+        return Task.FromResult(EditarInicioCuotaResultado);
     }
     public Task<int> AsignarNumeroAsync(int id, string numero) => Task.FromResult(1);
 

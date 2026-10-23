@@ -237,6 +237,42 @@ public class PolizaService : IPolizaService
             await _auditoria.RegistrarAsync(uid, "Poliza", id, "Editar", AuditoriaDetalle.ConMotivo($"{ident} — {detalle}", motivo), solicitanteId);
     }
 
+    public async Task EditarInicioCuotaAsync(int id, DateTime inicioCuota, int? usuarioId = null, int? solicitanteId = null, string? motivo = null)
+    {
+        if (inicioCuota == default)
+            throw new BusinessException("Indicá el inicio de cuota.");
+
+        var poliza = await _polizaRepo.GetByIdAsync(id)
+            ?? throw new NotFoundException("Póliza no encontrada.");
+
+        if (poliza.Estado != EstadoPoliza.Activa)
+            throw new BusinessException("Solo se puede editar el inicio de cuota de una póliza activa.");
+
+        var cuotas = await _cobroRepo.GetPorPolizaActualAsync(id);
+        var primera = cuotas.OrderBy(c => c.NumeroCuota).FirstOrDefault()
+            ?? throw new BusinessException("La póliza no tiene cuotas en el ciclo actual.");
+
+        var viejoInicio = primera.FechaVencimiento.Date.AddMonths(-1);
+        var nuevoInicio = inicioCuota.Date;
+        if (viejoInicio == nuevoInicio)
+            return; // sin cambios
+
+        var nuevoPrimerVenc = nuevoInicio.AddMonths(1);
+        var ident = $"Póliza {poliza.Numero}"
+            + (string.IsNullOrWhiteSpace(poliza.Patente) ? "" : $" · Patente {poliza.Patente}");
+        var descripcion =
+            $"{ident} — Inicio de cuota: {viejoInicio:dd/MM/yyyy} → {nuevoInicio:dd/MM/yyyy}. " +
+            $"Primera cuota: {primera.FechaVencimiento:dd/MM/yyyy} → {nuevoPrimerVenc:dd/MM/yyyy}.";
+
+        var resultado = await _polizaRepo.EditarInicioCuotaAsync(id, nuevoInicio, descripcion, usuarioId);
+        if (resultado != 1)
+            throw new NotFoundException("No se pudo editar el inicio de cuota de la póliza.");
+
+        if (usuarioId is int uid)
+            await _auditoria.RegistrarAsync(uid, "Poliza", id, "EditarInicioCuota",
+                AuditoriaDetalle.ConMotivo(descripcion, motivo), solicitanteId);
+    }
+
     public async Task AsignarNumeroAsync(int id, string numero, int? usuarioId = null)
     {
         numero = (numero ?? string.Empty).Trim();

@@ -24,6 +24,8 @@ public interface IPolizaRepository
     Task<int> ActualizarConPlanAsync(Poliza p);
     /// <summary>Actualiza la póliza y agrega el ciclo de modificación de período en una sola transacción.</summary>
     Task<int> ActualizarConModificacionPeriodoAsync(Poliza p, DateTime primerVencimiento, string descripcion, int? usuarioId = null);
+    /// <summary>Desplaza los vencimientos del ciclo actual y lo marca como EdicionCuotas.</summary>
+    Task<int> EditarInicioCuotaAsync(int polizaId, DateTime inicioCuota, string descripcion, int? usuarioId = null);
     Task<int> AsignarNumeroAsync(int id, string numero);
     /// <summary>Elimina un ciclo de cuotas y sus metadatos. Devuelve 1 si lo eliminó o un código de error negativo.</summary>
     Task<int> EliminarCicloAsync(int polizaId, int ciclo);
