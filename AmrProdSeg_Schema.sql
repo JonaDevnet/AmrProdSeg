@@ -3774,24 +3774,47 @@ GO
 CREATE OR ALTER PROCEDURE sp_Busqueda_Global @Termino NVARCHAR(100) AS
 BEGIN
     SET NOCOUNT ON;
+
+    ;WITH Activas AS (
+        SELECT DISTINCT Numero
+        FROM Polizas
+        WHERE Eliminada = 0 AND Estado = 0          -- Activa = vigente
+    )
+    -- 1) Clientes por nombre/documento (directo)
     SELECT 'Cliente' AS Tipo, c.Id, c.Nombre AS Titulo, c.Documento AS Subtitulo, c.Id AS Referencia
     FROM Clientes c
     WHERE c.Nombre LIKE '%' + @Termino + '%' OR c.Documento LIKE '%' + @Termino + '%'
+
+    UNION
+
+    -- 2) Fallback: cliente de una póliza que matchea pero NO tiene vigente
+    SELECT 'Cliente', c.Id, c.Nombre, c.Documento, c.Id
+    FROM Polizas p
+    INNER JOIN Clientes c ON c.Id = p.ClienteId
+    LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
+    WHERE p.Eliminada = 0
+      AND (p.Numero LIKE '%' + @Termino + '%' OR v.Patente LIKE '%' + @Termino + '%')
+      AND NOT EXISTS (SELECT 1 FROM Activas a WHERE a.Numero = p.Numero)
+
     UNION ALL
-    SELECT 'Vehiculo' AS Tipo, v.Id, (v.Marca + ' ' + v.Modelo) AS Titulo, v.Patente AS Subtitulo, v.ClienteId AS Referencia
+
+    -- 3) Vehículos por patente (sin cambios)
+    SELECT 'Vehiculo', v.Id, (v.Marca + ' ' + v.Modelo), v.Patente, v.ClienteId
     FROM Vehiculos v
     WHERE v.Patente LIKE '%' + @Termino + '%'
+
     UNION ALL
-    SELECT 'Poliza' AS Tipo, pol.Id, pol.Numero AS Titulo, pol.Subtitulo, pol.Id AS Referencia
+
+    -- 4) Pólizas VIGENTES únicamente
+    SELECT 'Poliza', pol.Id, pol.Numero, pol.Subtitulo, pol.Id
     FROM (
         SELECT p.Id, p.Numero,
                c.Nombre + ISNULL(N' · ' + v.Patente, N'') AS Subtitulo,
-               ROW_NUMBER() OVER (PARTITION BY p.Numero
-                 ORDER BY CASE WHEN p.Estado = 0 THEN 0 ELSE 1 END, p.FechaEmision DESC) AS rn
+               ROW_NUMBER() OVER (PARTITION BY p.Numero ORDER BY p.FechaEmision DESC) AS rn
         FROM Polizas p
-        INNER JOIN Clientes  c ON c.Id = p.ClienteId
+        INNER JOIN Clientes c ON c.Id = p.ClienteId
         LEFT  JOIN Vehiculos v ON v.Id = p.VehiculoId
-        WHERE p.Eliminada = 0
+        WHERE p.Eliminada = 0 AND p.Estado = 0
           AND (p.Numero LIKE '%' + @Termino + '%' OR v.Patente LIKE '%' + @Termino + '%')
     ) pol
     WHERE pol.rn = 1;
