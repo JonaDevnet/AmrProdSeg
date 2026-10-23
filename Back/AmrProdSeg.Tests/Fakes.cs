@@ -117,6 +117,50 @@ public class FakeCobroRepository : ICobroRepository
     public Task<List<CobroEvento>> GetEventosAsync(int polizaId) => Task.FromResult(Eventos);
 }
 
+public class FakeAnuncioRepository : IAnuncioRepository
+{
+    public List<Anuncio> Items = new();
+    public int Total;
+    public int InsertarLlamadas;
+    public string? UltimoTitulo;
+    public string? UltimoSubtitulo;
+    public string? UltimoTexto;
+    public int? UltimoPublicadoPor;
+    public int MarcarVistosLlamadas;
+    public int EliminarLlamadas;
+    public int EliminarResultado = 1;
+    public int UltimoEliminado;
+
+    public Task<(List<Anuncio> Items, int Total)> GetAllAsync(int page, int pageSize)
+        => Task.FromResult((Items, Total == 0 ? Items.Count : Total));
+
+    public Task<(List<Anuncio> Items, int Total)> GetNuevosAsync(int usuarioId, int top = 5)
+        => Task.FromResult((Items, Total == 0 ? Items.Count : Total));
+
+    public Task<int> InsertarAsync(string titulo, string? subtitulo, string texto, int publicadoPor)
+    {
+        InsertarLlamadas++;
+        UltimoTitulo = titulo;
+        UltimoSubtitulo = subtitulo;
+        UltimoTexto = texto;
+        UltimoPublicadoPor = publicadoPor;
+        return Task.FromResult(1);
+    }
+
+    public Task<int> MarcarVistosAsync(int usuarioId)
+    {
+        MarcarVistosLlamadas++;
+        return Task.FromResult(1);
+    }
+
+    public Task<int> EliminarAsync(int id)
+    {
+        EliminarLlamadas++;
+        UltimoEliminado = id;
+        return Task.FromResult(EliminarResultado);
+    }
+}
+
 public class FakeVehiculoRepository : IVehiculoRepository
 {
     public Vehiculo? PorPatente;

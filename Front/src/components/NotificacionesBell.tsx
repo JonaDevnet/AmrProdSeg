@@ -11,6 +11,7 @@ import { formatFecha, formatMoneda, formatFechaHora } from "../utils/format";
 import { getPendientes, aprobar, rechazar } from "../api/solicitudesCambio";
 import type { SolicitudCambioDto } from "../api/solicitudesCambio";
 import { getSolicitudesReset, autorizarReset } from "../api/usuarios";
+import { useAnunciosNuevos } from "../hooks/anuncios";
 
 export default function NotificacionesBell() {
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ export default function NotificacionesBell() {
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
   });
+  const anuncios = useAnunciosNuevos();
 
   // Exportaciones vistas (dismiss por usuario en este equipo).
   const expKey = `amr_notif_exp_${usuario?.nombre ?? "x"}`;
@@ -96,9 +98,11 @@ export default function NotificacionesBell() {
   const exportacionesNuevas = exportaciones.filter((e) => !expVistas.has(e.id));
   const altasRecientesData = altas.data ?? [];
   const altasNuevas = altasRecientesData.filter((a) => !altasVistas.has(a.id));
+  const anunciosNuevos = anuncios.data?.items ?? [];
+  const totalAnuncios = anuncios.data?.total ?? 0;
   // Todas las aprobaciones pendientes van juntas bajo la sección "Solicitudes".
   const totalSolicitudes = anulaciones.length + solicitudesPendientes.length + eliminaciones.length + resetPendientes.length;
-  const total = items.length + totalSolicitudes + exportacionesNuevas.length + altasNuevas.length;
+  const total = items.length + totalSolicitudes + exportacionesNuevas.length + altasNuevas.length + totalAnuncios;
 
   function limpiarExportaciones() {
     const nuevas = new Set(expVistas);
@@ -130,6 +134,12 @@ export default function NotificacionesBell() {
     limpiarAltas();
   }
   const hayDescartables = items.length + exportacionesNuevas.length + altasNuevas.length > 0;
+
+  function abrirAnuncios() {
+    setAbierto(false);
+    const win = window.open("/anuncios", "_blank");
+    if (win) win.opener = null;
+  }
 
   async function resolver(id: number, aprobar: boolean) {
     if (aprobar) await aprobarAnulacion(id); else await rechazarAnulacion(id);
@@ -200,6 +210,42 @@ export default function NotificacionesBell() {
                 Limpiar todo
               </button>
             </div>
+            {/* Anuncios nuevos (todos los usuarios) */}
+            {totalAnuncios > 0 && (
+              <>
+                <div style={head}>
+                  Anuncios
+                  <span style={badge}>{totalAnuncios}</span>
+                </div>
+                <div style={{ maxHeight: 240, overflowY: "auto" }}>
+                  {anunciosNuevos.map((a) => (
+                    <button
+                      key={`anuncio-${a.id}`}
+                      onClick={abrirAnuncios}
+                      style={{ ...anuncioItem, borderBottom: "1px solid var(--line-2)" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--blue-50)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--blue-50)")}
+                    >
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink-900)", overflowWrap: "anywhere" }}>
+                        {a.titulo}
+                      </div>
+                      {a.subtitulo && (
+                        <div style={{ fontSize: 12.5, color: "var(--ink-500)", marginTop: 2, overflowWrap: "anywhere" }}>
+                          {a.subtitulo}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 4 }}>
+                        {formatFechaHora(a.fechaPublicacion)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={abrirAnuncios} style={verTodos}>
+                  Ver todos los anuncios
+                </button>
+              </>
+            )}
+
             {/* Solicitudes: todas las aprobaciones pendientes (anulaciones, cambios,
                 eliminaciones de póliza y reset de contraseña). Se muestra solo si hay alguna. */}
             {esAdmin && totalSolicitudes > 0 && (
@@ -390,3 +436,12 @@ const badge: CSSProperties = {
   fontSize: 11, fontWeight: 600, color: "var(--bad-700)", background: "var(--bad-100)", padding: "2px 8px", borderRadius: 999,
 };
 const vacio: CSSProperties = { padding: "16px", color: "var(--ink-900)", fontSize: 13.5, textAlign: "center" };
+const anuncioItem: CSSProperties = {
+  width: "100%", display: "block", textAlign: "left", padding: "10px 16px",
+  border: 0, background: "var(--blue-50)", cursor: "pointer",
+};
+const verTodos: CSSProperties = {
+  width: "100%", padding: "9px 16px", border: 0, borderTop: "1px solid var(--line-2)",
+  background: "transparent", color: "var(--blue-600)", fontWeight: 600,
+  fontSize: 12.5, cursor: "pointer",
+};

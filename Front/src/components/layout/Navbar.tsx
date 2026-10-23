@@ -6,6 +6,7 @@ import { useIsMobile } from "../../hooks/useMediaQuery";
 import {
   IconSearch, IconLogout, IconLock, IconShield, IconPlus, IconUsers, IconBuilding,
   IconChevronD, IconEdit, IconCar, IconFile, IconMail, IconBan, IconEye, IconDownload,
+  IconBell,
 } from "../Icons";
 import CambiarPasswordModal from "../usuarios/CambiarPasswordModal";
 import NotasUsuario from "../NotasUsuario";
@@ -80,6 +81,15 @@ export default function Navbar() {
   async function salir() {
     await cerrarSesion();
     navigate("/login", { replace: true });
+  }
+
+  function abrirAnuncios() {
+    setUserOpen(false);
+    setMenuOpen(false);
+    // Misma-origen: la pestaña nueva hereda el sessionStorage; se anula el opener
+    // para evitar tabnabbing. El token nunca viaja en la URL.
+    const win = window.open("/anuncios", "_blank");
+    if (win) win.opener = null;
   }
 
   return (
@@ -167,6 +177,8 @@ export default function Navbar() {
                   )}
                   <DropItem icon={<IconFile size={15} />} titulo="Pólizas" sub="Buscar y exportar"
                     onClick={() => { setUserOpen(false); navigate("/polizas"); }} />
+                  <DropItem icon={<IconBell size={15} />} titulo="Anuncios" sub="Novedades del equipo"
+                    onClick={abrirAnuncios} />
                   {esAdmin && (
                     <DropItem icon={<IconMail size={15} />} titulo="Configuración de envío" sub="Correo y WhatsApp del sistema"
                       onClick={() => { setUserOpen(false); navigate("/configuracion"); }} />
@@ -245,6 +257,7 @@ export default function Navbar() {
               </>)}
 
               <div style={drawerLabel}>Cuenta</div>
+              <button style={drawerLink(false)} onClick={abrirAnuncios}><IconBell size={16} />Anuncios</button>
               <button style={drawerLink(false)} onClick={() => irA("/finanzas")}><IconFile size={16} />Mis finanzas</button>
               <button style={drawerLink(false)} onClick={() => { setMenuOpen(false); setCambiarPass(true); }}><IconLock size={16} />Cambiar contraseña</button>
               <button style={{ ...drawerLink(false), color: "oklch(0.80 0.13 28)" }} onClick={() => { setMenuOpen(false); salir(); }}>

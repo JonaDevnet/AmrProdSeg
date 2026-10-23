@@ -136,6 +136,18 @@ public class Baja
     public string? Solicitante { get; set; }
 }
 
+public class Anuncio
+{
+    public int Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Subtitulo { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public int PublicadoPor { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public string? UsuarioEmail { get; set; }
+    public DateTime FechaPublicacion { get; set; }
+}
+
 public class AnulacionCobro
 {
     public int Id { get; set; }

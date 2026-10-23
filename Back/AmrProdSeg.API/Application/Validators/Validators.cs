@@ -256,3 +256,20 @@ public class ActualizarDocumentoValidator : AbstractValidator<ActualizarDocument
             .WithMessage("El documento debe contener solo dígitos (7 a 11).");
     }
 }
+
+public class CrearAnuncioValidator : AbstractValidator<CrearAnuncioDto>
+{
+    public CrearAnuncioValidator()
+    {
+        RuleFor(x => x.Titulo)
+            .NotEmpty().WithMessage("El título es obligatorio.")
+            .MaximumLength(120).WithMessage("El título no puede superar los 120 caracteres.");
+
+        RuleFor(x => x.Subtitulo)
+            .MaximumLength(200).WithMessage("El subtítulo no puede superar los 200 caracteres.");
+
+        RuleFor(x => x.Texto)
+            .NotEmpty().WithMessage("El texto es obligatorio.")
+            .MaximumLength(5000).WithMessage("El texto no puede superar los 5.000 caracteres.");
+    }
+}

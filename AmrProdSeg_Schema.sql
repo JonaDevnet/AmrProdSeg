@@ -5173,3 +5173,117 @@ BEGIN
     END CATCH
 END
 GO
+
+/* =============================================================================
+   §75 — Anuncios internos.
+   Todos los usuarios autenticados pueden leer; sólo Admin/SuperAdmin publican
+   y eliminan (el rol se valida en el controller). El texto es plano, sin HTML.
+   ============================================================================= */
+IF COL_LENGTH('dbo.Usuarios', 'UltimoAnuncioVistoId') IS NULL
+BEGIN
+    ALTER TABLE Usuarios ADD UltimoAnuncioVistoId INT NULL;
+END
+GO
+
+IF OBJECT_ID('dbo.Anuncios', 'U') IS NULL
+BEGIN
+    CREATE TABLE Anuncios (
+        Id                INT PRIMARY KEY IDENTITY,
+        Titulo            NVARCHAR(150) NOT NULL,
+        Subtitulo         NVARCHAR(250) NULL,
+        Texto             NVARCHAR(MAX) NOT NULL,
+        PublicadoPor      INT NOT NULL,
+        FechaPublicacion  DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_Anuncios_Usuarios FOREIGN KEY (PublicadoPor) REFERENCES Usuarios(Id)
+    );
+    CREATE INDEX IX_Anuncios_Fecha ON Anuncios(FechaPublicacion DESC, Id DESC);
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anuncio_Insertar
+    @Titulo NVARCHAR(150),
+    @Subtitulo NVARCHAR(250) = NULL,
+    @Texto NVARCHAR(MAX),
+    @PublicadoPor INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Anuncios (Titulo, Subtitulo, Texto, PublicadoPor)
+    VALUES (@Titulo, @Subtitulo, @Texto, @PublicadoPor);
+
+    DECLARE @id INT = CAST(SCOPE_IDENTITY() AS INT);
+
+    -- El autor no se auto-notifica: queda marcado como visto.
+    UPDATE Usuarios
+    SET UltimoAnuncioVistoId = @id
+    WHERE Id = @PublicadoPor;
+
+    SELECT @id AS Id;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anuncio_GetAll
+    @Page INT = 1,
+    @PageSize INT = 10
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Page < 1 SET @Page = 1;
+    IF @PageSize < 1 SET @PageSize = 10;
+    IF @PageSize > 50 SET @PageSize = 50;
+
+    DECLARE @Offset INT = (@Page - 1) * @PageSize;
+
+    SELECT a.Id, a.Titulo, a.Subtitulo, a.Texto, a.PublicadoPor,
+           u.Nombre AS UsuarioNombre, u.Email AS UsuarioEmail,
+           a.FechaPublicacion,
+           COUNT(*) OVER() AS Total
+    FROM Anuncios a
+    INNER JOIN Usuarios u ON u.Id = a.PublicadoPor
+    ORDER BY a.FechaPublicacion DESC, a.Id DESC
+    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anuncio_GetNuevos
+    @UsuarioId INT,
+    @Top INT = 5
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Top < 1 SET @Top = 5;
+    IF @Top > 20 SET @Top = 20;
+
+    DECLARE @ultimoVisto INT = ISNULL((SELECT UltimoAnuncioVistoId FROM Usuarios WHERE Id = @UsuarioId), 0);
+
+    SELECT TOP (@Top)
+           a.Id, a.Titulo, a.Subtitulo, a.FechaPublicacion,
+           (SELECT COUNT(*) FROM Anuncios WHERE Id > @ultimoVisto) AS Total
+    FROM Anuncios a
+    WHERE a.Id > @ultimoVisto
+    ORDER BY a.FechaPublicacion DESC, a.Id DESC;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anuncio_MarcarVistos
+    @UsuarioId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Usuarios
+    SET UltimoAnuncioVistoId = ISNULL((SELECT MAX(Id) FROM Anuncios), 0)
+    WHERE Id = @UsuarioId;
+
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_Anuncio_Eliminar
+    @Id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM Anuncios WHERE Id = @Id;
+    SELECT @@ROWCOUNT AS Afectadas;
+END
+GO

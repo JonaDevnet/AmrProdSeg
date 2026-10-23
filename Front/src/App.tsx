@@ -21,6 +21,7 @@ import Usuarios from "./pages/Usuarios";
 import Companias from "./pages/Companias";
 import Configuracion from "./pages/Configuracion";
 import Registro from "./pages/Registro";
+import Anuncios from "./pages/Anuncios";
 
 // Reportes incluye Recharts → se carga en un chunk aparte
 const Reportes = lazy(() => import("./pages/Reportes"));
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="/alta" element={<Alta />} />
               <Route path="/editar/:modo" element={<Editar />} />
               <Route path="/bajas" element={<Bajas />} />
+              <Route path="/anuncios" element={<Anuncios />} />
               <Route path="/finanzas" element={<Finanzas />} />
               <Route
                 path="/reportes"

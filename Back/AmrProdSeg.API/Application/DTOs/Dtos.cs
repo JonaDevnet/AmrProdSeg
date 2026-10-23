@@ -326,6 +326,39 @@ public class ProbarWhatsappResultDto
 }
 
 // ---------- Notas privadas por usuario ----------
+public class CrearAnuncioDto
+{
+    public string Titulo { get; set; } = string.Empty;
+    public string? Subtitulo { get; set; }
+    public string Texto { get; set; } = string.Empty;
+}
+
+public class AnuncioDto
+{
+    public int Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Subtitulo { get; set; }
+    public string Texto { get; set; } = string.Empty;
+    public int PublicadoPor { get; set; }
+    public string? UsuarioNombre { get; set; }
+    public string? UsuarioEmail { get; set; }
+    public DateTime FechaPublicacion { get; set; }
+}
+
+public class AnuncioNuevoDto
+{
+    public int Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string? Subtitulo { get; set; }
+    public DateTime FechaPublicacion { get; set; }
+}
+
+public class AnunciosNuevosDto
+{
+    public int Total { get; set; }
+    public List<AnuncioNuevoDto> Items { get; set; } = new();
+}
+
 public class CrearNotaDto
 {
     public string Texto { get; set; } = string.Empty;

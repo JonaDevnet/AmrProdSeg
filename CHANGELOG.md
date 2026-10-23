@@ -19,6 +19,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
   herramientas de desarrollo (Vite/Vitest), que no se incluyen en el bundle servido por nginx.
 
 ### Añadido
+- **Anuncios internos**: nueva página `/anuncios` (abre en pestaña nueva) con título, subtítulo y texto
+  plano. Todos los usuarios autenticados pueden leer; sólo Admin/SuperAdmin publican y eliminan.
+  Paginación de 10 anuncios, autor, correo y fecha/hora. La campanita muestra los anuncios nuevos
+  y los marca como leídos al abrir la página.
 - **Edición del inicio de cuota**: desde la ficha del cliente (`/clientes/:id` → Pólizas → editar)
   se puede cambiar el inicio del ciclo actual. No modifica la vigencia de la póliza: desplaza los
   vencimientos (cuota 1 = inicio + 1 mes, mismo día, mes +1), conserva la fecha de pago de las
