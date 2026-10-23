@@ -5266,12 +5266,17 @@ END
 GO
 
 CREATE OR ALTER PROCEDURE sp_Anuncio_MarcarVistos
-    @UsuarioId INT
+    @UsuarioId INT,
+    @HastaId INT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE Usuarios
-    SET UltimoAnuncioVistoId = ISNULL((SELECT MAX(Id) FROM Anuncios), 0)
+    SET UltimoAnuncioVistoId =
+        CASE
+            WHEN ISNULL(UltimoAnuncioVistoId, 0) < @HastaId THEN @HastaId
+            ELSE UltimoAnuncioVistoId
+        END
     WHERE Id = @UsuarioId;
 
     SELECT @@ROWCOUNT AS Afectadas;

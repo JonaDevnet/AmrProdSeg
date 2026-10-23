@@ -89,7 +89,11 @@ export default function Navbar() {
     // Misma-origen: la pestaña nueva hereda el sessionStorage; se anula el opener
     // para evitar tabnabbing. El token nunca viaja en la URL.
     const win = window.open("/anuncios", "_blank");
-    if (win) win.opener = null;
+    if (win) {
+      win.opener = null;
+    } else {
+      navigate("/anuncios");
+    }
   }
 
   return (

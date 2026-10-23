@@ -1,4 +1,5 @@
 using AmrProdSeg.API.Application.Exceptions;
+using Microsoft.AspNetCore.Http;
 
 namespace AmrProdSeg.API.Security.Middlewares;
 
@@ -35,6 +36,11 @@ public class ExceptionHandlingMiddleware
         {
             _logger.LogWarning("Acceso denegado en {Path}", context.Request.Path);
             await EscribirAsync(context, 403, "No tenés permisos para realizar esta acción.");
+        }
+        catch (BadHttpRequestException ex)
+        {
+            _logger.LogWarning("Solicitud inválida en {Path}: {Mensaje}", context.Request.Path, ex.Message);
+            await EscribirAsync(context, ex.StatusCode, "Solicitud inválida o demasiado grande.");
         }
         catch (Exception ex)
         {

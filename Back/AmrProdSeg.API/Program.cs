@@ -314,6 +314,7 @@ var app = builder.Build();
 app.UseForwardedHeaders();            // 0. IP/esquema reales detrás de Traefik/nginx
 app.UseExceptionHandlingMiddleware(); // captura excepciones de toda la cadena
 app.UseRequestLogging();              // 0b. Registra solicitudes con error (4xx/5xx) → errors-.log
+app.UseRouting();                     // 0c. Resuelve el endpoint para poder limitar por endpoint
 app.UseIpRateLimiting();              // 1. Rate limiting (usa la IP real del cliente)
 // app.UseGeoBlocking();              // 1b. DESACTIVADO TEMPORALMENTE: el middleware se conserva
                                         // para poder reactivarlo cuando se resuelva el acceso móvil.

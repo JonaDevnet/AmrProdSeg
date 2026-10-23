@@ -69,7 +69,7 @@ public interface IAnuncioService
     Task<PagedResult<AnuncioDto>> GetAllAsync(int page, int pageSize);
     Task<AnunciosNuevosDto> GetNuevosAsync(int usuarioId);
     Task<int> CrearAsync(int usuarioId, CrearAnuncioDto dto);
-    Task MarcarVistosAsync(int usuarioId);
+    Task MarcarVistosAsync(int usuarioId, int hastaId);
     Task EliminarAsync(int id, int usuarioId);
 }
 

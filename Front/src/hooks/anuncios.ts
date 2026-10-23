@@ -44,7 +44,7 @@ export function useEliminarAnuncio() {
 export function useMarcarAnunciosVistos() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: anunciosApi.marcarAnunciosVistos,
+    mutationFn: (hastaId: number) => anunciosApi.marcarAnunciosVistos(hastaId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["notif", "anuncios"] });
     },

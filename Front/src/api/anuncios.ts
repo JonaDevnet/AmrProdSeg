@@ -40,8 +40,8 @@ export async function getAnunciosNuevos(): Promise<AnunciosNuevos> {
   return data;
 }
 
-export async function marcarAnunciosVistos(): Promise<void> {
-  await api.post("/anuncios/marcar-vistos");
+export async function marcarAnunciosVistos(hastaId: number): Promise<void> {
+  await api.post("/anuncios/marcar-vistos", { hastaId });
 }
 
 export async function crearAnuncio(dto: CrearAnuncioDto): Promise<{ id: number }> {

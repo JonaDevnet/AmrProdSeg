@@ -147,7 +147,7 @@ public class FakeAnuncioRepository : IAnuncioRepository
         return Task.FromResult(1);
     }
 
-    public Task<int> MarcarVistosAsync(int usuarioId)
+    public Task<int> MarcarVistosAsync(int usuarioId, int hastaId)
     {
         MarcarVistosLlamadas++;
         return Task.FromResult(1);

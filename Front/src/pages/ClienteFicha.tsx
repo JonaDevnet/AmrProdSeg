@@ -144,7 +144,7 @@ export default function ClienteFicha() {
             <><span className="mono" style={{ fontWeight: 600, color: "var(--ink-900)", letterSpacing: "0.04em" }}>{veh.patente}</span><span>· {[veh.marca, veh.modelo].filter(Boolean).join(" ")}</span></>
           ) : <span>Sin vehículo asociado</span>}
         </div>
-        <VencimientoEstado polizaId={p.id} />
+        <VencimientoEstado polizaId={p.id} fechaFin={p.fechaFin} />
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
           <MiniDato k="Compañía" v={cia?.nombre} />
           <MiniDato k="Ramo" v={p.ramoNombre} />
@@ -331,31 +331,23 @@ function MiniDato({ k, v, mono }: { k: string; v?: string | null; mono?: boolean
   );
 }
 
-// Vencimiento de la CUOTA ACTUAL (la última pagada; si ninguna, la 1ª) + estado según cobranza.
-function VencimientoEstado({ polizaId }: { polizaId: number }) {
+// Estado al lado del "Vencimiento" según la VIGENCIA de la póliza (fechaFin).
+function VencimientoEstado({ polizaId, fechaFin }: { polizaId: number; fechaFin?: string | null }) {
   const cobros = useCobrosPorPoliza(polizaId, true);
   const cuotas = cobros.data ?? [];
   const ordenadas = [...cuotas].sort((a, b) => a.numeroCuota - b.numeroCuota);
   // Cuota actual = la última PAGADA (estado=1); si no hay ninguna pagada, la 1ª cuota.
   const pagadas = ordenadas.filter((c) => c.estado === 1);
   const actual = pagadas.length ? pagadas[pagadas.length - 1] : ordenadas[0];
-  // El estado (al día / por vencer / vencida) se calcula sobre la próxima cuota IMPAGA,
-  // así el badge sigue avisando si el cliente se atrasa aunque se muestre la cuota actual.
-  const prox = ordenadas
-    .filter((c) => c.estado !== 1)
-    .sort((a, b) => new Date(a.fechaVencimiento).getTime() - new Date(b.fechaVencimiento).getTime())[0];
 
-  let key: "vigente" | "porvencer" | "vencida" | "aldia" = "aldia";
-  if (prox) {
-    const dias = Math.ceil((new Date(prox.fechaVencimiento).getTime() - Date.now()) / 86_400_000);
-    key = dias < 0 ? "vencida" : dias <= 10 ? "porvencer" : "vigente";
-  }
-  const cfg = {
-    vigente:   { label: "Vigente",    bg: "var(--ok-100)",   fg: "var(--ok-700)" },
-    porvencer: { label: "Por vencer", bg: "var(--warn-100)", fg: "var(--warn-700)" },
-    vencida:   { label: "Vencida",    bg: "var(--bad-100)",  fg: "var(--bad-700)" },
-    aldia:     { label: "Al día",     bg: "var(--ok-100)",   fg: "var(--ok-700)" },
-  }[key];
+  // Vigente si la vigencia termina hoy o después; Vencida si ya pasó.
+  const vencida = fechaFin
+    ? new Date(`${fechaFin.slice(0, 10)}T00:00:00`).getTime() < new Date(new Date().toDateString()).getTime()
+    : false;
+
+  const cfg = vencida
+    ? { label: "Vencida", bg: "var(--warn-100)", fg: "var(--warn-700)" }
+    : { label: "Vigente", bg: "var(--ok-100)",  fg: "var(--ok-700)" };
 
   return (
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", borderRadius: 8, background: "var(--canvas)", border: "1px solid var(--line-2)" }}>

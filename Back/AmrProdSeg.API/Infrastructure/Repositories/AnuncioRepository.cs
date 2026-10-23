@@ -68,12 +68,13 @@ public class AnuncioRepository : IAnuncioRepository
         return Convert.ToInt32(result);
     }
 
-    public async Task<int> MarcarVistosAsync(int usuarioId)
+    public async Task<int> MarcarVistosAsync(int usuarioId, int hastaId)
     {
         using var conn = _factory.Create();
         await conn.OpenAsync();
         using var cmd = new SqlCommand("sp_Anuncio_MarcarVistos", conn) { CommandType = CommandType.StoredProcedure };
         cmd.Parameters.AddWithValue("@UsuarioId", usuarioId);
+        cmd.Parameters.AddWithValue("@HastaId", hastaId);
         return Convert.ToInt32(await cmd.ExecuteScalarAsync());
     }
 

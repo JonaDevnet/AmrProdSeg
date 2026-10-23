@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { polizasPorVencer } from "../api/reportes";
@@ -76,6 +76,14 @@ export default function NotificacionesBell() {
   });
   const anuncios = useAnunciosNuevos();
 
+  // Si otra pestaña marcó los anuncios como vistos, se refresca el contador acá.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const canal = new BroadcastChannel("amr-anuncios");
+    canal.onmessage = () => qc.invalidateQueries({ queryKey: ["notif", "anuncios"] });
+    return () => canal.close();
+  }, [qc]);
+
   // Exportaciones vistas (dismiss por usuario en este equipo).
   const expKey = `amr_notif_exp_${usuario?.nombre ?? "x"}`;
   const [expVistas, setExpVistas] = useState<Set<number>>(() => {
@@ -138,7 +146,11 @@ export default function NotificacionesBell() {
   function abrirAnuncios() {
     setAbierto(false);
     const win = window.open("/anuncios", "_blank");
-    if (win) win.opener = null;
+    if (win) {
+      win.opener = null;
+    } else {
+      navigate("/anuncios");
+    }
   }
 
   async function resolver(id: number, aprobar: boolean) {

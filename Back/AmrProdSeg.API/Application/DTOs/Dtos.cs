@@ -359,6 +359,11 @@ public class AnunciosNuevosDto
     public List<AnuncioNuevoDto> Items { get; set; } = new();
 }
 
+public class MarcarAnunciosVistosDto
+{
+    public int HastaId { get; set; }
+}
+
 public class CrearNotaDto
 {
     public string Texto { get; set; } = string.Empty;

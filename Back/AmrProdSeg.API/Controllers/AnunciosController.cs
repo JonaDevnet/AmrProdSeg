@@ -33,9 +33,9 @@ public class AnunciosController : ControllerBase
         => Ok(await _service.GetNuevosAsync(UsuarioActualId()));
 
     [HttpPost("marcar-vistos")]
-    public async Task<IActionResult> MarcarVistos()
+    public async Task<IActionResult> MarcarVistos([FromBody] MarcarAnunciosVistosDto dto)
     {
-        await _service.MarcarVistosAsync(UsuarioActualId());
+        await _service.MarcarVistosAsync(UsuarioActualId(), dto.HastaId);
         return NoContent();
     }
 

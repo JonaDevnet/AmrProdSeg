@@ -25,13 +25,25 @@ export default function Anuncios() {
   const [error, setError] = useState<string>();
   const yaMarque = useRef(false);
 
-  // Al abrir la página, los anuncios actuales quedan leídos.
+  // Al abrir la página y cargar la lista, los anuncios visibles quedan leídos.
+  // Se marca sólo hasta el último Id mostrado (no los que se publiquen después).
   useEffect(() => {
-    if (yaMarque.current) return;
+    if (yaMarque.current || !data) return;
     yaMarque.current = true;
-    marcarVistos.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    const maxId = data.items[0]?.id ?? 0;
+    if (maxId <= 0) return;
+
+    marcarVistos.mutateAsync(maxId)
+      .then(() => {
+        try {
+          const canal = new BroadcastChannel("amr-anuncios");
+          canal.postMessage("vistos");
+          canal.close();
+        } catch { /* navegador sin BroadcastChannel */ }
+      })
+      .catch(() => { /* el polling de la campanita cubre el fallo */ });
+  }, [data, marcarVistos]);
 
   async function publicar(e: FormEvent) {
     e.preventDefault();

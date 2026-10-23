@@ -83,11 +83,11 @@ public class AnuncioService : IAnuncioService
         return id;
     }
 
-    public Task MarcarVistosAsync(int usuarioId)
+    public Task MarcarVistosAsync(int usuarioId, int hastaId)
     {
         if (usuarioId <= 0)
             throw new BusinessException("Usuario inválido.");
-        return _repo.MarcarVistosAsync(usuarioId);
+        return _repo.MarcarVistosAsync(usuarioId, Math.Max(0, hastaId));
     }
 
     public async Task EliminarAsync(int id, int usuarioId)

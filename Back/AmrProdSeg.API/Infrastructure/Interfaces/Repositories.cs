@@ -232,7 +232,7 @@ public interface IAnuncioRepository
     Task<(List<Anuncio> Items, int Total)> GetAllAsync(int page, int pageSize);
     Task<(List<Anuncio> Items, int Total)> GetNuevosAsync(int usuarioId, int top = 5);
     Task<int> InsertarAsync(string titulo, string? subtitulo, string texto, int publicadoPor);
-    Task<int> MarcarVistosAsync(int usuarioId);
+    Task<int> MarcarVistosAsync(int usuarioId, int hastaId);
     Task<int> EliminarAsync(int id);
 }
 

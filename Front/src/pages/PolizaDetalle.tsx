@@ -324,6 +324,14 @@ export default function PolizaDetalle() {
       {volviendo && (
         <div style={volverOverlay}>
           <div style={volverToast} className="amr-pop">
+            <button
+              onClick={() => setVolviendo(false)}
+              style={volverCerrar}
+              title="Cancelar retorno"
+              aria-label="Cancelar retorno"
+            >
+              ✕
+            </button>
             <div style={volverCheck}>✓</div>
             <div style={{ fontWeight: 700, fontSize: 16, color: "var(--ink-900)" }}>Pago registrado</div>
             <div style={{ fontSize: 13.5, color: "var(--ink-500)", marginTop: 4 }}>
@@ -410,8 +418,14 @@ const volverOverlay: CSSProperties = {
   display: "grid", placeItems: "center", zIndex: 60,
 };
 const volverToast: CSSProperties = {
+  position: "relative",
   background: "var(--paper)", borderRadius: 16, padding: "26px 30px", textAlign: "center",
   boxShadow: "var(--shadow-lg)", width: "min(340px, 90vw)", border: "1px solid var(--line)",
+};
+const volverCerrar: CSSProperties = {
+  position: "absolute", top: 10, right: 10, width: 30, height: 30, borderRadius: 8,
+  border: "1px solid var(--line)", background: "var(--paper)", color: "var(--ink-500)",
+  cursor: "pointer", fontSize: 16, lineHeight: 1, display: "grid", placeItems: "center",
 };
 const volverCheck: CSSProperties = {
   width: 52, height: 52, borderRadius: "50%", margin: "0 auto 12px", display: "grid", placeItems: "center",
