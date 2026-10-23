@@ -41,6 +41,7 @@ public class BajaRepository : IBajaRepository
                 PolizaId       = reader.GetInt32(reader.GetOrdinal("PolizaId")),
                 NroPoliza      = reader.GetString(reader.GetOrdinal("NroPoliza")),
                 ClienteNombre  = reader.GetString(reader.GetOrdinal("ClienteNombre")),
+                CompaniaNombre = reader.GetString(reader.GetOrdinal("CompaniaNombre")),
                 Motivo         = reader.GetString(reader.GetOrdinal("Motivo")),
                 Observaciones  = reader.IsDBNull(reader.GetOrdinal("Observaciones")) ? null : reader.GetString(reader.GetOrdinal("Observaciones")),
                 Estado         = reader.GetInt32(reader.GetOrdinal("Estado")),

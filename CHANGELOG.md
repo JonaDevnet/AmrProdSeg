@@ -12,6 +12,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/) y versionado s
   la edición se agregaba otro ciclo más y las fechas seguían avanzando. Ahora `PUT /polizas/{id}`
   sólo actualiza los datos y la vigencia. Los cambios de plan se hacen con Refacturar o Renovar.
 
+### Cambiado
+- **Frontend seguro para producción**: la imagen de build pasó de `node:20-alpine` (EOL) a
+  `node:24.22.1-alpine`. Se actualizaron `axios` a 1.20.0 y `react-router-dom` a 7.18.4;
+  `npm audit --omit=dev` queda en **0 vulnerabilidades**. Quedan sólo vulnerabilidades de
+  herramientas de desarrollo (Vite/Vitest), que no se incluyen en el bundle servido por nginx.
+
 ### Añadido
 - **Edición del inicio de cuota**: desde la ficha del cliente (`/clientes/:id` → Pólizas → editar)
   se puede cambiar el inicio del ciclo actual. No modifica la vigencia de la póliza: desplaza los

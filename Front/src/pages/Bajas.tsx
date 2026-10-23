@@ -68,7 +68,7 @@ export default function Bajas() {
     return aprobadasVisibles
       .map((b) => {
         const f = b.fechaSolicitud ? new Date(b.fechaSolicitud).toLocaleString() : "";
-        return `[${f}] Póliza: ${b.nroPoliza ?? `#${b.polizaId}`} | Cliente: ${b.clienteNombre ?? ""} | Motivo: ${b.motivo} | Solicitada por: ${b.solicitante ?? ""}`;
+        return `[${f}] Póliza: ${b.nroPoliza ?? `#${b.polizaId}`} | Compañía: ${b.companiaNombre ?? "—"} | Cliente: ${b.clienteNombre ?? ""} | Motivo: ${b.motivo} | Solicitada por: ${b.solicitante ?? ""}`;
       })
       .join("\n");
   }

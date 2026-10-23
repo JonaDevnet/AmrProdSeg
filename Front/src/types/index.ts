@@ -285,6 +285,7 @@ export interface Baja {
   polizaId: number;
   nroPoliza?: string | null;
   clienteNombre?: string | null;
+  companiaNombre?: string | null;
   motivo: string;
   observaciones?: string | null;
   estado: number; // 0=Pendiente 1=Aprobada 2=Rechazada

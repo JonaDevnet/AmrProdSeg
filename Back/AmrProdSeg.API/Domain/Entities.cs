@@ -132,6 +132,7 @@ public class Baja
     public DateTime FechaSolicitud { get; set; }
     public string? NroPoliza { get; set; }
     public string? ClienteNombre { get; set; }
+    public string? CompaniaNombre { get; set; }
     public string? Solicitante { get; set; }
 }
 

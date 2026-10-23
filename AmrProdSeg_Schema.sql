@@ -1840,11 +1840,13 @@ CREATE OR ALTER PROCEDURE sp_Baja_GetAll @Estado INT = NULL AS
 BEGIN
     SET NOCOUNT ON;
     SELECT b.Id, b.PolizaId, p.Numero AS NroPoliza, c.Nombre AS ClienteNombre,
+           cp.Nombre AS CompaniaNombre,
            b.Motivo, b.Observaciones, b.Estado, b.FechaSolicitud,
            u.Nombre AS Solicitante
     FROM Bajas b
     INNER JOIN Polizas  p ON p.Id = b.PolizaId
     INNER JOIN Clientes c ON c.Id = p.ClienteId
+    INNER JOIN Companias cp ON cp.Id = p.CompaniaId
     LEFT  JOIN Usuarios u ON u.Id = b.SolicitadoPor
     WHERE (@Estado IS NULL OR b.Estado = @Estado)
     ORDER BY b.FechaSolicitud DESC;
