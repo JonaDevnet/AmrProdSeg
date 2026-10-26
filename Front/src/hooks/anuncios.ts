@@ -14,7 +14,11 @@ export function useAnunciosNuevos() {
   return useQuery({
     queryKey: ["notif", "anuncios"],
     queryFn: anunciosApi.getAnunciosNuevos,
-    staleTime: 60 * 1000,
+    // Los "nuevos" dependen del usuario logueado (UltimoAnuncioVistoId), así que
+    // NO se cachea entre sesiones: se refresca al montar para no mostrar el
+    // contador de la cuenta anterior.
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchInterval: 60 * 1000,
   });
 }
