@@ -65,7 +65,7 @@ export default function ClienteFicha() {
       if (vehModal?.vehiculo) {
         await actualizarVeh.mutateAsync({
           id: vehModal.vehiculo.id,
-          dto: { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), combustion: limpioOpc(v.combustion) },
+          dto: { marca: v.marca.trim(), modelo: v.modelo.trim(), anio: v.anio, chasis: limpioOpc(v.chasis), motor: limpioOpc(v.motor), combustion: limpioOpc(v.combustion), patente: v.patente.trim().toUpperCase() },
         });
       } else {
         await crearVeh.mutateAsync({

@@ -13,7 +13,8 @@ import { EstadoPolizaBadge, EstadoCobroBadge, Plate } from "../components/ui/Bad
 import { companiaColor } from "../utils/companiaColor";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import { IconArrowLeft, IconDownload, IconBan } from "../components/Icons";
-import { formatFecha, formatMoneda } from "../utils/format";
+import { formatFecha, formatMoneda, hoyLocalISO } from "../utils/format";
+import { debeRenovar } from "../utils/poliza";
 import { useAuth } from "../auth/AuthContext";
 import type { Cobro } from "../types";
 
@@ -125,9 +126,9 @@ export default function PolizaDetalle() {
   const pagadas = cuotas.filter((c) => c.estado === 1).length;
   const impagas = cuotas.some((c) => c.estado !== 1);
   const renovable = poliza.estado === "Activa" || poliza.estado === "Vencida";
-  const hoyIso = new Date().toISOString().slice(0, 10);
+  const hoyIso = hoyLocalISO();
   // Refacturación: la póliza sigue vigente (no llegó la fecha fin). Si terminó, es Renovación.
-  const refactura = poliza.estado === "Activa" && hoyIso < poliza.fechaFin.slice(0, 10);
+  const refactura = poliza.estado === "Activa" && !debeRenovar(poliza, hoyIso);
   // Con cuotas impagas, un no-admin debe dejar el motivo (queda pendiente de aprobación).
   const requiereMotivo = impagas && !esAdmin;
 

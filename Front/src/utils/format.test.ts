@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatFecha, formatMoneda } from "./format";
+import { formatFecha, formatMoneda, hoyLocalISO } from "./format";
 
 // Fecha "esperada" construida en hora LOCAL, para no depender de la zona horaria del runner.
 const esperadoLocal = (y: number, mes: number, d: number) =>
@@ -30,5 +30,17 @@ describe("formatMoneda", () => {
     const s = formatMoneda(1234567);
     expect(s).toContain("$");
     expect(s).toContain("1.234.567");
+  });
+});
+
+describe("hoyLocalISO", () => {
+  it("devuelve la fecha de hoy en hora local (YYYY-MM-DD)", () => {
+    const ahora = new Date();
+    const esperado = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
+    expect(hoyLocalISO()).toBe(esperado);
+  });
+
+  it("coincide con el formato de una fecha-solo", () => {
+    expect(hoyLocalISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

@@ -17,6 +17,12 @@ export function formatMoneda(n: number): string {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 }
 
+/** Fecha de "hoy" en hora local (YYYY-MM-DD), sin el desfase UTC de toISOString(). */
+export function hoyLocalISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Fecha y hora en formato local (para auditoría). */
 export function formatFechaHora(iso?: string | null): string {
   if (!iso) return "—";

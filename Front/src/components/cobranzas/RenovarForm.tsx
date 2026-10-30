@@ -6,6 +6,7 @@ import { Field, Input, Select } from "../ui/Field";
 import Button from "../ui/Button";
 import { useCoberturas } from "../../hooks/admin";
 import { formatFecha } from "../../utils/format";
+import { debeRenovar } from "../../utils/poliza";
 import type { Poliza, Compania } from "../../types";
 import type { RenovarPolizaDto } from "../../api/polizas";
 
@@ -60,11 +61,12 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, re
 
   const fechaInicioOriginal = poliza.fechaInicio.slice(0, 10);
   const fechaFinOriginal = poliza.fechaFin.slice(0, 10);
-  // Si la vigencia (período de póliza) ya terminó → RENOVACIÓN: fecha nueva editable.
-  // Si sigue vigente → REFACTURACIÓN: solo se renuevan las cuotas, continúan desde la última
-  // (+1 mes) y se hereda la vigencia (misma fecha fin).
-  const periodoTerminado = isoHoy() >= fechaFinOriginal;
+  // Si la vigencia terminó o el plan de cuotas cubre todo el período → RENOVACIÓN.
+  // Si sigue vigente y quedan meses → REFACTURACIÓN.
+  const periodoTerminado = debeRenovar(poliza, isoHoy());
   const periodoMeses = Math.max(1, mesesEntre(fechaInicioOriginal, fechaFinOriginal));
+  // Al renovar antes del fin, la nueva vigencia arranca en la fecha fin actual (sin superponer).
+  const inicioSugerido = fechaFinOriginal > isoHoy() ? fechaFinOriginal : isoHoy();
   // 1ª cuota de la refacturación = última cuota original + 1 mes (continúa el mismo día).
   const primerVencContinuado = addMesesISO(ultimaCuotaOriginal ?? isoHoy(), 1);
 
@@ -79,7 +81,7 @@ export default function RenovarForm({ poliza, companias, ultimaCuotaOriginal, re
       numero: poliza.numero,
       companiaId: poliza.companiaId,
       cobertura: poliza.cobertura ?? "",
-      inicioPoliza: isoHoy(),
+      inicioPoliza: inicioSugerido,
       precioCuota: cuotaActual,
       cantidadCuotas: cuotasDefault,
       primaOG: poliza.primaOG ?? undefined,

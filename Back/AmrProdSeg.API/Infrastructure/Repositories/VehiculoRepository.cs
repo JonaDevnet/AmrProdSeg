@@ -47,6 +47,7 @@ public class VehiculoRepository : IVehiculoRepository
         cmd.Parameters.AddWithValue("@Marca",         v.Marca);
         cmd.Parameters.AddWithValue("@Modelo",        v.Modelo);
         cmd.Parameters.AddWithValue("@Anio",          v.Anio);
+        cmd.Parameters.AddWithValue("@Patente",       string.IsNullOrEmpty(v.Patente) ? (object)DBNull.Value : v.Patente);
         cmd.Parameters.AddWithValue("@Chasis",        (object?)v.Chasis ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@Motor",         (object?)v.Motor ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@TipoCobertura", (object?)v.TipoCobertura ?? DBNull.Value);

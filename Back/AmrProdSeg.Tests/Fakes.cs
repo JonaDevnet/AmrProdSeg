@@ -165,9 +165,10 @@ public class FakeVehiculoRepository : IVehiculoRepository
 {
     public Vehiculo? PorPatente;
     public int InsertarLlamadas;
+    public Vehiculo? UltimoActualizado;
 
     public Task<int> InsertarAsync(Vehiculo v) { InsertarLlamadas++; return Task.FromResult(7); }
-    public Task ActualizarAsync(Vehiculo v) => Task.CompletedTask;
+    public Task ActualizarAsync(Vehiculo v) { UltimoActualizado = v; return Task.CompletedTask; }
     public Task<List<Vehiculo>> GetPorClienteAsync(int clienteId) => Task.FromResult(new List<Vehiculo>());
     public Task<Vehiculo?> GetByPatenteAsync(string patente) => Task.FromResult(PorPatente);
 }

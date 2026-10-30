@@ -35,12 +35,25 @@ public class VehiculoService : IVehiculoService
 
     public async Task ActualizarAsync(int id, ActualizarVehiculoDto dto)
     {
+        // Patente opcional: si viene, se normaliza y se valida que no esté en uso por otro vehículo.
+        string? patente = string.IsNullOrWhiteSpace(dto.Patente)
+            ? null
+            : dto.Patente.Trim().ToUpperInvariant();
+
+        if (patente is not null)
+        {
+            var existente = await _vehiculoRepo.GetByPatenteAsync(patente);
+            if (existente is not null && existente.Id != id)
+                throw new BusinessException($"Ya existe un vehículo con la patente {patente}.");
+        }
+
         var vehiculo = new Vehiculo
         {
             Id            = id,
             Marca         = dto.Marca,
             Modelo        = dto.Modelo,
             Anio          = dto.Anio,
+            Patente       = patente ?? string.Empty,   // vacío = no se modifica (COALESCE en el SP)
             Chasis        = dto.Chasis,
             Motor         = dto.Motor,
             TipoCobertura = dto.TipoCobertura,

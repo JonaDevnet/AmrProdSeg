@@ -19,6 +19,7 @@ export interface ActualizarVehiculoDto {
   chasis?: string;
   motor?: string;
   combustion?: string;
+  patente?: string;
 }
 
 export async function getVehiculosPorCliente(clienteId: number): Promise<Vehiculo[]> {

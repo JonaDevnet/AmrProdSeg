@@ -221,6 +221,7 @@ public class ActualizarVehiculoDto
     public string? Motor { get; set; }
     public string? TipoCobertura { get; set; }
     public string? Combustion { get; set; }
+    public string? Patente { get; set; }   // opcional: si viene, valida unicidad y la actualiza
 }
 
 // ---------- Compañías ----------

@@ -7,14 +7,14 @@ import { imprimirComprobante } from "../api/cobros";
 import { Cargando, VacioState, ErrorState } from "../components/ui/States";
 import Modal from "../components/ui/Modal";
 import { useAuth } from "../auth/AuthContext";
-import { formatFecha, formatMoneda } from "../utils/format";
+import { formatFecha, formatMoneda, hoyLocalISO } from "../utils/format";
 import { IconArrowLeft, IconFile } from "../components/Icons";
 import type { Cobro } from "../types";
 
 function estadoCuota(c: Cobro): { label: string; bg: string; fg: string } {
   if (c.estado === 1) return { label: "Pagada", bg: "var(--ok-100)", fg: "var(--ok-700)" };
   const venc = (c.fechaVencimiento ?? "").slice(0, 10);
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = hoyLocalISO();
   if (c.estado === 2 || (venc && venc < hoy)) return { label: "No pagada", bg: "var(--bad-100)", fg: "var(--bad-700)" };
   return { label: "Pendiente", bg: "var(--warn-100)", fg: "var(--warn-700)" };
 }

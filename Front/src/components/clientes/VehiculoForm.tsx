@@ -56,8 +56,7 @@ export default function VehiculoForm({ vehiculo, onSubmit, enviando }: Props) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
         <Field label="Año" error={errors.anio?.message}><Input type="number" {...register("anio")} /></Field>
         <Field label="Patente" error={errors.patente?.message}>
-          <Input {...register("patente")} placeholder="AB123CD" disabled={editar}
-            style={editar ? { background: "var(--canvas)", color: "var(--ink-500)" } : undefined} />
+          <Input {...register("patente")} placeholder="AB123CD" style={{ textTransform: "uppercase", letterSpacing: "0.08em" }} />
         </Field>
       </div>
       <Field label="Tipo de combustión" error={undefined}>

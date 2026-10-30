@@ -584,6 +584,64 @@ public class VehiculoServiceTests
         Assert.Equal(7, id);
         Assert.Equal(1, repo.InsertarLlamadas);
     }
+
+    [Fact]
+    public async Task ActualizarAsync_ConPatenteNueva_ActualizaNormalizada()
+    {
+        var repo = new FakeVehiculoRepository { PorPatente = null };
+        var service = new VehiculoService(repo);
+
+        await service.ActualizarAsync(1, new ActualizarVehiculoDto
+        {
+            Marca = "Toyota", Modelo = "Corolla", Anio = 2020, Patente = "  ab123cd  "
+        });
+
+        Assert.NotNull(repo.UltimoActualizado);
+        Assert.Equal("AB123CD", repo.UltimoActualizado!.Patente);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_ConMismaPatentePropia_NoLanza()
+    {
+        var repo = new FakeVehiculoRepository { PorPatente = new Vehiculo { Id = 1, Patente = "ABC123" } };
+        var service = new VehiculoService(repo);
+
+        await service.ActualizarAsync(1, new ActualizarVehiculoDto
+        {
+            Marca = "Toyota", Modelo = "Corolla", Anio = 2020, Patente = "ABC123"
+        });
+
+        Assert.NotNull(repo.UltimoActualizado);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_ConPatenteDeOtroVehiculo_LanzaBusinessException()
+    {
+        var repo = new FakeVehiculoRepository { PorPatente = new Vehiculo { Id = 999, Patente = "ABC123" } };
+        var service = new VehiculoService(repo);
+
+        await Assert.ThrowsAsync<BusinessException>(() => service.ActualizarAsync(1, new ActualizarVehiculoDto
+        {
+            Marca = "Toyota", Modelo = "Corolla", Anio = 2020, Patente = "ABC123"
+        }));
+
+        Assert.Null(repo.UltimoActualizado);
+    }
+
+    [Fact]
+    public async Task ActualizarAsync_SinPatente_NoLaModifica()
+    {
+        var repo = new FakeVehiculoRepository { PorPatente = null };
+        var service = new VehiculoService(repo);
+
+        await service.ActualizarAsync(1, new ActualizarVehiculoDto
+        {
+            Marca = "Toyota", Modelo = "Corolla", Anio = 2020
+        });
+
+        Assert.NotNull(repo.UltimoActualizado);
+        Assert.Equal(string.Empty, repo.UltimoActualizado!.Patente);
+    }
 }
 
 public class ClienteServiceTests

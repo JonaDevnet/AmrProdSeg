@@ -13,7 +13,8 @@ import RenovarForm from "../components/cobranzas/RenovarForm";
 import Modal from "../components/ui/Modal";
 import { Cargando, VacioState } from "../components/ui/States";
 import { IconSearch } from "../components/Icons";
-import { formatFecha, formatMoneda } from "../utils/format";
+import { formatFecha, formatMoneda, hoyLocalISO } from "../utils/format";
+import { debeRenovar } from "../utils/poliza";
 import { companiaColor } from "../utils/companiaColor";
 import type { Cobro, Poliza } from "../types";
 
@@ -219,8 +220,8 @@ function DetallePoliza({ poliza, compania, companias, autoCobrar }: { poliza: Po
     } catch (e: any) { setAccionError(e?.response?.data?.error ?? "No se pudo renovar."); }
   }
 
-  const hoyIso = new Date().toISOString().slice(0, 10);
-  const periodoTerminado = hoyIso >= poliza.fechaFin.slice(0, 10);
+  const hoyIso = hoyLocalISO();
+  const periodoTerminado = debeRenovar(poliza, hoyIso);
   const ultimaCuotaOriginal = [...cuotas]
     .sort((a, b) => new Date(b.fechaVencimiento).getTime() - new Date(a.fechaVencimiento).getTime())[0]
     ?.fechaVencimiento?.slice(0, 10);

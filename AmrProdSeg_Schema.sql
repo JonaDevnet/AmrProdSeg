@@ -3430,7 +3430,7 @@ CREATE OR ALTER PROCEDURE sp_Vehiculo_Actualizar
     @Id INT, @Marca VARCHAR(60), @Modelo VARCHAR(60), @Anio SMALLINT,
     @Chasis VARCHAR(50) = NULL, @Motor VARCHAR(50) = NULL,
     @TipoCobertura VARCHAR(40) = NULL, @Combustion VARCHAR(40) = NULL,
-    @ClienteId INT = NULL
+    @ClienteId INT = NULL, @Patente VARCHAR(10) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3438,7 +3438,8 @@ BEGIN
     SET Marca = @Marca, Modelo = @Modelo, Anio = @Anio, Chasis = @Chasis, Motor = @Motor,
         TipoCobertura = COALESCE(@TipoCobertura, TipoCobertura),
         Combustion    = COALESCE(@Combustion, Combustion),
-        ClienteId     = COALESCE(@ClienteId, ClienteId)
+        ClienteId     = COALESCE(@ClienteId, ClienteId),
+        Patente       = COALESCE(@Patente, Patente)
     WHERE Id = @Id;
 END
 GO
